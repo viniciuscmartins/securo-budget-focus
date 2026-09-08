@@ -1642,6 +1642,7 @@
   "payees": {
     "addFavorite": "Añadir a favoritos",
     "removeFavorite": "Quitar de favoritos",
+    "favoriteError": "No se pudo actualizar el favorito",
     "title": "Beneficiarios",
     "section": "Configuración",
     "payee": "Beneficiario",

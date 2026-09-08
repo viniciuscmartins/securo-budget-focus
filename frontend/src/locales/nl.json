@@ -1643,6 +1643,7 @@
   "payees": {
     "addFavorite": "Toevoegen aan favorieten",
     "removeFavorite": "Verwijderen uit favorieten",
+    "favoriteError": "Kan favoriet niet bijwerken",
     "title": "Begunstigden",
     "section": "Instellen",
     "payee": "Begunstigde",

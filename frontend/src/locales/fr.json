@@ -1642,6 +1642,7 @@
   "payees": {
     "addFavorite": "Ajouter aux favoris",
     "removeFavorite": "Retirer des favoris",
+    "favoriteError": "Impossible de mettre à jour le favori",
     "title": "Bénéficiaires",
     "section": "Configuration",
     "payee": "Bénéficiaire",
