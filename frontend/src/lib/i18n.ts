@@ -71,6 +71,7 @@ export type SupportedLang =
   | 'nl'
   | 'sk'
   | 'hu'
+  | 'cs'
   | 'el'
   | 'hi'
   | 'ja'
@@ -93,6 +94,7 @@ export const SUPPORTED_LANGS: { code: SupportedLang; label: string }[] = [
   { code: 'nl', label: 'Nederlands' },
   { code: 'sk', label: 'Slovenčina' },
   { code: 'hu', label: 'Magyar' },
+  { code: 'cs', label: 'Čeština' },
   { code: 'el', label: 'Ελληνικά' },
   { code: 'hi', label: 'हिन्दी' },
   { code: 'ja', label: '日本語' },
@@ -120,6 +122,7 @@ export function resolveSupportedLang(lng?: string | null): SupportedLang {
   if (tag.startsWith('nl')) return 'nl'
   if (tag.startsWith('sk')) return 'sk'
   if (tag.startsWith('hu')) return 'hu'
+  if (tag.startsWith('cs')) return 'cs'
   if (tag.startsWith('el')) return 'el'
   if (tag.startsWith('hi')) return 'hi'
   if (tag.startsWith('ja')) return 'ja'
