@@ -1719,7 +1719,8 @@
       "invalid_date": "Érvénytelen dátumformátum",
       "no_amount": "Nincs bejövő vagy kimenő összeg",
       "invalid_amount": "Érvénytelen összegformátum"
-    }
+    },
+    "selectAll": "Összes kijelölése"
   },
   "assetImport": {
     "title": "Befektetési megbízások importálása",
@@ -1939,6 +1940,9 @@
     "inflowOutflow": "Beáramlás és kiáramlás",
     "startingBalance": "Nyitó egyenleg",
     "endingBalance": "Várható egyenleg",
+    "runwayNegativeOn": "Az egyenleg negatívba fordul: {{date}}",
+    "runwayAlreadyNegative": "Már negatív",
+    "lowestBalance": "Legalacsonyabb egyenleg",
     "projectedIncome": "Várható bevétel",
     "projectedExpenses": "Várható kiadások",
     "incomeExpenses": "Bevételek és kiadások",
@@ -2143,6 +2147,8 @@
     "remove": "Eltávolítás"
   },
   "splitGroups": {
+    "searchPlaceholder": "Csoportok keresése...",
+    "clearSearch": "Keresés törlése",
     "title": "Csoportok",
     "section": "Beállítás",
     "add": "Csoport hozzáadása",
