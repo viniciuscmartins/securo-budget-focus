@@ -2147,6 +2147,8 @@
     "remove": "हटाएँ"
   },
   "splitGroups": {
+    "searchPlaceholder": "समूह खोजें...",
+    "clearSearch": "खोज साफ़ करें",
     "title": "समूह",
     "section": "सेटअप",
     "add": "समूह जोड़ें",

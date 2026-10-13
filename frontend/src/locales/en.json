@@ -2147,6 +2147,8 @@
     "remove": "Remove"
   },
   "splitGroups": {
+    "searchPlaceholder": "Search groups...",
+    "clearSearch": "Clear search",
     "title": "Groups",
     "section": "Setup",
     "add": "Add group",

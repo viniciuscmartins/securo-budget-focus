@@ -2147,6 +2147,8 @@
     "remove": "Αφαίρεση"
   },
   "splitGroups": {
+    "searchPlaceholder": "Αναζήτηση ομάδων...",
+    "clearSearch": "Εκκαθάριση αναζήτησης",
     "title": "Ομάδες",
     "section": "Ρύθμιση",
     "add": "Προσθήκη ομάδας",
