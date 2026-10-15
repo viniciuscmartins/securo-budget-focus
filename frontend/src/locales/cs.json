@@ -1224,6 +1224,7 @@
     "confirmDeleteTitle": "Smazat účet?",
     "confirmDeleteDesc": "Tuto akci nelze vrátit. Smaže také všechny transakce, záznamy o importech a opakované transakce přiřazené k tomuto účtu a odpojí všechny cíle, které ho sledovaly.",
     "openingBalance": "počáteční zůstatek",
+    "openingBalanceDescription": "Počáteční zůstatek",
     "notFound": "Účet nebyl nalezen.",
     "balance": "Zůstatek",
     "balanceCreditCard": "Dlužná částka",

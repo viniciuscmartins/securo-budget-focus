@@ -1197,6 +1197,7 @@
     "confirmDeleteTitle": "Usunąć konto?",
     "confirmDeleteDesc": "Ta operacja jest nieodwracalna. Usunie również każdą transakcję, rekord importu i transakcję cykliczną powiązaną z tym kontem oraz odłączy wszelkie cele, które je śledziły.",
     "openingBalance": "saldo początkowe",
+    "openingBalanceDescription": "Saldo początkowe",
     "notFound": "Nie znaleziono konta.",
     "balance": "Saldo",
     "balanceCreditCard": "Kwota zadłużenia",

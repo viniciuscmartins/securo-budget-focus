@@ -1158,6 +1158,7 @@
     "confirmDeleteTitle": "Supprimer le compte ?",
     "confirmDeleteDesc": "Cette action est irréversible. Elle supprimera également toutes les transactions, enregistrements d'import et transactions récurrentes attachés à ce compte, et dissociera tous les objectifs qui le suivaient.",
     "openingBalance": "solde d'ouverture",
+    "openingBalanceDescription": "Solde d'ouverture",
     "notFound": "Compte introuvable.",
     "balance": "Solde",
     "balanceCreditCard": "Montant dû",

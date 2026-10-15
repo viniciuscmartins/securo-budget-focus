@@ -1208,6 +1208,7 @@
     "confirmDeleteTitle": "Vymazať účet?",
     "confirmDeleteDesc": "Táto akcia je nezvratná. Vymaže aj všetky transakcie, záznamy o importoch a opakované transakcie priradené k tomuto účtu a odpojí všetky ciele, ktoré ho sledovali.",
     "openingBalance": "počiatočný zostatok",
+    "openingBalanceDescription": "Počiatočný zostatok",
     "notFound": "Účet sa nenašiel.",
     "balance": "Zostatok",
     "balanceCreditCard": "Dlžná suma",

@@ -1156,6 +1156,7 @@
     "confirmDeleteTitle": "Konto löschen?",
     "confirmDeleteDesc": "Diese Aktion kann nicht rückgängig gemacht werden. Es werden auch alle Transaktionen, Importdatensätze und wiederkehrenden Transaktionen gelöscht, die mit diesem Konto verknüpft sind, und alle Ziele, die dieses Konto verfolgt haben, werden getrennt.",
     "openingBalance": "Eröffnungssaldo",
+    "openingBalanceDescription": "Eröffnungssaldo",
     "notFound": "Konto nicht gefunden.",
     "balance": "Saldo",
     "balanceCreditCard": "Geschuldeter Betrag",

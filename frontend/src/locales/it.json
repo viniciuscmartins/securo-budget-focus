@@ -1158,6 +1158,7 @@
     "confirmDeleteTitle": "Eliminare il conto?",
     "confirmDeleteDesc": "Questa azione è irreversibile. Eliminerà anche ogni transazione, record di importazione e transazione ricorrente collegati a questo conto, e scollegherà gli obiettivi che lo tracciavano.",
     "openingBalance": "saldo iniziale",
+    "openingBalanceDescription": "Saldo iniziale",
     "notFound": "Conto non trovato.",
     "balance": "Saldo",
     "balanceCreditCard": "Importo dovuto",

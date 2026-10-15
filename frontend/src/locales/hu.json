@@ -1156,6 +1156,7 @@
     "confirmDeleteTitle": "Törlöd a számlát?",
     "confirmDeleteDesc": "Ez a művelet nem vonható vissza. A számlához tartozó összes tranzakció, importálási rekord és ismétlődő tranzakció is törlődik, és az ezt követő célok kapcsolata megszűnik.",
     "openingBalance": "nyitó egyenleg",
+    "openingBalanceDescription": "Nyitó egyenleg",
     "notFound": "A számla nem található.",
     "balance": "Egyenleg",
     "balanceCreditCard": "Tartozás",

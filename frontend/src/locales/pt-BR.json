@@ -1158,6 +1158,7 @@
     "confirmDeleteTitle": "Excluir conta?",
     "confirmDeleteDesc": "Esta ação é irreversível. Também excluirá todas as transações, registros de importação e transações recorrentes vinculadas a esta conta, e desvinculará qualquer meta que estivesse acompanhando-a.",
     "openingBalance": "saldo inicial",
+    "openingBalanceDescription": "Saldo inicial",
     "notFound": "Conta não encontrada.",
     "balance": "Saldo",
     "balanceCreditCard": "Valor devido",

@@ -1156,6 +1156,7 @@
     "confirmDeleteTitle": "口座を削除しますか?",
     "confirmDeleteDesc": "この操作は取り消せません。この口座に関連するすべての取引、インポート記録、定期取引も削除され、この口座を追跡していた目標の紐付けが解除されます。",
     "openingBalance": "期首残高",
+    "openingBalanceDescription": "期首残高",
     "notFound": "口座が見つかりません。",
     "balance": "残高",
     "balanceCreditCard": "未払い金額",
