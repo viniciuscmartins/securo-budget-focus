@@ -174,6 +174,8 @@ export interface Account {
   current_balance: number
   previous_balance: number | null
   balance_primary: number | null
+  // No real FX rate: balance_primary is unset and totals use the native amount.
+  fx_fallback?: boolean
   currency: string
   credit_limit: number | null
   available_credit: number | null
@@ -226,6 +228,7 @@ export interface AccountSummary {
   projected_expenses?: number
   projected_income_primary?: number | null
   projected_expenses_primary?: number | null
+  fx_fallback?: boolean
 }
 
 /** Set when this transaction settles an invoice. Absent in workspaces
