@@ -15,6 +15,7 @@ import type {
   ConnectionSettings,
   Account,
   AccountSummary,
+  AccountRunningBalancePoint,
   Collection,
   CreditCardBill,
   DescriptionSuggestion,
@@ -487,6 +488,10 @@ export const accounts = {
     const { data } = await api.get(`/accounts/${id}/balance-history`, { params: { from, to } })
     return data
   },
+  runningBalance: async (id: string, from?: string, to?: string): Promise<AccountRunningBalancePoint[]> => {
+    const { data } = await api.get(`/accounts/${id}/running-balance`, { params: { from, to } })
+    return data
+  },
   bills: async (id: string, limit = 24): Promise<CreditCardBill[]> => {
     const { data } = await api.get(`/accounts/${id}/bills`, { params: { limit } })
     return data
@@ -521,6 +526,7 @@ export const transactions = {
     page?: number
     limit?: number
     include_opening_balance?: boolean
+    include_running_balance?: boolean
     exclude_transfers?: boolean
     user_pnl_only?: boolean
     exclude_ignored?: boolean
