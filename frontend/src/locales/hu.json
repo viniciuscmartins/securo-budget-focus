@@ -1212,6 +1212,7 @@
     "updated": "Számla frissítve",
     "deleted": "Számla törölve",
     "syncDone": "Szinkronizálás kész",
+    "syncRateLimited": "Elérted a bank napi korlátját, nem érkeztek új adatok. Próbáld újra később.",
     "syncError": "Sikertelen szinkronizálás",
     "connected": "Bank sikeresen csatlakoztatva",
     "connectError": "Nem sikerült csatlakoztatni a bankot",
