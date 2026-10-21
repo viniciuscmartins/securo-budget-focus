@@ -1726,7 +1726,9 @@
       "no_amount": "Nessun importo in entrata o in uscita",
       "invalid_amount": "Formato importo non valido",
       "invalid_fx_rate": "Tasso di cambio non valido",
-      "ambiguous_amount": "Entrata e uscita entrambe compilate"
+      "ambiguous_amount": "Entrata e uscita entrambe compilate",
+      "conflicting_amount": "Campi di importo in conflitto",
+      "invalid_direction": "Indicatore accredito/addebito non valido"
     },
     "selectAll": "Seleziona tutto"
   },

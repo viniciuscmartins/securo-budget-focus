@@ -1723,7 +1723,9 @@
       "no_amount": "Kein Zu- oder Abflussbetrag",
       "invalid_amount": "Ungültiges Betragsformat",
       "invalid_fx_rate": "Ungültiger Wechselkurs",
-      "ambiguous_amount": "Zu- und Abflussbetrag ausgefüllt"
+      "ambiguous_amount": "Zu- und Abflussbetrag ausgefüllt",
+      "conflicting_amount": "Widersprüchliche Betragfelder",
+      "invalid_direction": "Ungültiges Gutschrift-/Lastschriftkennzeichen"
     },
     "selectAll": "Alle auswählen"
   },

@@ -1830,7 +1830,9 @@
       "no_amount": "Chybí částka příjmu nebo výdaje",
       "invalid_amount": "Neplatný formát částky",
       "invalid_fx_rate": "Neplatná měnová sazba",
-      "ambiguous_amount": "Vyplněny příjem i výdaj"
+      "ambiguous_amount": "Vyplněny příjem i výdaj",
+      "conflicting_amount": "Konfliktní pole částek",
+      "invalid_direction": "Neplatný indikátor příjmu/výdaje"
     },
     "selectAll": "Vybrat vše",
     "incomeCount_one": "{{count}} příjem",

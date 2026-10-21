@@ -1726,7 +1726,9 @@
       "no_amount": "Aucun montant d'entrée ou de sortie",
       "invalid_amount": "Format de montant invalide",
       "invalid_fx_rate": "Taux de change invalide",
-      "ambiguous_amount": "Entrée et sortie renseignées"
+      "ambiguous_amount": "Entrée et sortie renseignées",
+      "conflicting_amount": "Champs de montant contradictoires",
+      "invalid_direction": "Indicateur crédit/débit invalide"
     },
     "selectAll": "Tout sélectionner"
   },

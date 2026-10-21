@@ -1838,7 +1838,9 @@
       "no_amount": "Chýba suma príjmu alebo výdaja",
       "invalid_amount": "Neplatný formát sumy",
       "invalid_fx_rate": "Neplatný kurz",
-      "ambiguous_amount": "Vyplnené príjmy aj výdavky"
+      "ambiguous_amount": "Vyplnené príjmy aj výdavky",
+      "conflicting_amount": "Konfliktné polia sumy",
+      "invalid_direction": "Neplatný indikátor príjmu/výdavku"
     },
     "selectAll": "Vybrať všetko"
   },

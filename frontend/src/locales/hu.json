@@ -1722,7 +1722,9 @@
       "no_amount": "Nincs bejövő vagy kimenő összeg",
       "invalid_amount": "Érvénytelen összegformátum",
       "invalid_fx_rate": "Érvénytelen árfolyam",
-      "ambiguous_amount": "Bemenő és kimenő összeg is megvan"
+      "ambiguous_amount": "Bemenő és kimenő összeg is megvan",
+      "conflicting_amount": "Ütköző összegmezők",
+      "invalid_direction": "Érvénytelen jóváírás/levonás jelző"
     },
     "selectAll": "Összes kijelölése"
   },

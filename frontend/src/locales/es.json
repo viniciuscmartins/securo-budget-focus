@@ -1726,7 +1726,9 @@
       "no_amount": "Sin importe de entrada o salida",
       "invalid_amount": "Formato de importe no válido",
       "invalid_fx_rate": "Tipo de cambio no válido",
-      "ambiguous_amount": "Entrada y salida con valor"
+      "ambiguous_amount": "Entrada y salida con valor",
+      "conflicting_amount": "Campos de importe en conflicto",
+      "invalid_direction": "Indicador de crédito/débito no válido"
     },
     "selectAll": "Seleccionar todo"
   },

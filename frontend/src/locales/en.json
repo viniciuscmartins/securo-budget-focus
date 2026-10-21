@@ -1722,7 +1722,9 @@
       "no_amount": "No Inflow or Outflow Amount",
       "invalid_amount": "Invalid Amount Format",
       "invalid_fx_rate": "Invalid Exchange Rate",
-      "ambiguous_amount": "Both Inflow and Outflow Filled"
+      "ambiguous_amount": "Both Inflow and Outflow Filled",
+      "conflicting_amount": "Conflicting Amount Fields",
+      "invalid_direction": "Invalid Credit or Debit Indicator"
     },
     "selectAll": "Select all"
   },

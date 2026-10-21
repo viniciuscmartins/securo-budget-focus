@@ -1724,7 +1724,9 @@
       "no_amount": "Geen in- of uitstroombedrag",
       "invalid_amount": "Ongeldig bedragformaat",
       "invalid_fx_rate": "Ongeldige wisselkoers",
-      "ambiguous_amount": "In- en uitstroombedrag ingevuld"
+      "ambiguous_amount": "In- en uitstroombedrag ingevuld",
+      "conflicting_amount": "Tegensprekende bedragsvelden",
+      "invalid_direction": "Ongeldige credit/debet-indicator"
     },
     "selectAll": "Alles selecteren"
   },
