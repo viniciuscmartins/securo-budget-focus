@@ -1,4 +1,6 @@
 import axios from 'axios'
+import type { AxiosResponse } from 'axios'
+import { markDataChanged } from '@/lib/data-changed'
 import type { NumberFormat, DateFormat } from '@/lib/format'
 import type {
   User,
@@ -106,6 +108,7 @@ import type {
 const api = axios.create({
   baseURL: '/api',
 })
+export { api }
 
 // Storage key for the currently-selected workspace ID. Lives in
 // localStorage so reloads + new tabs stay on the same workspace until
@@ -135,6 +138,31 @@ api.interceptors.response.use(
     }
     return Promise.reject(error)
   }
+)
+
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    /** Set on POSTs that only read (previews, sign-in, tokens, tests) so
+     * they do not tell other tabs that data changed. */
+    skipDataChanged?: boolean
+  }
+}
+
+/** Request config for a POST that changes nothing on the server. */
+const readOnly = { skipDataChanged: true } as const
+
+// A successful mutation here changes data that other tabs may be showing.
+// The bump fires the `storage` event in those tabs, where
+// `useCrossTabRefresh` turns it into a cache invalidation (issue #763).
+// Read-only POSTs opt out: a preview query re-run by that invalidation would
+// otherwise bump again and make two open tabs refresh each other forever.
+api.interceptors.response.use(
+  (response: AxiosResponse) => {
+    const method = (response.config.method ?? 'get').toLowerCase()
+    if (method !== 'get' && !response.config.skipDataChanged) markDataChanged()
+    return response
+  },
+  (error: unknown) => Promise.reject(error)
 )
 
 // Workspaces
@@ -214,6 +242,7 @@ export const auth = {
     formData.append('username', email)
     formData.append('password', password)
     const { data } = await api.post('/auth/login', formData, {
+      ...readOnly,
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     })
     return data
@@ -245,7 +274,7 @@ export const auth = {
     await api.post('/auth/2fa/disable', { password, code })
   },
   verify2fa: async (tempToken: string, code: string): Promise<{ access_token: string; token_type: string }> => {
-    const { data } = await api.post('/auth/2fa/verify', { temp_token: tempToken, code })
+    const { data } = await api.post('/auth/2fa/verify', { temp_token: tempToken, code }, readOnly)
     return data
   },
   listPasskeys: async (): Promise<Passkey[]> => {
@@ -272,7 +301,7 @@ export const auth = {
     await api.delete(`/auth/passkeys/${id}`)
   },
   passkeyAuthenticationOptions: async (email?: string): Promise<PasskeyOptionsResponse> => {
-    const { data } = await api.post('/auth/passkeys/authenticate/options', { email })
+    const { data } = await api.post('/auth/passkeys/authenticate/options', { email }, readOnly)
     return data
   },
   verifyPasskeyAuthentication: async (
@@ -282,11 +311,11 @@ export const auth = {
     const { data } = await api.post('/auth/passkeys/authenticate/verify', {
       challenge_id: challengeId,
       credential,
-    })
+    }, readOnly)
     return data
   },
   passkeySecondFactorOptions: async (tempToken: string): Promise<PasskeyOptionsResponse> => {
-    const { data } = await api.post('/auth/passkeys/2fa/options', { temp_token: tempToken })
+    const { data } = await api.post('/auth/passkeys/2fa/options', { temp_token: tempToken }, readOnly)
     return data
   },
   verifyPasskeySecondFactor: async (
@@ -298,7 +327,7 @@ export const auth = {
       temp_token: tempToken,
       challenge_id: challengeId,
       credential,
-    })
+    }, readOnly)
     return data
   },
   oidcConfig: async (): Promise<{ enabled: boolean; provider_name: string; local_auth_enabled: boolean }> => {
@@ -383,11 +412,11 @@ export const connections = {
     return data.providers
   },
   getConnectToken: async (provider = 'pluggy'): Promise<string> => {
-    const { data } = await api.post('/connections/connect-token', { provider })
+    const { data } = await api.post('/connections/connect-token', { provider }, readOnly)
     return data.access_token
   },
   getOAuthUrl: async (provider: string, flow_params?: Record<string, unknown>): Promise<string> => {
-    const { data } = await api.post('/connections/oauth/url', { provider, flow_params })
+    const { data } = await api.post('/connections/oauth/url', { provider, flow_params }, readOnly)
     return data.url
   },
   listInstitutions: async (
@@ -428,7 +457,7 @@ export const connections = {
     return data
   },
   getReauthUrl: async (connectionId: string): Promise<string> => {
-    const { data } = await api.post(`/connections/${connectionId}/oauth/reauth-url`)
+    const { data } = await api.post(`/connections/${connectionId}/oauth/reauth-url`, undefined, readOnly)
     return data.url
   },
   sync: async (id: string): Promise<SyncResult> => {
@@ -436,7 +465,7 @@ export const connections = {
     return data
   },
   getReconnectToken: async (connectionId: string): Promise<string> => {
-    const { data } = await api.post(`/connections/${connectionId}/reconnect-token`)
+    const { data } = await api.post(`/connections/${connectionId}/reconnect-token`, undefined, readOnly)
     return data.access_token
   },
   updateSettings: async (
@@ -688,7 +717,7 @@ export const transactions = {
     if (options?.column_mapping && Object.keys(options.column_mapping).length > 0) {
       formData.append('column_mapping', JSON.stringify(options.column_mapping))
     }
-    const { data } = await api.post('/transactions/import/preview', formData)
+    const { data } = await api.post('/transactions/import/preview', formData, readOnly)
     return data
   },
   import: async (
@@ -1060,7 +1089,7 @@ export const rules = {
     limit?: number
     offset?: number
   }): Promise<RulePreviewResponse> => {
-    const { data } = await api.post('/rules/preview', draft)
+    const { data } = await api.post('/rules/preview', draft, readOnly)
     return data
   },
   applyAll: async (): Promise<{ applied: number }> => {
@@ -1423,7 +1452,7 @@ export const assets = {
     if (options?.column_mapping && Object.keys(options.column_mapping).length > 0) {
       formData.append('column_mapping', JSON.stringify(options.column_mapping))
     }
-    const { data } = await api.post('/assets/import/preview', formData)
+    const { data } = await api.post('/assets/import/preview', formData, readOnly)
     return data
   },
   importOrders: async (
@@ -1589,7 +1618,7 @@ export const backup = {
     const { data } = await api.post(
       '/export/backup',
       password ? { password } : {},
-      { responseType: 'blob' },
+      { ...readOnly, responseType: 'blob' },
     )
     const blob = new Blob([data], { type: 'application/zip' })
     const url = URL.createObjectURL(blob)
@@ -1949,7 +1978,7 @@ export const agents = {
       await api.delete(`/agents/connections/${id}`)
     },
     test: async (id: string): Promise<LlmConnectionTestResult> => {
-      const { data } = await api.post(`/agents/connections/${id}/test`)
+      const { data } = await api.post(`/agents/connections/${id}/test`, undefined, readOnly)
       return data
     },
   },
