@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
-import { getAccountName, sortAccountsByAbsoluteBalance, sumAccountBalances } from '@/lib/account-utils'
+import { getAccountName, sortAccountsByAbsoluteBalance, sumAccountsTotal } from '@/lib/account-utils'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useDisplayLocale } from '@/hooks/use-display-locale'
@@ -196,7 +196,7 @@ export function AppLayout() {
   const visibleAccounts = activeAccountIds
     ? allAccounts.filter((a) => activeAccountIds.includes(a.id))
     : allAccounts
-  const totalBalance = sumAccountBalances(visibleAccounts)
+  const totalBalance = sumAccountsTotal(visibleAccounts)
   const versionA11yLabel = t('app.versionAriaLabel', { version: APP_VERSION })
 
   return (
