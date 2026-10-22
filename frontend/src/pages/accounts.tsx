@@ -695,7 +695,7 @@ export default function AccountsPage() {
   )
 }
 
-function AccountDialog({
+export function AccountDialog({
   open,
   onClose,
   account,
@@ -737,7 +737,10 @@ function AccountDialog({
   const [type, setType] = useState(account?.type ?? 'checking')
   const [balance, setBalance] = useState(account?.balance?.toString() ?? '0')
   const [currency, setCurrency] = useState(account?.currency ?? userCurrency)
-  const [balanceDate, setBalanceDate] = useState(localDateString)
+  // The opening balance's own date (issue #1204); today for a new account
+  // or one without an opening balance.
+  const initialBalanceDate = () => account?.balance_date ?? localDateString()
+  const [balanceDate, setBalanceDate] = useState(initialBalanceDate)
   const [creditLimit, setCreditLimit] = useState(account?.credit_limit?.toString() ?? '')
   const [statementCloseDay, setStatementCloseDay] = useState(account?.statement_close_day?.toString() ?? '')
   const [paymentDueDay, setPaymentDueDay] = useState(account?.payment_due_day?.toString() ?? '')
@@ -747,15 +750,19 @@ function AccountDialog({
   // Send the link the select shows: a saved id that is no longer a listed
   // property (it changed type) would otherwise be resent and rejected.
   const securedAssetIsListed = !!securedAssetId && (!assetsList || properties.some((asset) => asset.id === securedAssetId))
-  const [formSource, setFormSource] = useState<{ account: typeof account } | null>(null)
+  const [formSource, setFormSource] = useState<{
+    account: typeof account
+    balanceDate: string
+  } | null>(null)
   if (!formSource || formSource.account !== account) {
-    setFormSource({ account })
+    const date = initialBalanceDate()
+    setFormSource({ account, balanceDate: date })
     setName(account?.name ?? '')
     setDisplayName(account?.display_name ?? '')
     setType(account?.type ?? 'checking')
     setBalance(account?.balance?.toString() ?? '0')
     setCurrency(account?.currency ?? userCurrency)
-    setBalanceDate(localDateString())
+    setBalanceDate(date)
     setCreditLimit(account?.credit_limit?.toString() ?? '')
     setStatementCloseDay(account?.statement_close_day?.toString() ?? '')
     setPaymentDueDay(account?.payment_due_day?.toString() ?? '')
@@ -780,8 +787,15 @@ function AccountDialog({
               return Number.isFinite(n) && n >= 1 && n <= 31 ? n : null
             }
             const isConnected = !!account?.connection_id
+            // Editing: only move the opening balance when the date was changed.
+            const dateChanged = !account || balanceDate !== formSource?.balanceDate
             onSave({
-              ...(!isConnected && { name, balance: parseFloat(balance), balance_date: balanceDate, currency }),
+              ...(!isConnected && {
+                name,
+                balance: parseFloat(balance),
+                ...(dateChanged && { balance_date: balanceDate }),
+                currency,
+              }),
               type,
               ...(type === 'loan' && { secured_asset_id: securedAssetIsListed ? securedAssetId : null }),
               display_name: displayName.trim() || null,
