@@ -59,6 +59,10 @@ _CALENDAR_DAYS_PER_YEAR = 365
 # Enough digits that daily compounding over years stays exact to the cent.
 # Set per calculation, never globally: the rest of the app keeps its context.
 _PRECISION = 34
+# How far back a start date may go. Bounds the work one save does (every day
+# from the start date is computed and posted) and keeps the rate history to
+# one Banco Central request range.
+MAX_HISTORY_YEARS = 10
 
 
 class CdiYieldError(ValueError):
@@ -94,6 +98,14 @@ class CdiSettings:
             )
         except (ValueError, KeyError, TypeError, ArithmeticError):
             return None
+
+
+def _years_before(day: date, years: int) -> date:
+    """Same calendar date `years` earlier; 29 Feb falls back to 28 Feb."""
+    try:
+        return day.replace(year=day.year - years)
+    except ValueError:
+        return day.replace(year=day.year - years, day=28)
 
 
 def setting_key(account_id: uuid.UUID) -> str:
@@ -340,8 +352,11 @@ async def save_settings(
     """Store the settings and rebuild the account's yield from the start date.
     Returns how many yield days were posted. Commits."""
     account = await eligible_account(session, workspace_id, account_id)
-    if settings.start_date > app_today():
+    today = app_today()
+    if settings.start_date > today:
         raise CdiYieldError("The start date can't be in the future")
+    if settings.start_date < _years_before(today, MAX_HISTORY_YEARS):
+        raise CdiYieldError(f"The start date can be at most {MAX_HISTORY_YEARS} years ago")
     row = await session.get(AppSetting, setting_key(account_id))
     if row is None:
         session.add(AppSetting(key=setting_key(account_id), value=settings.to_json()))

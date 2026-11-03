@@ -122,6 +122,11 @@ def test_last_accruable_day():
     assert last_accruable_day("calendar_days", {}, today) is None
 
 
+def test_years_before_handles_leap_day():
+    assert svc._years_before(date(2028, 2, 29), 10) == date(2018, 2, 28)
+    assert svc._years_before(date(2026, 11, 3), 10) == date(2016, 11, 3)
+
+
 def test_settings_round_trip_and_bad_json():
     s = CdiSettings(percent=Decimal("105.5"), mode="calendar_days", start_date=FRI)
     assert CdiSettings.from_json(s.to_json()) == s
@@ -300,6 +305,10 @@ async def test_api_rejects_synced_accounts_future_start_and_bad_percent(
     future = {**ok_body, "start_date": (app_today() + timedelta(days=1)).isoformat()}
     r = await client.put(f"/api/accounts/{cofrinho.id}/cdi-yield", headers=auth_headers, json=future)
     assert r.status_code == 400
+
+    too_old = {**ok_body, "start_date": (app_today() - timedelta(days=366 * 11)).isoformat()}
+    r = await client.put(f"/api/accounts/{cofrinho.id}/cdi-yield", headers=auth_headers, json=too_old)
+    assert r.status_code == 400 and "10 years" in r.json()["detail"]
 
     for bad in ("0", "-5", "301"):
         r = await client.put(f"/api/accounts/{cofrinho.id}/cdi-yield", headers=auth_headers,
