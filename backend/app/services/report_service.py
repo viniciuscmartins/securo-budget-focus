@@ -4,13 +4,13 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import String, select, desc, func, case
+from sqlalchemy import String, select, desc, func, case, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.app_clock import app_today
 from app.core.config import get_settings
 from app.models.account import Account
-from app.models.asset import Asset
+from app.models.asset import ASSET_PRICE_DECIMALS, Asset
 from app.models.asset_value import AssetValue
 from app.models.transaction import Transaction
 from app.models.category import Category
@@ -47,6 +47,7 @@ _ACCOUNT_TYPE_COLORS: dict[str, str] = {
     "checking": "#6366F1",
     "savings": "#3B82F6",
     "credit_card": "#F43F5E",
+    "loan": "#F43F5E",
     "investment": "#8B5CF6",
     "wallet": "#F59E0B",
 }
@@ -123,7 +124,8 @@ async def _asset_value_at(
             amount = 0.0
         if amount > 0:
             converted, _ = await convert(
-                session, Decimal(str(amount)), asset.currency, primary_currency, cutoff
+                session, Decimal(str(amount)), asset.currency, primary_currency, cutoff,
+                decimals=ASSET_PRICE_DECIMALS,
             )
             total += float(converted)
     return total
@@ -178,7 +180,7 @@ async def _net_worth_at(
             session, Decimal(str(abs(bal))), account.currency, primary_currency, cutoff
         )
         converted_val = float(converted)
-        if account.type == "credit_card" or bal < 0:
+        if account.type in {"credit_card", "loan"} or bal < 0:
             liabilities_total += converted_val
             if converted_val > 0:
                 composition.append(ReportCompositionItem(
@@ -209,7 +211,9 @@ async def _net_worth_at(
     if filtered:
         asset_stmt = asset_stmt.where(Asset.group_id.in_(asset_group_ids or []))
     asset_result = await session.execute(asset_stmt)
-    assets_total = 0.0
+    # Decimal until the one final rounding: sub-cent holdings must add up
+    # exactly the way the wallet rollup does.
+    assets_sum = Decimal("0")
     for asset in asset_result.scalars().all():
         val_result = await session.execute(
             select(AssetValue.amount)
@@ -228,10 +232,11 @@ async def _net_worth_at(
             amount = 0.0
         if amount > 0:
             converted, _ = await convert(
-                session, Decimal(str(amount)), asset.currency, primary_currency, cutoff
+                session, Decimal(str(amount)), asset.currency, primary_currency, cutoff,
+                decimals=ASSET_PRICE_DECIMALS,
             )
             converted_val = round(float(converted), 2)
-            assets_total += converted_val
+            assets_sum += converted
             composition.append(ReportCompositionItem(
                 key=str(asset.id),
                 label=asset.name,
@@ -240,6 +245,7 @@ async def _net_worth_at(
                 group="assets",
             ))
 
+    assets_total = float(assets_sum.quantize(Decimal("0.01")))
     net_worth = accounts_total + assets_total - liabilities_total
 
     return ReportDataPoint(
@@ -311,6 +317,37 @@ def _date_points(
             points.append(end)
 
     return points
+
+
+async def get_report_data_range(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+) -> tuple[date | None, date | None]:
+    """The span of transaction data the workspace actually has (issue #765).
+
+    Feeds the Reports page year picker: the UI lists one entry per year
+    between the lower bound and the current year. Buckets by the same
+    reporting date the reports aggregate on, so a year only shows up when
+    the reports can actually display it. Opening balances are excluded,
+    their dates are synthetic. Ignored transactions and transactions in
+    ignored categories are excluded too, as every report tab drops them.
+    """
+    accounting_mode = await get_credit_card_accounting_mode(session)
+    result = await session.execute(
+        select(
+            func.min(reporting_date_col(accounting_mode)),
+            func.max(reporting_date_col(accounting_mode)),
+        )
+        .outerjoin(Category, Transaction.category_id == Category.id)
+        .where(
+            Transaction.workspace_id == workspace_id,
+            Transaction.source != "opening_balance",
+            Transaction.is_ignored.is_(False),
+            or_(Transaction.category_id.is_(None), Category.is_ignored.is_(False)),
+        )
+    )
+    min_date, max_date = result.one()
+    return min_date, max_date
 
 
 async def get_net_worth_report(
@@ -1340,9 +1377,10 @@ async def get_cash_flow_report(
 ) -> ReportResponse:
     """Cash flow chart with a short past window plus a forward projection.
 
-    Past window (``_PAST_HISTORY_MONTHS`` months back to today) shows actual
-    booked transactions so the user has a visible "this is real" anchor next
-    to the forecast. Forward window walks from today to ``today + months``
+    Past window (from the 1st of the month ``_PAST_HISTORY_MONTHS`` months
+    back, to today) shows actual booked transactions so the user has a visible
+    "this is real" anchor next to the forecast. Forward window walks from
+    today to the last day of the month ``months`` months ahead,
     applying either deterministic recurring projections (default) or a
     historical-mean baseline (when ``baseline=True``) — see
     ``_get_baseline_projection`` for the latter.
@@ -1360,8 +1398,12 @@ async def get_cash_flow_report(
 
     acct_filter = [Transaction.account_id.in_(account_ids)] if account_ids is not None else []
     today = app_today()
-    end = _add_months(today, months)
-    chart_start = _add_months(today, -_PAST_HISTORY_MONTHS)
+    # Whole calendar months on both edges, so the first and last monthly bars
+    # aren't partial.
+    first_of_month = today.replace(day=1)
+    chart_start = _add_months(first_of_month, -_PAST_HISTORY_MONTHS)
+    end_month = _add_months(first_of_month, months)
+    end = end_month.replace(day=calendar.monthrange(end_month.year, end_month.month)[1])
 
     user = await session.get(User, user_id)
     primary_currency = user.primary_currency if user else get_settings().default_currency
@@ -1399,7 +1441,7 @@ async def get_cash_flow_report(
 
     flow_date_col = Transaction.effective_date if accrual else Transaction.date
 
-    # 1a. Past actual transactions (chart_start, today]. Gives the chart a
+    # 1a. Past actual transactions [chart_start, today]. Gives the chart a
     #     "real" section before the forecast so the today-marker has meaning.
     past_result = await session.execute(
         select(
@@ -1413,7 +1455,7 @@ async def get_cash_flow_report(
         .where(
             Transaction.workspace_id == workspace_id,
             Account.is_closed == False,
-            flow_date_col > chart_start,
+            flow_date_col >= chart_start,
             flow_date_col <= today,
             Transaction.source != "opening_balance",
             Transaction.status == "posted",
