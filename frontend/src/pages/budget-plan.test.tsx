@@ -116,6 +116,11 @@ describe('BudgetPlanPage', () => {
     expect(screen.getByText('Left in the plan').nextSibling).toHaveTextContent('$970')
   })
 
+  it('links to the month-by-month budgets screen', async () => {
+    await renderPage()
+    expect(screen.getByRole('link', { name: /Monthly budgets/ })).toHaveAttribute('href', '/budgets/monthly')
+  })
+
   it('flags the month that went over budget and not the others', async () => {
     await renderPage()
     const foodRow = screen.getByText('Food').closest('tr')!

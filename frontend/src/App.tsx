@@ -117,8 +117,11 @@ function App() {
                   <Route path="/rules" element={<ModuleRoute module="rules"><RulesPage /></ModuleRoute>} />
                   <Route path="/categories" element={<ModuleRoute module="categories"><CategoriesPage /></ModuleRoute>} />
                   <Route path="/collections" element={<CollectionsPage />} />
-                  <Route path="/budgets" element={<ModuleRoute module="budgets"><BudgetsPage /></ModuleRoute>} />
-                  <Route path="/budgets/plan" element={<ModuleRoute module="budgets"><BudgetPlanPage /></ModuleRoute>} />
+                  {/* Budgets opens on the annual plan; the month-by-month screen sits one click away. */}
+                  <Route path="/budgets" element={<ModuleRoute module="budgets"><BudgetPlanPage /></ModuleRoute>} />
+                  <Route path="/budgets/monthly" element={<ModuleRoute module="budgets"><BudgetsPage /></ModuleRoute>} />
+                  {/* Kept so links and bookmarks from before the swap keep working. */}
+                  <Route path="/budgets/plan" element={<Navigate to="/budgets" replace />} />
                   <Route path="/goals" element={<ModuleRoute module="goals"><GoalsPage /></ModuleRoute>} />
                   <Route path="/recurring" element={<ModuleRoute module="recurring"><RecurringPage /></ModuleRoute>} />
                   <Route path="/assets" element={<ModuleRoute module="assets"><AssetsPage /></ModuleRoute>} />

@@ -1544,6 +1544,7 @@
   },
   "budgetPlan": {
     "title": "Annual plan",
+    "monthly": "Monthly budgets",
     "previousYear": "Previous year",
     "nextYear": "Next year",
     "suggest": "Suggest budget",
