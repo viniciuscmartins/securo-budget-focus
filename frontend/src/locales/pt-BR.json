@@ -1464,6 +1464,7 @@
   },
   "budgetPlan": {
     "title": "Plano anual",
+    "monthly": "Orçamentos mensais",
     "previousYear": "Ano anterior",
     "nextYear": "Próximo ano",
     "suggest": "Sugerir orçamento",

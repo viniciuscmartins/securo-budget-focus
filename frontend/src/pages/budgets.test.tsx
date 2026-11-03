@@ -100,6 +100,12 @@ describe('BudgetsPage suggestions', () => {
     expect(screen.getByRole('button', { name: t('budgets.add') })).toBeInTheDocument()
   })
 
+  it('links back to the annual plan, which is where Budgets opens', async () => {
+    renderWithProviders(<BudgetsPage />, { route: '/budgets/monthly' })
+
+    expect(await screen.findByRole('link', { name: new RegExp(t('budgetPlan.title')) })).toHaveAttribute('href', '/budgets')
+  })
+
   it('lists only categories without a budget and creates them in one batch', async () => {
     mockSuggestions([
       suggestion({}),

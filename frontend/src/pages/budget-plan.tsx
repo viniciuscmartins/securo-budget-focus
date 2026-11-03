@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { ChevronLeft, Sparkles } from 'lucide-react'
+import { CalendarDays, Sparkles } from 'lucide-react'
 import { budgets as budgetsApi } from '@/lib/api'
 import { extractApiError } from '@/lib/api-errors'
 import {
@@ -207,10 +207,10 @@ export default function BudgetPlanPage() {
       action={
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            to="/budgets"
-            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2.5 text-sm text-muted-foreground transition-all hover:text-foreground"
+            to="/budgets/monthly"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-sm text-foreground transition-all hover:bg-muted/50"
           >
-            <ChevronLeft size={14} /> {t('budgets.title')}
+            <CalendarDays size={14} className="text-muted-foreground" /> {t('budgetPlan.monthly')}
           </Link>
           <div className="flex items-center gap-1">
             <button className={NAV_BUTTON} aria-label={t('budgetPlan.previousYear')} onClick={() => setYear((y) => y - 1)}>

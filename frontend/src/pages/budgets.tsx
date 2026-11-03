@@ -193,7 +193,7 @@ export default function BudgetsPage() {
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              to="/budgets/plan"
+              to="/budgets"
               className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-sm text-foreground transition-all hover:bg-muted/50"
             >
               <CalendarRange size={14} className="text-muted-foreground" /> {t('budgetPlan.title')}
