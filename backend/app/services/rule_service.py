@@ -57,7 +57,7 @@ _ALLOWED_CONDITION_OPS = {
 }
 _ALLOWED_ACTION_OPS = {
     "set_category", "set_payee", "set_description", "append_notes", "ignore",
-    "transfer_to_account",
+    TRANSFER_ACTION,
 }
 
 

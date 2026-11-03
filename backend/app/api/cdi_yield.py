@@ -37,6 +37,10 @@ async def _read(session: AsyncSession, account_id: uuid.UUID) -> CdiYieldRead:
     )
 
 
+def _status_for(exc: svc.CdiYieldError) -> int:
+    return status.HTTP_404_NOT_FOUND if isinstance(exc, svc.CdiAccountNotFound) else status.HTTP_400_BAD_REQUEST
+
+
 def _rates_unavailable(exc: Exception) -> HTTPException:
     logger.warning("CDI rates unavailable: %s", exc)
     return HTTPException(
@@ -54,7 +58,7 @@ async def get_cdi_yield(
     try:
         await svc.eligible_account(session, ctx.workspace.id, account_id)
     except svc.CdiYieldError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND if "not found" in str(e) else 400, detail=str(e))
+        raise HTTPException(status_code=_status_for(e), detail=str(e))
     return await _read(session, account_id)
 
 
@@ -73,7 +77,7 @@ async def put_cdi_yield(
         posted = await svc.save_settings(session, ctx.workspace.id, account_id, settings)
     except svc.CdiYieldError as e:
         await session.rollback()
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND if "not found" in str(e) else 400, detail=str(e))
+        raise HTTPException(status_code=_status_for(e), detail=str(e))
     except httpx.HTTPError as e:
         await session.rollback()
         raise _rates_unavailable(e)
@@ -91,7 +95,7 @@ async def recalculate_cdi_yield(
         posted = await svc.recalculate(session, ctx.workspace.id, account_id)
     except svc.CdiYieldError as e:
         await session.rollback()
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND if "not found" in str(e) else 400, detail=str(e))
+        raise HTTPException(status_code=_status_for(e), detail=str(e))
     except httpx.HTTPError as e:
         await session.rollback()
         raise _rates_unavailable(e)
@@ -109,4 +113,4 @@ async def delete_cdi_yield(
     try:
         await svc.remove_settings(session, ctx.workspace.id, account_id, delete_posted)
     except svc.CdiYieldError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND if "not found" in str(e) else 400, detail=str(e))
+        raise HTTPException(status_code=_status_for(e), detail=str(e))

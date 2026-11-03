@@ -69,6 +69,10 @@ class CdiYieldError(ValueError):
     """A request the CDI yield endpoints can't honour (HTTP 400)."""
 
 
+class CdiAccountNotFound(CdiYieldError):
+    """No such account in this workspace (HTTP 404)."""
+
+
 @dataclass(frozen=True)
 class CdiSettings:
     percent: Decimal  # 100 = 100% of CDI
@@ -90,14 +94,17 @@ class CdiSettings:
     def from_json(raw: str) -> Optional["CdiSettings"]:
         try:
             data = json.loads(raw)
-            return CdiSettings(
+            settings = CdiSettings(
                 enabled=bool(data.get("enabled", True)),
                 percent=Decimal(str(data["percent"])),
-                mode=data["mode"] if data["mode"] in ("business_days", "calendar_days") else "business_days",
+                mode=data["mode"],
                 start_date=date.fromisoformat(data["start_date"]),
             )
         except (ValueError, KeyError, TypeError, ArithmeticError):
             return None
+        if settings.mode not in ("business_days", "calendar_days") or settings.percent <= 0:
+            return None
+        return settings
 
 
 def _years_before(day: date, years: int) -> date:
@@ -157,6 +164,7 @@ def _accrue(start, end, opening_balance, movements, rates, percent, mode) -> dic
     posted_total = ZERO
     latest_rate: Optional[Decimal] = None
     rate_idx = 0
+    calendar_cache: dict[Decimal, Decimal] = {}
 
     day = start
     while day <= end:
@@ -168,7 +176,12 @@ def _accrue(start, end, opening_balance, movements, rates, percent, mode) -> dic
         if mode == "business_days":
             daily = rates.get(day)
         else:
-            daily = calendar_daily_rate(latest_rate) if latest_rate is not None else None
+            if latest_rate is None:
+                daily = None
+            else:
+                if latest_rate not in calendar_cache:
+                    calendar_cache[latest_rate] = calendar_daily_rate(latest_rate)
+                daily = calendar_cache[latest_rate]
 
         if daily is not None and balance > 0:
             earned = balance * daily * factor
@@ -214,7 +227,7 @@ async def eligible_account(
     open, and holding money (not a card or loan)."""
     account = await session.get(Account, account_id)
     if account is None or account.workspace_id != workspace_id:
-        raise CdiYieldError("Account not found")
+        raise CdiAccountNotFound("Account not found")
     if account.connection_id is not None:
         raise CdiYieldError("CDI yield is only for manual accounts; a synced account gets its yield from the bank")
     if account.type in ("credit_card", "loan"):
@@ -304,6 +317,9 @@ async def run_for_account(
     """
     if not settings.enabled:
         return 0
+    # Serialize runs per account: the scheduled job and a settings save could
+    # otherwise both post the same day. A no-op on SQLite (tests).
+    await session.execute(select(Account.id).where(Account.id == account.id).with_for_update())
     today = today or app_today()
     end = last_accruable_day(settings.mode, rates, today)
     if end is None or end < settings.start_date:

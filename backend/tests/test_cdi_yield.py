@@ -132,6 +132,9 @@ def test_settings_round_trip_and_bad_json():
     assert CdiSettings.from_json(s.to_json()) == s
     assert CdiSettings.from_json("not json") is None
     assert CdiSettings.from_json('{"percent": "x"}') is None
+    # Unknown mode or a non-positive percentage is corrupt data, not a default.
+    assert CdiSettings.from_json('{"percent": "100", "mode": "weekly", "start_date": "2026-10-02"}') is None
+    assert CdiSettings.from_json('{"percent": "0", "mode": "business_days", "start_date": "2026-10-02"}') is None
 
 
 # ---------------------------------------------------------------------------
