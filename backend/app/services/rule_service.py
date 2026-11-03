@@ -6,6 +6,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
+from app.models.account import Account
 from app.models.rule import Rule
 from app.models.category import Category
 from app.models.payee import Payee
@@ -31,6 +32,9 @@ from app.services.rule_engine import (
     apply_rule_actions,
     compile_rule_regex,
     evaluate_conditions,
+    transfer_target,
+    transfer_would_apply,
+    TRANSFER_ACTION,
 )
 
 
@@ -53,7 +57,15 @@ _ALLOWED_CONDITION_OPS = {
 }
 _ALLOWED_ACTION_OPS = {
     "set_category", "set_payee", "set_description", "append_notes", "ignore",
+    TRANSFER_ACTION,
 }
+
+
+async def transfer_by_rule(session: AsyncSession, transaction: Transaction, to_account_id: uuid.UUID) -> bool:
+    """Local import: transaction_service imports this module at load time."""
+    from app.services.transaction_service import transfer_by_rule as _transfer_by_rule
+
+    return await _transfer_by_rule(session, transaction, to_account_id)
 
 
 def _rule_item_value(item, key: str):
@@ -133,6 +145,24 @@ async def _validate_rule_definition(
                 raise ValueError("Description cannot be blank")
             if len(value.strip()) > 500:
                 raise ValueError("Description cannot exceed 500 characters")
+        elif op == TRANSFER_ACTION:
+            # Only into a manual, open account of this workspace: a synced
+            # account gets its own real copy of the movement from the bank,
+            # so a counterpart there would count the money twice.
+            try:
+                account_id = uuid.UUID(str(value))
+            except (TypeError, ValueError):
+                raise ValueError("Account not found")
+            account = await session.get(Account, account_id)
+            if account is None or account.workspace_id != workspace_id:
+                raise ValueError("Account not found")
+            if account.connection_id is not None:
+                raise ValueError("Transfers by rule can only go to a manual account")
+            if account.is_closed:
+                raise ValueError("Account is closed")
+
+    if sum(1 for a in actions or [] if _rule_item_value(a, "op") == TRANSFER_ACTION) > 1:
+        raise ValueError("A rule can transfer to only one account")
 
 
 # ─── Universal rules (work for any language/country) ───
@@ -1130,6 +1160,7 @@ _PREVIEW_COLUMNS = (
     Transaction.payee_id,
     Transaction.notes,
     Transaction.is_ignored,
+    Transaction.transfer_pair_id,
 )
 
 
@@ -1153,6 +1184,7 @@ def _rule_preview(transaction: Transaction) -> Transaction:
         payee_id=transaction.payee_id,
         notes=transaction.notes,
         is_ignored=transaction.is_ignored,
+        transfer_pair_id=transaction.transfer_pair_id,
     )
 
 
@@ -1217,6 +1249,7 @@ async def apply_rules_to_transaction(
         else None
     )
 
+    transfer_to: Optional[uuid.UUID] = None
     for rule in rules:
         conditions = rule.conditions or []
         actions = rule.actions or []
@@ -1227,6 +1260,12 @@ async def apply_rules_to_transaction(
                 category_set,
                 assignable_category_ids=assignable_categories,
             )
+            # Highest-priority rule wins, like categories do.
+            transfer_to = transfer_to or transfer_target(actions)
+
+    # After every rule has run, so an `ignore` from any rule is respected.
+    if transfer_to is not None:
+        await transfer_by_rule(session, transaction, transfer_to)
 
 
 def _rule_effect_state(tx: Transaction) -> tuple:
@@ -1338,7 +1377,9 @@ async def preview_rule(
                 skip_description=_has_manual_description(tx),
                 assignable_category_ids=assignable_categories,
             )
-            will_change = _rule_effect_state(draft) != before
+            will_change = _rule_effect_state(draft) != before or transfer_would_apply(
+                draft, transfer_target(action_dicts)
+            )
             if will_change:
                 changed += 1
         # `matched` has just counted this row, so `matched - 1` is its index
@@ -1400,6 +1441,7 @@ async def apply_single_rule(
     actions = rule.actions or []
 
     assignable_categories = await get_assignable_category_ids(session, workspace_id)
+    transfer_to = transfer_target(actions)
     count = 0
     for tx in transactions:
         matches = evaluate_conditions(rule.conditions_op, conditions, tx)
@@ -1438,7 +1480,10 @@ async def apply_single_rule(
             tx.notes,
             tx.is_ignored,
         )
-        if before != after:
+        transferred = False
+        if transfer_to is not None:
+            transferred = await transfer_by_rule(session, tx, transfer_to)
+        if before != after or transferred:
             count += 1
 
     await session.commit()
@@ -1481,6 +1526,7 @@ async def apply_all_rules(session: AsyncSession, workspace_id: uuid.UUID) -> int
             tx.description_is_rule_managed = False
         matched = False
         category_set = False
+        transfer_to: Optional[uuid.UUID] = None
         for rule in rules:
             conditions = rule.conditions or []
             actions = rule.actions or []
@@ -1496,6 +1542,9 @@ async def apply_all_rules(session: AsyncSession, workspace_id: uuid.UUID) -> int
                     skip_description=preserve_manual_description,
                     assignable_category_ids=assignable_categories,
                 )
+                transfer_to = transfer_to or transfer_target(actions)
+        if transfer_to is not None:
+            await transfer_by_rule(session, tx, transfer_to)
 
         after = (
             tx.category_id,

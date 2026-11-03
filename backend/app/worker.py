@@ -60,6 +60,13 @@ celery_app.conf.beat_schedule = {
         # stamped with the 1:1 fallback (or left NULL) once real rates land.
         "schedule": 60 * 60 * 12,
     },
+    "post-cdi-yield": {
+        "task": "app.tasks.cdi_yield_tasks.post_cdi_yield",
+        # Every 6 hours: Banco Central publishes a day's CDI the next
+        # business day, at no fixed hour. Idempotent, so extra runs only
+        # pick it up sooner; one rate request per run covers all accounts.
+        "schedule": 60 * 60 * 6,
+    },
 }
 
 celery_app.conf.include = [
@@ -68,6 +75,7 @@ celery_app.conf.include = [
     "app.tasks.invoice_schedule_tasks",
     "app.tasks.asset_tasks",
     "app.tasks.fx_rate_tasks",
+    "app.tasks.cdi_yield_tasks",
     # Optional agents module — registering the import is harmless when
     # AGENTS_ENABLED=false (the task just won't be dispatched).
     "app.agents.tasks.ingest",

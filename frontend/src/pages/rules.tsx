@@ -30,6 +30,7 @@ import { ReconciliationHistory } from '@/components/reconciliation-history'
 import { Segmented } from '@/components/invoice-ui'
 import { reconciliation as reconciliationApi } from '@/lib/api'
 import { findCategoryReference, getRuleCategoryName } from '@/lib/category-reference-utils'
+import { getAccountName } from '@/lib/account-utils'
 
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
@@ -134,7 +135,13 @@ function conditionSummary(conditions: RuleConditionNode[], conditionsOp: string,
   return parts.join(joiner(conditionsOp)) || t('rules.noConditions')
 }
 
-function actionSummary(actions: RuleAction[], categories: Category[], payeesList: Payee[], t: (key: string) => string): string {
+function actionSummary(
+  actions: RuleAction[],
+  categories: Category[],
+  payeesList: Payee[],
+  t: (key: string) => string,
+  accountsList: { id: string; name: string; display_name?: string | null }[] = [],
+): string {
   return actions.map(a => {
     if (a.op === 'set_category') {
       const cat = findCategoryReference(categories, a.value)
@@ -149,6 +156,10 @@ function actionSummary(actions: RuleAction[], categories: Category[], payeesList
     }
     if (a.op === 'append_notes') return `→ ${t('rules.fieldNotes')}: ${a.value}`
     if (a.op === 'ignore') return `→ ${t('rules.ignoreAction')}`
+    if (a.op === 'transfer_to_account') {
+      const acc = accountsList.find(acc => acc.id === a.value)
+      return `→ ${t('rules.transferToAccount')}${acc ? `: ${getAccountName(acc)}` : ''}`
+    }
     return a.op
   }).join('  ') || t('rules.noActions')
 }
@@ -159,6 +170,7 @@ const ACTION_FILTERS = [
   { value: 'set_payee', label: 'rules.setPayee' },
   { value: 'append_notes', label: 'rules.appendNotes' },
   { value: 'ignore', label: 'rules.ignoreAction' },
+  { value: 'transfer_to_account', label: 'rules.transferToAccount' },
 ] as const
 
 const FILTER_CONTROL_CLASS = 'h-7 rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus-visible:ring-ring/30 focus-visible:ring-[2px]'
@@ -657,7 +669,7 @@ export default function RulesPage() {
                       {conditionSummary(rule.conditions, rule.conditions_op, t, payees)}
                     </p>
                     <p className="text-xs text-emerald-600 font-medium mt-0.5">
-                      {actionSummary(rule.actions, displayCategories, payees, t)}
+                      {actionSummary(rule.actions, displayCategories, payees, t, accountsList ?? [])}
                     </p>
                   </div>
                   {canWrite && (

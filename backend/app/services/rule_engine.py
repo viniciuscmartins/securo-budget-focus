@@ -285,4 +285,44 @@ def apply_rule_actions(
         elif op == "ignore":
             tx.is_ignored = True
 
+        # "transfer_to_account" needs the database (it creates the
+        # counterpart transaction), so it is carried out by the service
+        # layer through `transfer_target`, not here.
+
     return category_already_set
+
+
+TRANSFER_ACTION = "transfer_to_account"
+
+
+def transfer_target(actions: list) -> uuid.UUID | None:
+    """The account a rule's "transfer to account" action points at, if any.
+
+    The first well-formed one wins; a rule only ever moves a transaction once.
+    """
+    for action in actions or []:
+        op = action.get("op") if isinstance(action, dict) else getattr(action, "op", None)
+        if op != TRANSFER_ACTION:
+            continue
+        value = action.get("value") if isinstance(action, dict) else getattr(action, "value", None)
+        try:
+            return uuid.UUID(str(value))
+        except (ValueError, AttributeError, TypeError):
+            continue
+    return None
+
+
+def transfer_would_apply(tx: "Transaction", to_account_id: uuid.UUID | None) -> bool:
+    """Whether `transfer_by_rule` would create a counterpart for `tx`.
+
+    Mirrors its row checks (the destination itself is validated when the rule
+    is saved), so a rule preview can count these rows as changing.
+    """
+    if to_account_id is None:
+        return False
+    return (
+        not getattr(tx, "is_ignored", False)
+        and getattr(tx, "transfer_pair_id", None) is None
+        and getattr(tx, "source", None) not in {"opening_balance", "transfer"}
+        and getattr(tx, "account_id", None) != to_account_id
+    )

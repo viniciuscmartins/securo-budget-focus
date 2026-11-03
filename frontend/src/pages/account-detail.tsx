@@ -37,6 +37,7 @@ import { useCreateTransaction } from '@/hooks/use-create-transaction'
 import { resolveDateFnsLocale } from '@/lib/date-fns-locale'
 import { formatCompactCurrency, formatCurrency } from '@/lib/format'
 import { LoanScheduleCard } from '@/components/loan-schedule-card'
+import { CdiYieldCard } from '@/components/cdi-yield-card'
 import {
   AreaChart,
   Area,
@@ -1455,6 +1456,19 @@ export default function AccountDetailPage() {
 
       {account.type === 'loan' && (
         <LoanScheduleCard accountId={account.id} locale={locale} dateLocale={dateLocale} mask={mask} canWrite={canWrite} />
+      )}
+
+      {/* CDI yield: manual accounts that hold money (a synced account gets
+          its yield from the bank; cards and loans don't earn it). */}
+      {!account.connection_id && !account.is_closed && !['credit_card', 'loan'].includes(account.type) && (
+        <CdiYieldCard
+          accountId={account.id}
+          currency={account.currency}
+          locale={locale}
+          dateLocale={dateLocale}
+          mask={mask}
+          canWrite={canWrite}
+        />
       )}
 
       {/* Balance / Cycle spending chart */}
