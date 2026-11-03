@@ -1326,8 +1326,6 @@ async def create_transfer_counterpart(
     anchor's date / description / notes with the opposite type, converting the
     amount when the destination account uses a different currency.
     """
-    from decimal import Decimal
-
     anchor = await get_transaction(session, transaction_id, workspace_id, for_update=True)
     if not anchor:
         raise ValueError("Transaction not found")
@@ -1337,6 +1335,25 @@ async def create_transfer_counterpart(
         raise ValueError("Counterpart must be in a different account")
     await _ensure_not_mortgage_linked(session, workspace_id, anchor)
 
+    to_account = await _counterpart_destination(session, workspace_id, to_account_id)
+    if not to_account:
+        raise ValueError("Destination account not found")
+
+    counterpart_tx = await _add_transfer_counterpart(session, workspace_id, user_id, anchor, to_account)
+
+    await session.commit()
+    await session.refresh(anchor, ["category"])
+    await session.refresh(counterpart_tx, ["category"])
+
+    debit_tx = anchor if anchor.type == "debit" else counterpart_tx
+    credit_tx = counterpart_tx if anchor.type == "debit" else anchor
+    return debit_tx, credit_tx
+
+
+async def _counterpart_destination(
+    session: AsyncSession, workspace_id: uuid.UUID, to_account_id: uuid.UUID
+) -> Optional[Account]:
+    """The destination account, if it belongs to this workspace."""
     to_result = await session.execute(
         select(Account)
         .outerjoin(BankConnection)
@@ -1348,9 +1365,20 @@ async def create_transfer_counterpart(
             ),
         )
     )
-    to_account = to_result.scalar_one_or_none()
-    if not to_account:
-        raise ValueError("Destination account not found")
+    return to_result.scalar_one_or_none()
+
+
+async def _add_transfer_counterpart(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID,
+    anchor: Transaction,
+    to_account: Account,
+) -> Transaction:
+    """Create the opposite-side transaction in `to_account` and pair it with
+    `anchor`. Flushes but does not commit, so callers inside a larger unit of
+    work (a bank sync, a rule run) keep control of the transaction."""
+    from decimal import Decimal
 
     opposing_type = "credit" if anchor.type == "debit" else "debit"
 
@@ -1367,7 +1395,7 @@ async def create_transfer_counterpart(
     counterpart_tx = Transaction(
         user_id=user_id,
         workspace_id=workspace_id,
-        account_id=to_account_id,
+        account_id=to_account.id,
         description=anchor.description,
         amount=counterpart_amount,
         currency=to_account.currency,
@@ -1393,14 +1421,52 @@ async def create_transfer_counterpart(
             counterpart_tx.fx_rate_used = Decimal(str(anchor.amount_primary)) / Decimal(
                 str(counterpart_tx.amount)
             )
+    return counterpart_tx
 
-    await session.commit()
-    await session.refresh(anchor, ["category"])
-    await session.refresh(counterpart_tx, ["category"])
 
-    debit_tx = anchor if anchor.type == "debit" else counterpart_tx
-    credit_tx = counterpart_tx if anchor.type == "debit" else anchor
-    return debit_tx, credit_tx
+async def transfer_by_rule(
+    session: AsyncSession,
+    transaction: Transaction,
+    to_account_id: uuid.UUID,
+) -> bool:
+    """Apply a rule's "transfer to account" action to one transaction.
+
+    Creates the counterpart in `to_account_id` the same way the "create
+    counterpart" button does, but quietly does nothing when the transaction
+    is not eligible, because a rule runs over many rows and one unsuitable
+    row must not fail a whole bank sync or rule run:
+
+    - ignored, already paired, or an opening balance / auto-created transfer;
+    - already in the destination account;
+    - destination missing, closed, or bank-synced (a synced account would
+      soon get its own real copy of the movement, so a counterpart there
+      would double count);
+    - linked to a mortgage payment.
+
+    Returns True when a counterpart was created. Flushes, never commits.
+    """
+    workspace_id = getattr(transaction, "workspace_id", None)
+    if workspace_id is None or transaction.id is None:
+        return False
+    if transaction.is_ignored or transaction.transfer_pair_id is not None:
+        return False
+    if transaction.source in {"opening_balance", "transfer"}:
+        return False
+    if transaction.account_id == to_account_id:
+        return False
+
+    to_account = await _counterpart_destination(session, workspace_id, to_account_id)
+    if to_account is None or to_account.connection_id is not None or to_account.is_closed:
+        return False
+    try:
+        await _ensure_not_mortgage_linked(session, workspace_id, transaction)
+    except ValueError:
+        return False
+
+    await _add_transfer_counterpart(
+        session, workspace_id, transaction.user_id, transaction, to_account
+    )
+    return True
 
 
 async def _resync_bill_link_from_override(
