@@ -433,7 +433,7 @@ export function RuleDialog({
   categories: Category[]
   categoryGroups: CategoryGroup[]
   currentCategories?: Category[]
-  accounts: { id: string; name: string; display_name?: string | null }[]
+  accounts: { id: string; name: string; display_name?: string | null; connection_id?: string | null; is_closed?: boolean }[]
   payees: Payee[]
   onSave: (data: Partial<Rule>) => void
   loading: boolean
@@ -441,6 +441,13 @@ export function RuleDialog({
 }) {
   const { t } = useTranslation()
   const sortedAccounts = useMemo(() => sortAccountsByDisplayName(accounts), [accounts])
+  // "Transfer to account" only targets manual, open accounts: a synced one gets
+  // its own copy of the movement from the bank, so a counterpart would count
+  // the money twice. The server enforces the same rule.
+  const transferTargets = useMemo(
+    () => sortedAccounts.filter((acc) => !acc.connection_id && !acc.is_closed),
+    [sortedAccounts],
+  )
 
   const defaultConditions: RuleConditionNode[] = initialData?.conditions ?? rule?.conditions ?? [newCondition()]
   const defaultActions: RuleAction[] = initialData?.actions ?? rule?.actions as RuleAction[] ?? [{ op: 'set_category', value: '' }]
@@ -701,6 +708,7 @@ export function RuleDialog({
                         <option value="set_payee">{t('rules.setPayee')}</option>
                         <option value="append_notes">{t('rules.appendNotes')}</option>
                         <option value="ignore">{t('rules.ignoreAction')}</option>
+                        <option value="transfer_to_account">{t('rules.transferToAccount')}</option>
                       </select>
                       {action.op === 'ignore' ? (
                         <span className="min-w-0 text-sm italic text-muted-foreground sm:w-0 sm:flex-1">
@@ -721,6 +729,21 @@ export function RuleDialog({
                             className={`${SELECT_CLASS} w-full`}
                           />
                         </div>
+                      ) : action.op === 'transfer_to_account' ? (
+                        <select
+                          className={`${SELECT_CLASS} w-full min-w-0 sm:w-0 sm:flex-1`}
+                          value={action.value}
+                          onChange={(e) => updateAction(i, 'value', e.target.value)}
+                          aria-label={t('rules.transferToAccount')}
+                          required
+                        >
+                          <option value="">
+                            {transferTargets.length ? t('rules.selectManualAccount') : t('rules.noManualAccounts')}
+                          </option>
+                          {transferTargets.map((acc) => (
+                            <option key={acc.id} value={acc.id}>{getAccountName(acc)}</option>
+                          ))}
+                        </select>
                       ) : action.op === 'set_payee' ? (
                         <select
                           className={`${SELECT_CLASS} w-full min-w-0 sm:w-0 sm:flex-1`}

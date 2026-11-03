@@ -938,6 +938,18 @@ export interface BudgetPlanCellWrite {
   amount: number | null // null clears the month-specific budget
 }
 
+export type CdiYieldMode = 'business_days' | 'calendar_days'
+
+export interface CdiYieldSettings {
+  configured: boolean
+  enabled: boolean
+  percent: number | null // 100 = 100% of CDI
+  mode: CdiYieldMode | null
+  start_date: string | null // YYYY-MM-DD
+  last_posted_date: string | null
+  total_posted: number
+}
+
 export interface Asset {
   id: string
   user_id: string

@@ -112,6 +112,8 @@ import type {
   ReconciliationRulePatch,
   ReconciliationSuggestion,
   ReconciliationHistoryEvent,
+  CdiYieldMode,
+  CdiYieldSettings,
 } from '@/types'
 
 const api = axios.create({
@@ -490,6 +492,36 @@ export const connections = {
 }
 
 // Accounts
+// CDI yield on a manual savings account. The API sends Decimals as strings.
+function toCdiSettings(data: Record<string, unknown>): CdiYieldSettings {
+  return {
+    ...(data as unknown as CdiYieldSettings),
+    percent: data.percent == null ? null : Number(data.percent),
+    total_posted: Number(data.total_posted ?? 0),
+  }
+}
+
+export const cdiYield = {
+  get: async (accountId: string): Promise<CdiYieldSettings> => {
+    const { data } = await api.get(`/accounts/${accountId}/cdi-yield`)
+    return toCdiSettings(data)
+  },
+  save: async (
+    accountId: string,
+    settings: { percent: number; mode: CdiYieldMode; start_date: string },
+  ): Promise<{ posted_days: number; settings: CdiYieldSettings }> => {
+    const { data } = await api.put(`/accounts/${accountId}/cdi-yield`, { ...settings, enabled: true })
+    return { posted_days: data.posted_days, settings: toCdiSettings(data.settings) }
+  },
+  recalculate: async (accountId: string): Promise<{ posted_days: number; settings: CdiYieldSettings }> => {
+    const { data } = await api.post(`/accounts/${accountId}/cdi-yield/recalculate`)
+    return { posted_days: data.posted_days, settings: toCdiSettings(data.settings) }
+  },
+  remove: async (accountId: string, deletePosted: boolean): Promise<void> => {
+    await api.delete(`/accounts/${accountId}/cdi-yield`, { params: { delete_posted: deletePosted } })
+  },
+}
+
 export const accounts = {
   list: async (includeClosed = false): Promise<Account[]> => {
     const { data } = await api.get('/accounts', { params: { include_closed: includeClosed } })
