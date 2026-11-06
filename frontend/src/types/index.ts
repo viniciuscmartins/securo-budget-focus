@@ -694,6 +694,23 @@ export interface RecurringTransaction {
   fx_rate_used: number | null
 }
 
+export interface RecurringFromTransactionInput {
+  frequency: RecurringTransaction['frequency']
+  description?: string
+  day_of_month?: number
+  category_id?: string | null
+  /** Expected amount follows the average of the last three payments. */
+  follow_average: boolean
+  /** Also create a rule so later payments link themselves. */
+  link_rule?: { field: 'description' | 'payee' | 'notes'; op: 'contains' | 'equals' | 'starts_with'; value: string } | null
+}
+
+export interface RecurringAmountMode {
+  recurring_id: string
+  mode: 'average'
+  window: number
+}
+
 export interface ProjectedTransaction {
   recurring_id: string
   account_id: string | null

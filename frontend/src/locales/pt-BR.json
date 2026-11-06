@@ -3192,5 +3192,29 @@
       "recurring": "Regras de Recorrentes",
       "recurringHint": "Como decidimos que uma cobrança é a conta que você já esperava."
     }
+  },
+  "recurringLink": {
+    "linkToRecurring": "Vincular a recorrente",
+    "selectRecurring": "Selecione o item recorrente...",
+    "noRecurring": "Nenhum item recorrente ainda",
+    "offer": "Paga todo mês? Transforme em um item recorrente.",
+    "makeRecurring": "Tornar recorrente",
+    "dayOfMonth": "Dia do mês",
+    "followAverage": "Valor segue a média dos últimos 3 pagamentos",
+    "followAverageHelp": "O valor esperado se atualiza sozinho quando o preço muda. Você pode desligar e digitar o seu.",
+    "followAverageToggleHelp": "Atualizado a cada pagamento vinculado. Desligue para manter um valor fixo digitado por você.",
+    "createRule": "Vincular pagamentos futuros automaticamente",
+    "createRuleHelp": "Cria uma regra: pagamentos que combinarem são vinculados a este item, mesmo com valor diferente.",
+    "ruleField": "Comparar",
+    "ruleValue": "Texto a procurar",
+    "ruleValuePlaceholder": "ex.: nome da escola",
+    "fieldPayee": "Favorecido",
+    "fieldDescription": "Descrição",
+    "fieldNotes": "Notas",
+    "create": "Criar recorrente",
+    "created": "Item recorrente criado",
+    "createdWithHistory_one": "Item recorrente criado e {{count}} pagamento anterior vinculado",
+    "createdWithHistory_other": "Item recorrente criado e {{count}} pagamentos anteriores vinculados",
+    "averageBadge": "média dos últimos 3"
   }
 }

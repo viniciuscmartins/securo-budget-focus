@@ -18,6 +18,8 @@ import { cn, normalizeText } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DescriptionInput } from '@/components/description-input'
+import { MakeRecurringPanel } from '@/components/recurring-link'
+import { canMakeRecurring } from '@/lib/recurring-link-utils'
 import { Label } from '@/components/ui/label'
 import { DatePickerInput } from '@/components/ui/date-picker-input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -993,6 +995,15 @@ function TransactionForm({
             {t('transactions.recurringUnlinkAction')}
           </Button>
         </div>
+      )}
+      {!recurringLinked && !isCreating && transaction && canMakeRecurring(transaction) && (
+        <MakeRecurringPanel
+          transaction={transaction}
+          onCreated={() => {
+            setRecurringLinked(true)
+            onIgnoreChanged?.()
+          }}
+        />
       )}
       <div className="space-y-2">
         <Label>{t('transactions.description')}</Label>

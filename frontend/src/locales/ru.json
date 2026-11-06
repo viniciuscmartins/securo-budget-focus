@@ -3207,5 +3207,29 @@
       "recurring": "Правила повторяющихся",
       "recurringHint": "Как мы решаем, что списание — это счёт, который вы уже ждали."
     }
+  },
+  "recurringLink": {
+    "linkToRecurring": "Link to recurring",
+    "selectRecurring": "Select recurring item...",
+    "noRecurring": "No recurring items yet",
+    "offer": "Paid every month? Turn it into a recurring item.",
+    "makeRecurring": "Make recurring",
+    "dayOfMonth": "Day of the month",
+    "followAverage": "Amount follows the average of the last 3 payments",
+    "followAverageHelp": "The expected value updates by itself when the price changes. You can turn it off and type your own.",
+    "followAverageToggleHelp": "Updated after each linked payment. Turn it off to keep a fixed amount you type.",
+    "createRule": "Link future payments automatically",
+    "createRuleHelp": "Creates a rule: payments that match are linked to this item, even when the amount changes.",
+    "ruleField": "Match on",
+    "ruleValue": "Text to match",
+    "ruleValuePlaceholder": "e.g. school name",
+    "fieldPayee": "Payee",
+    "fieldDescription": "Description",
+    "fieldNotes": "Notes",
+    "create": "Create recurring",
+    "created": "Recurring item created",
+    "createdWithHistory_one": "Recurring item created and {{count}} earlier payment linked",
+    "createdWithHistory_other": "Recurring item created and {{count}} earlier payments linked",
+    "averageBadge": "avg. of last 3"
   }
 }
