@@ -3192,5 +3192,32 @@
       "recurring": "Regras de Recorrentes",
       "recurringHint": "Como decidimos que uma cobrança é a conta que já esperava."
     }
+  },
+  "monthOutlook": {
+    "title": "Previsão do mês",
+    "endOfMonth": "Sobra no fim do mês",
+    "covered": "Este mês está coberto",
+    "notCovered": "Não dá para cobrir este mês",
+    "dipsBelowZero": "Coberto, mas fica negativo em {{date}}",
+    "cashNow": "Dinheiro nas contas agora",
+    "startBalance": "Dinheiro no início do mês",
+    "incomeExpected": "Receitas ainda previstas",
+    "billsExpected": "Contas a pagar",
+    "cardBills": "Faturas que vencem no mês",
+    "lowestPoint": "Ponto mais baixo",
+    "committedLater": "Parcelas em faturas futuras",
+    "committedLaterHint": "Já comprometido nos próximos meses. Não é descontado deste mês.",
+    "showDetails": "Ver entradas e saídas",
+    "hideDetails": "Ocultar detalhes",
+    "cardBillsTitle": "Faturas",
+    "due": "vence {{date}}",
+    "paidSoFar": "{{amount}} pago",
+    "timeline": "Próximos lançamentos",
+    "kind": {
+      "income": "Receita",
+      "bill": "Conta",
+      "card_bill": "fatura",
+      "pending": "Agendado"
+    }
   }
 }

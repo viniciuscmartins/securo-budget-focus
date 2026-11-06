@@ -3192,5 +3192,32 @@
       "recurring": "Reglas de Recurrentes",
       "recurringHint": "Cómo decidimos que un cargo es la cuenta que ya esperabas."
     }
+  },
+  "monthOutlook": {
+    "title": "This month's outlook",
+    "endOfMonth": "Left at the end of the month",
+    "covered": "This month is covered",
+    "notCovered": "Not enough to cover this month",
+    "dipsBelowZero": "Covered, but goes negative on {{date}}",
+    "cashNow": "Money in your accounts now",
+    "startBalance": "Money at the start of the month",
+    "incomeExpected": "Income still expected",
+    "billsExpected": "Bills still due",
+    "cardBills": "Card bills due this month",
+    "lowestPoint": "Lowest point",
+    "committedLater": "Card installments on later bills",
+    "committedLaterHint": "Already committed for the months ahead. Not subtracted from this month.",
+    "showDetails": "Show what comes in and goes out",
+    "hideDetails": "Hide details",
+    "cardBillsTitle": "Card bills",
+    "due": "due {{date}}",
+    "paidSoFar": "{{amount}} paid",
+    "timeline": "Coming up",
+    "kind": {
+      "income": "Income",
+      "bill": "Bill",
+      "card_bill": "card bill",
+      "pending": "Scheduled"
+    }
   }
 }

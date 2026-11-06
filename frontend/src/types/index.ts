@@ -2003,3 +2003,41 @@ export interface LoanSchedule {
   paid_off: boolean
   installments: LoanInstallment[]
 }
+
+export interface MonthOutlookEvent {
+  date: string
+  kind: 'income' | 'bill' | 'card_bill' | 'pending'
+  description: string
+  /** Signed: + comes in, - goes out. */
+  amount: number
+  account_id: string | null
+  account_name: string | null
+}
+
+export interface MonthOutlookCardBill {
+  account_id: string
+  account_name: string
+  due_date: string
+  amount: number
+  total: number
+  paid: number
+  source: 'bank' | 'computed'
+}
+
+export interface MonthOutlook {
+  month: string
+  currency: string
+  today: string
+  cash_now: number
+  start_balance: number
+  income_expected: number
+  bills_expected: number
+  card_bills: number
+  end_balance: number
+  lowest_balance: number
+  lowest_date: string
+  committed_later: number
+  events: MonthOutlookEvent[]
+  card_bill_details: MonthOutlookCardBill[]
+  cash_accounts: { account_id: string; account_name: string; balance: number }[]
+}
