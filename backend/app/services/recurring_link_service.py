@@ -38,7 +38,7 @@ from app.models.app_settings import AppSetting
 from app.models.recurring_transaction import RecurringTransaction
 from app.models.rule import Rule
 from app.models.transaction import Transaction
-from app.services import recurring_match_service
+from app.services import category_line_service, recurring_match_service
 from app.services.rule_engine import LINK_RECURRING_ACTION
 from app.services.fx_rate_service import stamp_primary_amount
 
@@ -228,7 +228,10 @@ async def refresh_amount(
     new_amount = average([p.amount for p in payments])
     if new_amount is None or new_amount <= 0 or new_amount == recurring.amount:
         return False
+    old_amount = recurring.amount
     recurring.amount = new_amount
+    # A recurring item split across categories keeps its parts in step.
+    await category_line_service.rescale_template_lines(session, recurring, old_amount)
     await stamp_primary_amount(session, recurring.user_id, recurring, date_field="start_date")
     return True
 

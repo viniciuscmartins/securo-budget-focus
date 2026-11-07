@@ -252,9 +252,18 @@ async def _recurring_events(
     projections = await _get_recurring_projections(
         session, workspace_id, today.replace(day=1), end + timedelta(days=1)
     )
+    # A recurring item split across categories comes back as one projection
+    # per part: the outlook shows it as the single payment it is.
+    merged: dict[tuple, dict] = {}
+    for proj in projections:
+        key = (proj.get("recurring_id"), proj["date"])
+        if key[0] is not None and key in merged:
+            merged[key]["amount"] = round(merged[key]["amount"] + proj["amount"], 2)
+        else:
+            merged[key if key[0] is not None else (id(proj), proj["date"])] = dict(proj)
     events: list[OutlookEvent] = []
     card_charges: list[dict] = []
-    for proj in projections:
+    for proj in merged.values():
         account = by_id.get(proj["account_id"])
         if account is None:
             continue
