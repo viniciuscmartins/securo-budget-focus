@@ -1,5 +1,6 @@
 {
  "anon": {
+  "DELETE /api/access-tokens/{token_id}": 401,
   "DELETE /api/accounts/{account_id}": 401,
   "DELETE /api/accounts/{account_id}/cdi-yield": 401,
   "DELETE /api/admin/settings/{key}": 401,
@@ -44,6 +45,8 @@
   "DELETE /api/transactions/{transaction_id}/attachments/{attachment_id}": 401,
   "DELETE /api/users/{id}": 401,
   "DELETE /api/workspaces/{workspace_id}/members/{member_user_id}": 401,
+  "GET /api/access-tokens": 401,
+  "GET /api/access-tokens/scopes": 401,
   "GET /api/accounts": 401,
   "GET /api/accounts/{account_id}": 401,
   "GET /api/accounts/{account_id}/balance-history": 401,
@@ -231,6 +234,7 @@
   "PATCH /api/users/{id}": 401,
   "PATCH /api/workspaces/{workspace_id}": 401,
   "PATCH /api/workspaces/{workspace_id}/members/{member_user_id}": 401,
+  "POST /api/access-tokens": 401,
   "POST /api/accounts": 401,
   "POST /api/accounts/{account_id}/cdi-yield/recalculate": 401,
   "POST /api/accounts/{account_id}/close": 401,
@@ -352,6 +356,7 @@
   "PATCH /api/transactions/bulk-remove-tags": 422,
   "PATCH /api/transactions/{transaction_id}/attachments/{attachment_id}": 422,
   "PATCH /api/workspaces/{workspace_id}/members/{member_user_id}": 422,
+  "POST /api/access-tokens": 422,
   "POST /api/accounts": 422,
   "POST /api/accounts/{account_id}/loan-balance": 422,
   "POST /api/admin/users": 422,
@@ -419,6 +424,7 @@
   "PUT /api/recurring-links/{recurring_id}/amount-mode": 422
  },
  "ok": {
+  "DELETE /api/access-tokens/{token_id}": 404,
   "DELETE /api/accounts/{account_id}": 204,
   "DELETE /api/accounts/{account_id}/cdi-yield": 204,
   "DELETE /api/admin/settings/{key}": 204,
@@ -463,6 +469,8 @@
   "DELETE /api/transactions/{transaction_id}/attachments/{attachment_id}": 204,
   "DELETE /api/users/{id}": 403,
   "DELETE /api/workspaces/{workspace_id}/members/{member_user_id}": 400,
+  "GET /api/access-tokens": 200,
+  "GET /api/access-tokens/scopes": 200,
   "GET /api/accounts": 200,
   "GET /api/accounts/{account_id}": 200,
   "GET /api/accounts/{account_id}/balance-history": 200,
@@ -648,6 +656,7 @@
   "PATCH /api/users/{id}": 403,
   "PATCH /api/workspaces/{workspace_id}": 200,
   "PATCH /api/workspaces/{workspace_id}/members/{member_user_id}": 400,
+  "POST /api/access-tokens": 422,
   "POST /api/accounts": 201,
   "POST /api/accounts/{account_id}/cdi-yield/recalculate": 400,
   "POST /api/accounts/{account_id}/close": 200,
@@ -761,6 +770,7 @@
   "PUT /api/recurring-links/{recurring_id}/amount-mode": 200
  },
  "unknown_id": {
+  "DELETE /api/access-tokens/{token_id}": 404,
   "DELETE /api/accounts/{account_id}": 404,
   "DELETE /api/accounts/{account_id}/cdi-yield": 404,
   "DELETE /api/admin/users/{user_id}": 404,
@@ -934,6 +944,7 @@
   "PUT /api/recurring-links/{recurring_id}/amount-mode": 404
  },
  "viewer": {
+  "DELETE /api/access-tokens/{token_id}": 404,
   "DELETE /api/accounts/{account_id}": 403,
   "DELETE /api/accounts/{account_id}/cdi-yield": 403,
   "DELETE /api/agents/connections/{conn_id}": 404,
@@ -1017,6 +1028,7 @@
   "PATCH /api/users/{id}": 403,
   "PATCH /api/workspaces/{workspace_id}": 403,
   "PATCH /api/workspaces/{workspace_id}/members/{member_user_id}": 403,
+  "POST /api/access-tokens": 422,
   "POST /api/accounts": 403,
   "POST /api/accounts/{account_id}/cdi-yield/recalculate": 403,
   "POST /api/accounts/{account_id}/close": 403,

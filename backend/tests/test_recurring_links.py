@@ -14,6 +14,7 @@ from sqlalchemy import select
 from app.models.account import Account
 from app.models.app_settings import AppSetting
 from app.models.recurring_transaction import RecurringTransaction
+from app.models.recurring_transaction_category_line import RecurringTransactionCategoryLine
 from app.models.rule import Rule
 from app.models.transaction import Transaction
 from app.services import recurring_link_service as svc
@@ -333,6 +334,45 @@ async def test_average_of_the_last_three_payments(session, test_user, test_works
 
     assert rec.amount == Decimal("1000.00")  # (900 + 1000 + 1100) / 3
     assert (await svc.amount_modes(session, test_workspace.id)) == {rec.id: AmountMode()}
+
+
+@pytest.mark.asyncio
+async def test_average_resizes_the_parts_of_a_split_recurring_item(
+    session, test_user, test_workspace, test_categories, checking
+):
+    rec = await _recurring(session, test_user, test_workspace, checking)
+    rec.category_id = None
+    rec.has_category_lines = True
+    for position, (category, value) in enumerate(
+        ((test_categories[0], "600"), (test_categories[1], "400"))
+    ):
+        session.add(
+            RecurringTransactionCategoryLine(
+                workspace_id=test_workspace.id,
+                recurring_transaction_id=rec.id,
+                category_id=category.id,
+                amount=Decimal(value),
+                share_type="exact",
+                position=position,
+            )
+        )
+    await session.commit()
+    await _tx(
+        session,
+        test_user,
+        checking,
+        "escola",
+        "1500",
+        date(2026, 10, 10),
+        recurring_transaction_id=rec.id,
+    )
+
+    await svc.set_amount_mode(session, test_workspace.id, rec.id, AmountMode())
+
+    assert rec.amount == Decimal("1500.00")
+    await session.refresh(rec, ["category_lines"])
+    parts = sorted(line.amount for line in rec.category_lines)
+    assert parts == [Decimal("600.00"), Decimal("900.00")]
 
 
 @pytest.mark.asyncio
