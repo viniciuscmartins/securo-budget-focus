@@ -3213,5 +3213,33 @@
     "createdWithHistory_one": "定期項目を作成し、過去の支払い{{count}}件をリンクしました",
     "createdWithHistory_other": "定期項目を作成し、過去の支払い{{count}}件をリンクしました",
     "averageBadge": "直近3回の平均"
+  },
+  "monthOutlook": {
+    "title": "今月の見通し",
+    "endOfMonth": "月末の残り",
+    "covered": "今月はまかなえます",
+    "notCovered": "今月をまかなうには足りません",
+    "dipsBelowZero": "まかなえますが、{{date}}にマイナスになります",
+    "cashNow": "今の口座残高",
+    "startBalance": "月初の残高",
+    "incomeExpected": "これから入る収入",
+    "billsExpected": "これから払う請求",
+    "cardBills": "今月支払うカード請求",
+    "lowestPoint": "最低残高",
+    "committedLater": "後の請求に回るカード分割払い",
+    "committedLaterHint": "今後の月にすでに確定済み。今月からは差し引きません。",
+    "showDetails": "入出金を表示",
+    "hideDetails": "詳細を隠す",
+    "cardBillsTitle": "カード請求",
+    "due": "{{date}}期限",
+    "paidSoFar": "{{amount}}支払済み",
+    "timeline": "今後の予定",
+    "overdue": "期限切れ",
+    "kind": {
+      "income": "収入",
+      "bill": "請求",
+      "card_bill": "カード請求",
+      "pending": "予定"
+    }
   }
 }

@@ -53,6 +53,7 @@ import { TransactionCalendarView } from '@/components/transaction-calendar-view'
 import { TransactionsViewSwitcher, type TransactionsViewMode } from '@/components/transactions-view-switcher'
 import { RuleDialog, type RuleDialogInitialData } from '@/components/rule-dialog'
 import { usePrivacyMode } from '@/hooks/use-privacy-mode'
+import { MonthOutlookCard } from '@/components/month-outlook-card'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useAuth } from '@/contexts/auth-context'
 import { useCollectionFilter } from '@/contexts/collection-filter-context'
@@ -999,6 +1000,11 @@ export default function DashboardPage() {
           </p>
         )}
       </div>
+
+      {/* Month outlook: will this month be covered? (this month and ahead) */}
+      {selectedMonth >= currentMonth() && !noAccounts && (
+        <MonthOutlookCard month={selectedMonth} accountIds={acctIds} locale={locale} dateLocale={dateLocale} mask={mask} />
+      )}
 
       {/* Uncategorized banner */}
       {!summaryLoading && (

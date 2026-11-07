@@ -3213,5 +3213,33 @@
     "createdWithHistory_one": "Ismétlődő tétel létrehozva, {{count}} korábbi fizetés összekapcsolva",
     "createdWithHistory_other": "Ismétlődő tétel létrehozva, {{count}} korábbi fizetés összekapcsolva",
     "averageBadge": "utolsó 3 átlaga"
+  },
+  "monthOutlook": {
+    "title": "E havi kilátások",
+    "endOfMonth": "A hónap végén marad",
+    "covered": "Ez a hónap fedezett",
+    "notCovered": "Nem elég a hónap fedezésére",
+    "dipsBelowZero": "Fedezett, de {{date}}-n mínuszba megy",
+    "cashNow": "Pénz a számláidon most",
+    "startBalance": "Pénz a hónap elején",
+    "incomeExpected": "Még várt bevételek",
+    "billsExpected": "Még esedékes számlák",
+    "cardBills": "E hónapban esedékes kártyaszámlák",
+    "lowestPoint": "Mélypont",
+    "committedLater": "Kártyás részletek későbbi számlákon",
+    "committedLaterHint": "Már lekötve a következő hónapokra. Nem vonjuk le ebből a hónapból.",
+    "showDetails": "Mutasd, mi jön be és mi megy ki",
+    "hideDetails": "Részletek elrejtése",
+    "cardBillsTitle": "Kártyaszámlák",
+    "due": "esedékes: {{date}}",
+    "paidSoFar": "{{amount}} fizetve",
+    "timeline": "Hamarosan",
+    "overdue": "lejárt",
+    "kind": {
+      "income": "Bevétel",
+      "bill": "Számla",
+      "card_bill": "kártyaszámla",
+      "pending": "Ütemezett"
+    }
   }
 }

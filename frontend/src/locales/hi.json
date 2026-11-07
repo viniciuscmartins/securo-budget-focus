@@ -3213,5 +3213,33 @@
     "createdWithHistory_one": "आवर्ती आइटम बनाया गया और {{count}} पिछला भुगतान जोड़ा गया",
     "createdWithHistory_other": "आवर्ती आइटम बनाया गया और {{count}} पिछले भुगतान जोड़े गए",
     "averageBadge": "पिछले 3 का औसत"
+  },
+  "monthOutlook": {
+    "title": "इस महीने का अनुमान",
+    "endOfMonth": "महीने के अंत में बचेगा",
+    "covered": "यह महीना कवर है",
+    "notCovered": "इस महीने के लिए पर्याप्त नहीं",
+    "dipsBelowZero": "कवर है, लेकिन {{date}} को माइनस में जाएगा",
+    "cashNow": "अभी आपके खातों में पैसा",
+    "startBalance": "महीने की शुरुआत में पैसा",
+    "incomeExpected": "अभी आने वाली आय",
+    "billsExpected": "अभी बाकी बिल",
+    "cardBills": "इस महीने देय कार्ड बिल",
+    "lowestPoint": "सबसे निचला स्तर",
+    "committedLater": "बाद के बिलों पर कार्ड की किस्तें",
+    "committedLaterHint": "आगे के महीनों के लिए पहले से तय। इस महीने से नहीं घटाया गया।",
+    "showDetails": "देखें क्या आता और जाता है",
+    "hideDetails": "विवरण छिपाएँ",
+    "cardBillsTitle": "कार्ड बिल",
+    "due": "देय {{date}}",
+    "paidSoFar": "{{amount}} चुकाया",
+    "timeline": "आगे आने वाला",
+    "overdue": "बकाया",
+    "kind": {
+      "income": "आय",
+      "bill": "बिल",
+      "card_bill": "कार्ड बिल",
+      "pending": "निर्धारित"
+    }
   }
 }

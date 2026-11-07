@@ -3214,5 +3214,33 @@
     "createdWithHistory_one": "Dauerposten angelegt und {{count}} frühere Zahlung verknüpft",
     "createdWithHistory_other": "Dauerposten angelegt und {{count}} frühere Zahlungen verknüpft",
     "averageBadge": "Ø der letzten 3"
+  },
+  "monthOutlook": {
+    "title": "Ausblick für diesen Monat",
+    "endOfMonth": "Am Monatsende übrig",
+    "covered": "Dieser Monat ist gedeckt",
+    "notCovered": "Reicht nicht für diesen Monat",
+    "dipsBelowZero": "Gedeckt, aber am {{date}} im Minus",
+    "cashNow": "Geld auf deinen Konten jetzt",
+    "startBalance": "Geld zu Monatsbeginn",
+    "incomeExpected": "Noch erwartete Einnahmen",
+    "billsExpected": "Noch fällige Rechnungen",
+    "cardBills": "Diesen Monat fällige Kartenabrechnungen",
+    "lowestPoint": "Tiefster Stand",
+    "committedLater": "Kartenraten auf späteren Abrechnungen",
+    "committedLaterHint": "Bereits für die kommenden Monate verplant. Nicht von diesem Monat abgezogen.",
+    "showDetails": "Zeigen, was rein- und rausgeht",
+    "hideDetails": "Details ausblenden",
+    "cardBillsTitle": "Kartenabrechnungen",
+    "due": "fällig {{date}}",
+    "paidSoFar": "{{amount}} bezahlt",
+    "timeline": "Demnächst",
+    "overdue": "überfällig",
+    "kind": {
+      "income": "Einnahme",
+      "bill": "Rechnung",
+      "card_bill": "Kartenabrechnung",
+      "pending": "Geplant"
+    }
   }
 }

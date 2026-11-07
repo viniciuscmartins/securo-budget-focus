@@ -3217,5 +3217,33 @@
     "createdWithHistory_one": "Récurrence créée et {{count}} paiement antérieur lié",
     "createdWithHistory_other": "Récurrence créée et {{count}} paiements antérieurs liés",
     "averageBadge": "moy. des 3 derniers"
+  },
+  "monthOutlook": {
+    "title": "Prévisions du mois",
+    "endOfMonth": "Reste en fin de mois",
+    "covered": "Ce mois-ci est couvert",
+    "notCovered": "Pas assez pour couvrir ce mois-ci",
+    "dipsBelowZero": "Couvert, mais passe dans le rouge le {{date}}",
+    "cashNow": "Argent sur vos comptes maintenant",
+    "startBalance": "Argent en début de mois",
+    "incomeExpected": "Revenus encore attendus",
+    "billsExpected": "Factures encore à payer",
+    "cardBills": "Relevés de carte dus ce mois-ci",
+    "lowestPoint": "Point le plus bas",
+    "committedLater": "Échéances de carte sur des relevés ultérieurs",
+    "committedLaterHint": "Déjà engagé pour les mois à venir. Non déduit de ce mois-ci.",
+    "showDetails": "Voir ce qui entre et sort",
+    "hideDetails": "Masquer les détails",
+    "cardBillsTitle": "Relevés de carte",
+    "due": "échéance le {{date}}",
+    "paidSoFar": "{{amount}} payé",
+    "timeline": "À venir",
+    "overdue": "en retard",
+    "kind": {
+      "income": "Revenu",
+      "bill": "Facture",
+      "card_bill": "relevé de carte",
+      "pending": "Planifié"
+    }
   }
 }

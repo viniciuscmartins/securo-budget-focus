@@ -3215,5 +3215,33 @@
     "createdWithHistory_one": "Terugkerende post aangemaakt en {{count}} eerdere betaling gekoppeld",
     "createdWithHistory_other": "Terugkerende post aangemaakt en {{count}} eerdere betalingen gekoppeld",
     "averageBadge": "gem. laatste 3"
+  },
+  "monthOutlook": {
+    "title": "Vooruitblik deze maand",
+    "endOfMonth": "Over aan het eind van de maand",
+    "covered": "Deze maand is gedekt",
+    "notCovered": "Niet genoeg om deze maand te dekken",
+    "dipsBelowZero": "Gedekt, maar op {{date}} in de min",
+    "cashNow": "Geld op je rekeningen nu",
+    "startBalance": "Geld aan het begin van de maand",
+    "incomeExpected": "Nog verwachte inkomsten",
+    "billsExpected": "Nog te betalen rekeningen",
+    "cardBills": "Kaartafschriften die deze maand vervallen",
+    "lowestPoint": "Laagste punt",
+    "committedLater": "Kaarttermijnen op latere afschriften",
+    "committedLaterHint": "Al vastgelegd voor de komende maanden. Niet afgetrokken van deze maand.",
+    "showDetails": "Toon wat er binnenkomt en uitgaat",
+    "hideDetails": "Details verbergen",
+    "cardBillsTitle": "Kaartafschriften",
+    "due": "vervalt {{date}}",
+    "paidSoFar": "{{amount}} betaald",
+    "timeline": "Binnenkort",
+    "overdue": "achterstallig",
+    "kind": {
+      "income": "Inkomsten",
+      "bill": "Rekening",
+      "card_bill": "kaartafschrift",
+      "pending": "Gepland"
+    }
   }
 }

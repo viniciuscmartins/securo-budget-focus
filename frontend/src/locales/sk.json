@@ -3363,5 +3363,33 @@
     "createdWithHistory_many": "Opakovaná platba vytvorená a prepojených {{count}} skorších platieb",
     "createdWithHistory_other": "Opakovaná platba vytvorená a prepojených {{count}} skorších platieb",
     "averageBadge": "priem. posl. 3"
+  },
+  "monthOutlook": {
+    "title": "Výhľad na tento mesiac",
+    "endOfMonth": "Zostane na konci mesiaca",
+    "covered": "Tento mesiac je pokrytý",
+    "notCovered": "Na pokrytie tohto mesiaca to nestačí",
+    "dipsBelowZero": "Pokrytý, ale {{date}} pôjde do mínusu",
+    "cashNow": "Peniaze na účtoch teraz",
+    "startBalance": "Peniaze na začiatku mesiaca",
+    "incomeExpected": "Ešte očakávané príjmy",
+    "billsExpected": "Ešte splatné platby",
+    "cardBills": "Splatné kartové výpisy tento mesiac",
+    "lowestPoint": "Najnižší bod",
+    "committedLater": "Splátky kartou na neskorších výpisoch",
+    "committedLaterHint": "Už viazané na ďalšie mesiace. Od tohto mesiaca sa neodpočítava.",
+    "showDetails": "Zobraziť príjmy a výdavky",
+    "hideDetails": "Skryť podrobnosti",
+    "cardBillsTitle": "Kartové výpisy",
+    "due": "splatné {{date}}",
+    "paidSoFar": "zaplatené {{amount}}",
+    "timeline": "Čo príde",
+    "overdue": "po splatnosti",
+    "kind": {
+      "income": "Príjem",
+      "bill": "Platba",
+      "card_bill": "kartový výpis",
+      "pending": "Naplánované"
+    }
   }
 }

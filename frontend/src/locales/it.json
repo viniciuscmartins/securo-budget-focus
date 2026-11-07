@@ -3217,5 +3217,33 @@
     "createdWithHistory_one": "Voce ricorrente creata e {{count}} pagamento precedente collegato",
     "createdWithHistory_other": "Voce ricorrente creata e {{count}} pagamenti precedenti collegati",
     "averageBadge": "media ultimi 3"
+  },
+  "monthOutlook": {
+    "title": "Previsione del mese",
+    "endOfMonth": "Resta a fine mese",
+    "covered": "Questo mese è coperto",
+    "notCovered": "Non basta a coprire questo mese",
+    "dipsBelowZero": "Coperto, ma va in negativo il {{date}}",
+    "cashNow": "Soldi sui tuoi conti ora",
+    "startBalance": "Soldi a inizio mese",
+    "incomeExpected": "Entrate ancora attese",
+    "billsExpected": "Bollette ancora da pagare",
+    "cardBills": "Estratti carta in scadenza questo mese",
+    "lowestPoint": "Punto più basso",
+    "committedLater": "Rate della carta su estratti successivi",
+    "committedLaterHint": "Già impegnato per i prossimi mesi. Non sottratto da questo mese.",
+    "showDetails": "Mostra entrate e uscite",
+    "hideDetails": "Nascondi dettagli",
+    "cardBillsTitle": "Estratti carta",
+    "due": "scade il {{date}}",
+    "paidSoFar": "{{amount}} pagato",
+    "timeline": "In arrivo",
+    "overdue": "scaduto",
+    "kind": {
+      "income": "Entrata",
+      "bill": "Bolletta",
+      "card_bill": "estratto carta",
+      "pending": "Programmato"
+    }
   }
 }

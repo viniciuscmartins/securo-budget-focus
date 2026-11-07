@@ -113,7 +113,10 @@ import type {
   ReconciliationSuggestion,
   ReconciliationHistoryEvent,
   CdiYieldMode,
-  CdiYieldSettings, RecurringFromTransactionInput, RecurringAmountMode
+  CdiYieldSettings,
+  MonthOutlook,
+  RecurringFromTransactionInput,
+  RecurringAmountMode,
 } from '@/types'
 
 const api = axios.create({
@@ -538,6 +541,26 @@ export const recurringLinks = {
   setAmountMode: async (recurringId: string, followAverage: boolean): Promise<RecurringTransaction> => {
     const { data } = await api.put(`/recurring-links/${recurringId}/amount-mode`, { follow_average: followAverage })
     return { ...data, amount: Number(data.amount) }
+  },
+}
+
+// Month outlook: money now, what comes in and goes out, what is left.
+const OUTLOOK_NUMBERS = [
+  'cash_now', 'start_balance', 'income_expected', 'bills_expected', 'card_bills',
+  'end_balance', 'lowest_balance', 'committed_later',
+] as const
+
+export const monthOutlook = {
+  get: async (month: string, accountIds?: string[]): Promise<MonthOutlook> => {
+    const { data } = await api.get('/month-outlook', { params: { month, account_ids: accountIds } })
+    const out = { ...data } as Record<string, unknown>
+    for (const key of OUTLOOK_NUMBERS) out[key] = Number(data[key])
+    out.events = (data.events ?? []).map((e: Record<string, unknown>) => ({ ...e, amount: Number(e.amount) }))
+    out.card_bill_details = (data.card_bill_details ?? []).map((b: Record<string, unknown>) => ({
+      ...b, amount: Number(b.amount), total: Number(b.total), paid: Number(b.paid),
+    }))
+    out.cash_accounts = (data.cash_accounts ?? []).map((a: Record<string, unknown>) => ({ ...a, balance: Number(a.balance) }))
+    return out as unknown as MonthOutlook
   },
 }
 
