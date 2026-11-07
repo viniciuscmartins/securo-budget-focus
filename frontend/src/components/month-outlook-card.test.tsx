@@ -45,7 +45,7 @@ describe('MonthOutlookCard', () => {
     api.get.mockResolvedValue(base)
     render()
     expect(await screen.findByText(t('monthOutlook.covered'))).toBeInTheDocument()
-    expect(api.get).toHaveBeenCalledWith('2026-11-01')
+    expect(api.get).toHaveBeenCalledWith('2026-11-01', undefined)
     expect(screen.getByText(/7,000\.00/)).toBeInTheDocument()
     expect(screen.getByText(t('monthOutlook.cashNow'))).toBeInTheDocument()
     expect(screen.getByText(t('monthOutlook.committedLaterHint'))).toBeInTheDocument()
@@ -69,6 +69,27 @@ describe('MonthOutlookCard', () => {
     await user.click(await screen.findByRole('button', { name: t('monthOutlook.showDetails') }))
     expect(screen.getByText(t('monthOutlook.cardBillsTitle'))).toBeInTheDocument()
     expect(screen.getByText('Salary')).toBeInTheDocument()
+  })
+
+  it('flags an unpaid bill that was already due', async () => {
+    api.get.mockResolvedValue({
+      ...base,
+      events: [
+        { date: '2026-11-07', kind: 'bill', description: 'Rent', amount: -300, account_id: 'a', account_name: 'Checking', overdue: true },
+      ],
+    })
+    const { user } = render()
+    await user.click(await screen.findByRole('button', { name: t('monthOutlook.showDetails') }))
+    expect(screen.getByText(`· ${t('monthOutlook.overdue')}`, { exact: false })).toBeInTheDocument()
+  })
+
+  it('asks for the active Collection only', async () => {
+    api.get.mockResolvedValue(base)
+    renderWithProviders(
+      <MonthOutlookCard month="2026-11" accountIds={['a']} locale="en-US" dateLocale="en-US" mask={(v) => v} />,
+    )
+    await screen.findByText(t('monthOutlook.covered'))
+    expect(api.get).toHaveBeenCalledWith('2026-11-01', ['a'])
   })
 
   it('a later month starts from the money at the start of the month', async () => {

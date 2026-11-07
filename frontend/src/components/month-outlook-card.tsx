@@ -20,12 +20,15 @@ function shortDate(iso: string, locale: string) {
  */
 export function MonthOutlookCard({
   month,
+  accountIds,
   locale,
   dateLocale,
   mask,
 }: {
   /** YYYY-MM */
   month: string
+  /** The active Collection's accounts; undefined for all accounts. */
+  accountIds?: string[]
   locale: string
   dateLocale: string
   mask: (value: string) => string
@@ -33,8 +36,10 @@ export function MonthOutlookCard({
   const { t } = useTranslation()
   const [showDetails, setShowDetails] = useState(false)
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['month-outlook', month],
-    queryFn: () => monthOutlook.get(`${month}-01`),
+    // Under 'dashboard' so every financial mutation refreshes it
+    // (invalidateFinancialQueries), like the rest of the dashboard.
+    queryKey: ['dashboard', 'month-outlook', month, accountIds ?? null],
+    queryFn: () => monthOutlook.get(`${month}-01`, accountIds),
   })
 
   if (isError) return null
@@ -181,6 +186,9 @@ function Outlook({
                       {event.description || t(`monthOutlook.kind.${event.kind}`)}
                       {event.kind === 'card_bill' && (
                         <span className="text-muted-foreground"> · {t('monthOutlook.kind.card_bill')}</span>
+                      )}
+                      {event.overdue && (
+                        <span className="text-amber-700 dark:text-amber-400"> · {t('monthOutlook.overdue')}</span>
                       )}
                     </span>
                     <span className={cn('tabular-nums shrink-0', event.amount > 0 ? 'text-emerald-600' : 'text-foreground')}>

@@ -2012,6 +2012,8 @@ export interface MonthOutlookEvent {
   amount: number
   account_id: string | null
   account_name: string | null
+  /** Was due earlier this month (or today) and is still unpaid. */
+  overdue?: boolean
 }
 
 export interface MonthOutlookCardBill {

@@ -3213,6 +3213,7 @@
     "due": "vence {{date}}",
     "paidSoFar": "{{amount}} pago",
     "timeline": "Próximos lançamentos",
+    "overdue": "em atraso",
     "kind": {
       "income": "Receita",
       "bill": "Conta",

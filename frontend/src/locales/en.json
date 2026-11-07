@@ -3209,6 +3209,7 @@
     "due": "due {{date}}",
     "paidSoFar": "{{amount}} paid",
     "timeline": "Coming up",
+    "overdue": "overdue",
     "kind": {
       "income": "Income",
       "bill": "Bill",

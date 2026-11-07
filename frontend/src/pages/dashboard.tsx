@@ -1002,8 +1002,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Month outlook: will this month be covered? (this month and ahead) */}
-      {selectedMonth >= currentMonth() && (
-        <MonthOutlookCard month={selectedMonth} locale={locale} dateLocale={dateLocale} mask={mask} />
+      {selectedMonth >= currentMonth() && !noAccounts && (
+        <MonthOutlookCard month={selectedMonth} accountIds={acctIds} locale={locale} dateLocale={dateLocale} mask={mask} />
       )}
 
       {/* Uncategorized banner */}

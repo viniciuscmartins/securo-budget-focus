@@ -113,7 +113,8 @@ import type {
   ReconciliationSuggestion,
   ReconciliationHistoryEvent,
   CdiYieldMode,
-  CdiYieldSettings, MonthOutlook
+  CdiYieldSettings,
+  MonthOutlook,
 } from '@/types'
 
 const api = axios.create({
@@ -529,8 +530,8 @@ const OUTLOOK_NUMBERS = [
 ] as const
 
 export const monthOutlook = {
-  get: async (month: string): Promise<MonthOutlook> => {
-    const { data } = await api.get('/month-outlook', { params: { month } })
+  get: async (month: string, accountIds?: string[]): Promise<MonthOutlook> => {
+    const { data } = await api.get('/month-outlook', { params: { month, account_ids: accountIds } })
     const out = { ...data } as Record<string, unknown>
     for (const key of OUTLOOK_NUMBERS) out[key] = Number(data[key])
     out.events = (data.events ?? []).map((e: Record<string, unknown>) => ({ ...e, amount: Number(e.amount) }))

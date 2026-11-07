@@ -13,6 +13,7 @@ class OutlookEventRead(BaseModel):
     amount: Decimal  # signed: + comes in, - goes out
     account_id: Optional[uuid.UUID] = None
     account_name: Optional[str] = None
+    overdue: bool = False  # was due earlier (or today) and is still unpaid
 
 
 class CardBillRead(BaseModel):

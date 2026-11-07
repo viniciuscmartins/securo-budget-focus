@@ -16,11 +16,15 @@ already committed, and never subtracted from this month.
 
 Definitions
 -----------
-- **Cash accounts**: open accounts that are not a credit card or a loan
-  (checking, savings, a manual piggy bank...). Today's balance is the same
-  posted-only balance the dashboard uses.
-- **Expected movements**: recurring items not yet paid, from tomorrow to the
-  end of the month, on cash accounts; plus pending and future-dated rows on
+- **Cash accounts**: open checking, savings, wallet and other accounts (a
+  manual piggy bank...). Cards and loans are debts, and investment accounts
+  are left out because their money is not at hand to pay a bill. Today's
+  balance is the same posted-only balance the dashboard uses.
+- **Expected movements**: recurring items not yet paid this month on cash
+  accounts. One that was due today or earlier this month and is still
+  unpaid is still owed, so it is placed tomorrow and flagged overdue
+  (occurrences from earlier months are not carried: a pointer left behind
+  for months would otherwise add up stale bills). Plus pending and future-dated rows on
   those accounts (a connected account's own pending rows dated today or
   earlier are already in the bank's balance, as on the dashboard). Recurring
   items in a transfer-like category are left out: they move money between
@@ -28,9 +32,14 @@ Definitions
 - **Card bills**: for every credit card, each bill whose due date falls in the
   window. The amount is the bank's own bill when the bank sends bills;
   otherwise the card's charges and refunds assigned to that due date (Securo
-  stores each card row's bill due date as `effective_date`), plus recurring
-  charges on the card projected onto that bill. Card payments already made
-  toward the bill are subtracted, so paying early does not count twice.
+  stores each card row's bill due date as `effective_date`). Either way,
+  recurring charges on the card still to come are projected onto their bill:
+  the bank only knows what has been charged so far. Card payments made in
+  the weeks before the due date are subtracted, so paying early does not
+  count twice (a payment for the previous bill made more than ten days late
+  would be taken for this one: the data can't tell the two apart).
+- **Collections**: with `account_ids`, only those accounts are counted, like
+  the rest of the dashboard.
 - **Future months**: asking for a later month walks every expected movement
   from tomorrow, so the month starts with what the months before it leave.
 """
@@ -58,6 +67,8 @@ from app.services.fx_rate_service import convert
 ZERO = Decimal("0")
 CENT = Decimal("0.01")
 LIABILITY_TYPES = {"credit_card", "loan"}
+# Accounts whose balance is not money at hand to pay this month's bills.
+NOT_CASH_TYPES = LIABILITY_TYPES | {"investment"}
 # How far before its due date a card payment may arrive and still pay that
 # bill (a bill closes roughly a week to ten days before it is due).
 PAYMENT_LOOKBACK_DAYS = 20
@@ -79,6 +90,7 @@ class OutlookEvent:
     amount: Decimal  # signed, primary currency: + comes in, - goes out
     account_id: Optional[uuid.UUID] = None
     account_name: Optional[str] = None
+    overdue: bool = False  # was due earlier (or today) and is still unpaid
 
 
 @dataclass
@@ -223,37 +235,57 @@ async def _cash_balances(
 async def _recurring_events(
     session: AsyncSession,
     workspace_id: uuid.UUID,
-    start: date,
+    today: date,
     end: date,
     by_id: dict[uuid.UUID, Account],
     to_primary: _Converter,
 ) -> tuple[list[OutlookEvent], list[dict]]:
-    """Recurring items not yet paid, as cash events, plus card charges apart."""
+    """Recurring items not yet paid, as cash events, plus card charges apart.
+
+    Projects from the first of this month: an occurrence due earlier this
+    month (or today) that is still unpaid has no row yet, so the projection
+    still lists it, and it moves to tomorrow.
+    """
     from app.services.dashboard_service import _get_recurring_projections
 
+    tomorrow = today + timedelta(days=1)
     projections = await _get_recurring_projections(
-        session, workspace_id, start, end + timedelta(days=1)
+        session, workspace_id, today.replace(day=1), end + timedelta(days=1)
     )
     events: list[OutlookEvent] = []
     card_charges: list[dict] = []
     for proj in projections:
         account = by_id.get(proj["account_id"])
-        if account is None or account.type == "loan":
+        if account is None:
             continue
         label = proj.get("description") or ""
         amount = await to_primary(Decimal(str(proj["amount"])), proj["currency"])
         if account.type == "credit_card":
-            card_charges.append({**proj, "amount_primary": amount, "description": label})
+            # A charge that should have posted already lands on the bill of
+            # the day it actually posts, tomorrow at the earliest.
+            card_charges.append(
+                {
+                    **proj,
+                    "date": max(proj["date"], tomorrow),
+                    "amount_primary": amount,
+                    "description": label,
+                }
+            )
             continue
+        if account.type in NOT_CASH_TYPES:
+            continue  # a loan, or an investment account: not cash
         signed = amount if proj["type"] == "credit" else -amount
         events.append(
             OutlookEvent(
-                date=proj["date"],
+                # Due today or earlier and still unpaid: it is still owed,
+                # and the earliest it can now happen is tomorrow.
+                date=max(proj["date"], tomorrow),
                 kind="income" if proj["type"] == "credit" else "bill",
                 description=label,
                 amount=signed,
                 account_id=account.id,
                 account_name=_name(account),
+                overdue=proj["date"] < tomorrow,
             )
         )
     return events, card_charges
@@ -370,6 +402,7 @@ async def _card_bills(
                     committed_later += amount
                 continue
             computed[tx.effective_date] = computed.get(tx.effective_date, ZERO) + signed
+        projected: dict[date, Decimal] = {}
         for charge in card_charges:
             if charge["account_id"] != card.id:
                 continue
@@ -382,17 +415,20 @@ async def _card_bills(
                     if charge["type"] == "debit"
                     else -charge["amount_primary"]
                 )
-                computed[due] = computed.get(due, ZERO) + signed
+                projected[due] = projected.get(due, ZERO) + signed
         due_dates.update(computed)
+        due_dates.update(projected)
 
         for due in sorted(due_dates):
             if due in bank_bills:
                 bill = bank_bills[due]
                 total = await to_primary(bill.total_amount, bill.currency or card.currency)
-                # The bank's bill doesn't know about recurring charges still to come.
+                # The bank only knows what was charged so far: add the
+                # recurring charges still to come on this bill.
+                total += projected.get(due, ZERO)
                 source: Literal["bank", "computed"] = "bank"
             else:
-                total = computed.get(due, ZERO)
+                total = computed.get(due, ZERO) + projected.get(due, ZERO)
                 source = "computed"
             if total <= 0:
                 continue
@@ -446,7 +482,12 @@ async def get_outlook(
     workspace_id: uuid.UUID,
     user_id: uuid.UUID,
     month: Optional[date] = None,
+    account_ids: Optional[list[uuid.UUID]] = None,
 ) -> MonthOutlook:
+    """The outlook for `month` (this month by default).
+
+    `account_ids` limits it to those accounts (a Collection on the dashboard).
+    """
     today = app_today()
     month = (month or today).replace(day=1)
     if month < today.replace(day=1):
@@ -461,15 +502,18 @@ async def get_outlook(
     to_primary = _Converter(session, primary)
 
     accounts = await _open_accounts(session, workspace_id)
+    if account_ids is not None:
+        wanted = set(account_ids)
+        accounts = [a for a in accounts if a.id in wanted]
     by_id = {a.id: a for a in accounts}
-    cash = {a.id: a for a in accounts if a.type not in LIABILITY_TYPES}
+    cash = {a.id: a for a in accounts if a.type not in NOT_CASH_TYPES}
     cards = [a for a in accounts if a.type == "credit_card"]
 
     cash_rows = await _cash_balances(session, workspace_id, list(cash.values()), today, to_primary)
     cash_now = sum((amount for _, _, amount in cash_rows), ZERO)
 
     events, card_charges = await _recurring_events(
-        session, workspace_id, today + timedelta(days=1), end, by_id, to_primary
+        session, workspace_id, today, end, by_id, to_primary
     )
     events += await _pending_events(session, workspace_id, end, today, cash, to_primary)
     bills, committed_later = await _card_bills(

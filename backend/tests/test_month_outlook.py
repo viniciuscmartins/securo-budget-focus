@@ -276,3 +276,124 @@ async def test_api(client, auth_headers, household):
     assert {a["account_name"] for a in body["cash_accounts"]} == {"Checking", "Savings"}
     r = await client.get("/api/month-outlook", headers=auth_headers, params={"month": "2020-01-01"})
     assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_unpaid_bills_due_today_or_earlier_this_month_are_still_owed(
+    session, test_user, test_workspace
+):
+    checking = await _account(session, test_user, "Checking", "checking")
+    await _tx(session, test_user, checking, "1000", date(2026, 11, 1), kind="credit")
+    await _recurring(session, test_user, test_workspace, checking, "Rent", "300", "debit", TODAY)
+    await _recurring(
+        session, test_user, test_workspace, checking, "Gym", "100", "debit", date(2026, 11, 3)
+    )
+    # Left behind since September: only this month's occurrence (Nov 2) is
+    # owed; September's and October's are not carried over.
+    await _recurring(
+        session, test_user, test_workspace, checking, "Stale", "50", "debit", date(2026, 9, 2)
+    )
+
+    out = await svc.get_outlook(session, test_workspace.id, test_user.id, date(2026, 11, 1))
+
+    assert out.bills_expected == D("450")
+    assert out.end_balance == D("550")
+    tomorrow = date(2026, 11, 7)
+    assert sorted((e.date, e.description, e.overdue) for e in out.events) == [
+        (tomorrow, "Gym", True),
+        (tomorrow, "Rent", True),
+        (tomorrow, "Stale", True),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_an_unpaid_card_charge_lands_on_the_bill_it_will_post_to(
+    session, test_user, test_workspace
+):
+    checking = await _account(session, test_user, "Checking", "checking")
+    card = await _account(
+        session, test_user, "Card", "credit_card", statement_close_day=5, payment_due_day=15
+    )
+    await _tx(session, test_user, checking, "1000", date(2026, 11, 1), kind="credit")
+    # Due Nov 4 but not charged yet: it posts from tomorrow, after the
+    # Nov 5 close, so it goes on the bill due Dec 15 (not the one due Nov 15),
+    # together with the Dec 4 charge.
+    await _recurring(
+        session, test_user, test_workspace, card, "Streaming", "50", "debit", date(2026, 11, 4)
+    )
+
+    out = await svc.get_outlook(session, test_workspace.id, test_user.id, date(2026, 11, 1))
+    assert out.card_bill_details == []
+
+    out = await svc.get_outlook(session, test_workspace.id, test_user.id, date(2026, 12, 1))
+    [bill] = out.card_bill_details
+    assert (bill.due_date, bill.amount) == (date(2026, 12, 15), D("100"))
+
+
+@pytest.mark.asyncio
+async def test_the_banks_bill_gets_the_recurring_charges_still_to_come(
+    session, test_user, test_workspace, household
+):
+    _, _, card = household
+    # The bank's open bill due Dec 10 knows nothing of the Nov 12 streaming charge.
+    session.add(
+        CreditCardBill(
+            user_id=test_user.id,
+            workspace_id=test_workspace.id,
+            account_id=card.id,
+            external_id="open-dec",
+            due_date=date(2026, 12, 10),
+            total_amount=D("300"),
+            currency="BRL",
+        )
+    )
+    await session.commit()
+
+    out = await svc.get_outlook(session, test_workspace.id, test_user.id, date(2026, 12, 1))
+
+    [bill] = out.card_bill_details
+    assert (bill.due_date, bill.amount, bill.source) == (date(2026, 12, 10), D("350"), "bank")
+
+
+@pytest.mark.asyncio
+async def test_investment_accounts_are_not_cash(session, test_user, test_workspace, household):
+    broker = await _account(session, test_user, "Broker", "investment")
+    await _tx(session, test_user, broker, "50000", date(2026, 10, 1), kind="credit")
+    await _recurring(
+        session, test_user, test_workspace, broker, "Dividends", "100", "credit", date(2026, 11, 20)
+    )
+
+    out = await svc.get_outlook(session, test_workspace.id, test_user.id, date(2026, 11, 1))
+
+    assert out.cash_now == D("4000")
+    assert out.income_expected == D("5000")
+
+
+@pytest.mark.asyncio
+async def test_a_collection_counts_only_its_accounts(
+    session, test_user, test_workspace, household
+):
+    checking, savings, _ = household
+    out = await svc.get_outlook(
+        session, test_workspace.id, test_user.id, date(2026, 11, 1), [savings.id]
+    )
+    assert out.cash_now == D("1000")
+    assert out.events == [] and out.card_bill_details == []
+
+    out = await svc.get_outlook(
+        session, test_workspace.id, test_user.id, date(2026, 11, 1), [checking.id]
+    )
+    assert out.cash_now == D("3000")
+    assert out.end_balance == D("6800")  # 3000 + 5000 - 1200, no card
+
+
+@pytest.mark.asyncio
+async def test_api_collection_filter(client, auth_headers, household):
+    _, savings, _ = household
+    r = await client.get(
+        "/api/month-outlook",
+        headers=auth_headers,
+        params={"month": "2026-11-01", "account_ids": [str(savings.id)]},
+    )
+    assert r.status_code == 200, r.text
+    assert D(r.json()["cash_now"]) == D("1000")

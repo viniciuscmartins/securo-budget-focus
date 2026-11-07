@@ -1,5 +1,6 @@
 """Month outlook: money now, what comes in and goes out, and what is left."""
 
+import uuid
 from dataclasses import asdict
 from datetime import date
 from typing import Optional
@@ -18,11 +19,16 @@ router = APIRouter(prefix="/api/month-outlook", tags=["dashboard"])
 @router.get("", response_model=MonthOutlookRead)
 async def get_month_outlook(
     month: Optional[date] = Query(None, description="Any day of the month; defaults to this month"),
+    account_ids: Optional[list[uuid.UUID]] = Query(
+        None, description="Only these accounts (a Collection); all open accounts when omitted"
+    ),
     ctx: WorkspaceContext = Depends(current_workspace),
     session: AsyncSession = Depends(get_async_session),
 ):
     try:
-        outlook = await svc.get_outlook(session, ctx.workspace.id, ctx.user_id, month)
+        outlook = await svc.get_outlook(
+            session, ctx.workspace.id, ctx.user_id, month, account_ids
+        )
     except svc.MonthOutlookError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     data = asdict(outlook)
