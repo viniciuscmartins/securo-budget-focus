@@ -3188,5 +3188,30 @@
       "recurring": "定期のルール",
       "recurringHint": "ある引き落としが予定していた支払いだと判断する方法。"
     }
+  },
+  "recurringLink": {
+    "linkToRecurring": "定期項目にリンク",
+    "selectRecurring": "定期項目を選択...",
+    "noRecurring": "定期項目はまだありません",
+    "offer": "毎月の支払いですか？定期項目にしましょう。",
+    "makeRecurring": "定期項目にする",
+    "dayOfMonth": "毎月の日付",
+    "followAverage": "金額を直近3回の支払いの平均に合わせる",
+    "followAverageHelp": "価格が変わると予定額が自動で更新されます。オフにして自分で入力することもできます。",
+    "followAverageToggleHelp": "リンクされた支払いごとに更新されます。入力した固定額を使うにはオフにしてください。",
+    "amountFollowsAverage": "直近の支払いの平均から設定されています。自分で入力するには、下の「金額を平均に合わせる」をオフにしてください。",
+    "createRule": "今後の支払いを自動でリンク",
+    "createRuleHelp": "ルールを作成します：一致する支払いは金額が変わってもこの項目にリンクされます。",
+    "ruleField": "照合する項目",
+    "ruleValue": "照合するテキスト",
+    "ruleValuePlaceholder": "例：学校名",
+    "fieldPayee": "支払先",
+    "fieldDescription": "説明",
+    "fieldNotes": "メモ",
+    "create": "定期項目を作成",
+    "created": "定期項目を作成しました",
+    "createdWithHistory_one": "定期項目を作成し、過去の支払い{{count}}件をリンクしました",
+    "createdWithHistory_other": "定期項目を作成し、過去の支払い{{count}}件をリンクしました",
+    "averageBadge": "直近3回の平均"
   }
 }

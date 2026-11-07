@@ -113,7 +113,7 @@ import type {
   ReconciliationSuggestion,
   ReconciliationHistoryEvent,
   CdiYieldMode,
-  CdiYieldSettings,
+  CdiYieldSettings, RecurringFromTransactionInput, RecurringAmountMode
 } from '@/types'
 
 const api = axios.create({
@@ -519,6 +519,25 @@ export const cdiYield = {
   },
   remove: async (accountId: string, deletePosted: boolean): Promise<void> => {
     await api.delete(`/accounts/${accountId}/cdi-yield`, { params: { delete_posted: deletePosted } })
+  },
+}
+
+// Recurring items made from a transaction, and amounts that follow payments.
+export const recurringLinks = {
+  fromTransaction: async (
+    transactionId: string,
+    body: RecurringFromTransactionInput,
+  ): Promise<{ recurring: RecurringTransaction; linked_history: number }> => {
+    const { data } = await api.post(`/recurring-links/from-transaction/${transactionId}`, body)
+    return { recurring: { ...data.recurring, amount: Number(data.recurring.amount) }, linked_history: data.linked_history }
+  },
+  amountModes: async (): Promise<RecurringAmountMode[]> => {
+    const { data } = await api.get('/recurring-links/amount-modes')
+    return data
+  },
+  setAmountMode: async (recurringId: string, followAverage: boolean): Promise<RecurringTransaction> => {
+    const { data } = await api.put(`/recurring-links/${recurringId}/amount-mode`, { follow_average: followAverage })
+    return { ...data, amount: Number(data.amount) }
   },
 }
 

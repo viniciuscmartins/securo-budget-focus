@@ -29,6 +29,8 @@ import { usePrivacyMode } from '@/hooks/use-privacy-mode'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { formatCurrency } from '@/lib/format'
+import { RecurringAverageToggle } from '@/components/recurring-link'
+import { useRecurringAmountModes } from '@/hooks/use-recurring-amount-modes'
 
 const TH = 'text-xs font-medium text-muted-foreground py-3'
 
@@ -77,6 +79,7 @@ function RecurringTab() {
     queryKey: ['recurring'],
     queryFn: recurringApi.list,
   })
+  const followsAverage = useRecurringAmountModes()
 
   const { data: categoriesList } = useQuery({
     queryKey: ['categories'],
@@ -201,6 +204,9 @@ function RecurringTab() {
                   <td className="py-3 pl-4 sm:pl-5 text-sm font-medium text-foreground">{rt.description}</td>
                   <td className={`py-3 text-xs sm:text-sm font-bold tabular-nums ${rt.type === 'credit' ? 'text-emerald-600' : 'text-rose-500'}`}>
                     {mask(`${rt.type === 'credit' ? '+' : '−'}${formatCurrency(rt.amount, rt.currency, locale)}`)}
+                    {followsAverage.has(rt.id) && (
+                      <div className="text-[11px] font-normal text-muted-foreground">{t('recurringLink.averageBadge')}</div>
+                    )}
                     {rt.currency !== userCurrency && rt.amount_primary != null && (
                       <div className="flex items-center gap-1 text-[11px] font-normal text-muted-foreground">
                         <span>{mask(formatCurrency(rt.amount_primary, userCurrency, locale))}</span>
@@ -329,6 +335,10 @@ function RecurringForm({
   })
   const [description, setDescription] = useState(recurring?.description ?? '')
   const [amount, setAmount] = useState(recurring?.amount?.toString() ?? '')
+  // While the amount follows the average of the last payments the server
+  // keeps rewriting it, so a typed value would be lost: turn the option off
+  // to type one.
+  const followsAverage = useRecurringAmountModes(!!recurring).has(recurring?.id ?? '')
   const [currency, setCurrency] = useState(recurring?.currency ?? userCurrency)
   const [type, setType] = useState<'debit' | 'credit'>(recurring?.type ?? 'debit')
   const [frequency, setFrequency] = useState(recurring?.frequency ?? 'monthly')
@@ -374,7 +384,16 @@ function RecurringForm({
       <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label>{t('recurring.amount')}</Label>
-          <Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+          <Input
+            type="number"
+            step="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            readOnly={followsAverage}
+            aria-describedby={followsAverage ? 'recurring-amount-average' : undefined}
+            className={followsAverage ? 'bg-muted text-muted-foreground' : undefined}
+            required
+          />
         </div>
         <div className="space-y-2">
           <Label>{t('recurring.currency')}</Label>
@@ -392,6 +411,10 @@ function RecurringForm({
           </select>
         </div>
       </div>
+      {/* Full width under the row: a third-width column wraps it to five lines. */}
+      {followsAverage && (
+        <p id="recurring-amount-average" className="-mt-2 text-xs text-muted-foreground">{t('recurringLink.amountFollowsAverage')}</p>
+      )}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>{t('recurring.frequency')}</Label>
@@ -473,6 +496,7 @@ function RecurringForm({
           <span className="block text-xs text-muted-foreground">{t('recurring.autoGenerateHelp')}</span>
         </span>
       </label>
+      {recurring && <RecurringAverageToggle recurringId={recurring.id} onAmountChange={(value) => setAmount(String(value))} />}
       {recurring && (
         <label className="flex items-center gap-2 cursor-pointer">
           <input

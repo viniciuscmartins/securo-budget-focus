@@ -3192,5 +3192,30 @@
       "recurring": "Règles Récurrentes",
       "recurringHint": "Comment nous décidons qu’un prélèvement est la facture que vous attendiez."
     }
+  },
+  "recurringLink": {
+    "linkToRecurring": "Lier à une récurrence",
+    "selectRecurring": "Choisir une récurrence...",
+    "noRecurring": "Aucune récurrence pour l’instant",
+    "offer": "Payé chaque mois ? Faites-en une récurrence.",
+    "makeRecurring": "Rendre récurrent",
+    "dayOfMonth": "Jour du mois",
+    "followAverage": "Le montant suit la moyenne des 3 derniers paiements",
+    "followAverageHelp": "Le montant attendu se met à jour tout seul quand le prix change. Vous pouvez le désactiver et saisir le vôtre.",
+    "followAverageToggleHelp": "Mis à jour après chaque paiement lié. Désactivez pour garder un montant fixe que vous saisissez.",
+    "amountFollowsAverage": "Fixé par la moyenne des derniers paiements. Désactivez « Le montant suit la moyenne » ci-dessous pour saisir le vôtre.",
+    "createRule": "Lier automatiquement les paiements futurs",
+    "createRuleHelp": "Crée une règle : les paiements correspondants sont liés à cet élément, même si le montant change.",
+    "ruleField": "Comparer sur",
+    "ruleValue": "Texte à rechercher",
+    "ruleValuePlaceholder": "ex. : nom de l’école",
+    "fieldPayee": "Bénéficiaire",
+    "fieldDescription": "Description",
+    "fieldNotes": "Notes",
+    "create": "Créer la récurrence",
+    "created": "Récurrence créée",
+    "createdWithHistory_one": "Récurrence créée et {{count}} paiement antérieur lié",
+    "createdWithHistory_other": "Récurrence créée et {{count}} paiements antérieurs liés",
+    "averageBadge": "moy. des 3 derniers"
   }
 }

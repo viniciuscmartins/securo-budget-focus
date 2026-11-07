@@ -3192,5 +3192,30 @@
       "recurring": "Regole Ricorrenti",
       "recurringHint": "Come decidiamo che un addebito è la bolletta che stavi già aspettando."
     }
+  },
+  "recurringLink": {
+    "linkToRecurring": "Collega a ricorrente",
+    "selectRecurring": "Seleziona la voce ricorrente...",
+    "noRecurring": "Ancora nessuna voce ricorrente",
+    "offer": "Pagato ogni mese? Trasformalo in una voce ricorrente.",
+    "makeRecurring": "Rendi ricorrente",
+    "dayOfMonth": "Giorno del mese",
+    "followAverage": "L’importo segue la media degli ultimi 3 pagamenti",
+    "followAverageHelp": "L’importo previsto si aggiorna da solo quando il prezzo cambia. Puoi disattivarlo e inserire il tuo.",
+    "followAverageToggleHelp": "Aggiornato dopo ogni pagamento collegato. Disattiva per mantenere un importo fisso inserito da te.",
+    "amountFollowsAverage": "Calcolato dalla media degli ultimi pagamenti. Disattiva «L’importo segue la media» qui sotto per inserire il tuo.",
+    "createRule": "Collega automaticamente i pagamenti futuri",
+    "createRuleHelp": "Crea una regola: i pagamenti corrispondenti vengono collegati a questa voce, anche se l’importo cambia.",
+    "ruleField": "Confronta su",
+    "ruleValue": "Testo da cercare",
+    "ruleValuePlaceholder": "es. nome della scuola",
+    "fieldPayee": "Beneficiario",
+    "fieldDescription": "Descrizione",
+    "fieldNotes": "Note",
+    "create": "Crea ricorrente",
+    "created": "Voce ricorrente creata",
+    "createdWithHistory_one": "Voce ricorrente creata e {{count}} pagamento precedente collegato",
+    "createdWithHistory_other": "Voce ricorrente creata e {{count}} pagamenti precedenti collegati",
+    "averageBadge": "media ultimi 3"
   }
 }

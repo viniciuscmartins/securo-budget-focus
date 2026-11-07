@@ -2,7 +2,7 @@ import { useRef, useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { categories as categoriesApi, categoryGroups as categoryGroupsApi, rules as rulesApi, accounts as accountsApi, payees as payeesApi } from '@/lib/api'
+import { categories as categoriesApi, categoryGroups as categoryGroupsApi, rules as rulesApi, accounts as accountsApi, payees as payeesApi, recurring as recurringApi } from '@/lib/api'
 import { extractApiError } from '@/lib/api-errors'
 import { invalidateFinancialQueries } from '@/lib/invalidate-queries'
 import { toast } from 'sonner'
@@ -141,6 +141,7 @@ function actionSummary(
   payeesList: Payee[],
   t: (key: string) => string,
   accountsList: { id: string; name: string; display_name?: string | null }[] = [],
+  recurringList: { id: string; description: string }[] = [],
 ): string {
   return actions.map(a => {
     if (a.op === 'set_category') {
@@ -160,6 +161,10 @@ function actionSummary(
       const acc = accountsList.find(acc => acc.id === a.value)
       return `→ ${t('rules.transferToAccount')}${acc ? `: ${getAccountName(acc)}` : ''}`
     }
+    if (a.op === 'link_recurring') {
+      const item = recurringList.find(r => r.id === a.value)
+      return `→ ${t('recurringLink.linkToRecurring')}${item ? `: ${item.description}` : ''}`
+    }
     return a.op
   }).join('  ') || t('rules.noActions')
 }
@@ -171,6 +176,7 @@ const ACTION_FILTERS = [
   { value: 'append_notes', label: 'rules.appendNotes' },
   { value: 'ignore', label: 'rules.ignoreAction' },
   { value: 'transfer_to_account', label: 'rules.transferToAccount' },
+  { value: 'link_recurring', label: 'recurringLink.linkToRecurring' },
 ] as const
 
 const FILTER_CONTROL_CLASS = 'h-7 rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus-visible:ring-ring/30 focus-visible:ring-[2px]'
@@ -231,6 +237,11 @@ export default function RulesPage() {
   const { data: payeesList } = useQuery({
     queryKey: ['payees'],
     queryFn: payeesApi.list,
+  })
+
+  const { data: recurringList } = useQuery({
+    queryKey: ['recurring'],
+    queryFn: () => recurringApi.list(),
   })
 
   const createMutation = useMutation({
@@ -669,7 +680,7 @@ export default function RulesPage() {
                       {conditionSummary(rule.conditions, rule.conditions_op, t, payees)}
                     </p>
                     <p className="text-xs text-emerald-600 font-medium mt-0.5">
-                      {actionSummary(rule.actions, displayCategories, payees, t, accountsList ?? [])}
+                      {actionSummary(rule.actions, displayCategories, payees, t, accountsList ?? [], recurringList ?? [])}
                     </p>
                   </div>
                   {canWrite && (
@@ -779,6 +790,7 @@ export default function RulesPage() {
         categoryGroups={categoryGroupsList ?? []}
         currentCategories={allCategoriesList ?? []}
         accounts={accountsList ?? []}
+        recurringItems={recurringList ?? []}
         payees={payees}
         onSave={(data) => {
           if (editing) {

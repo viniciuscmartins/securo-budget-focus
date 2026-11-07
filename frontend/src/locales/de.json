@@ -3189,5 +3189,30 @@
       "recurring": "Regeln für Wiederkehrendes",
       "recurringHint": "Wie wir entscheiden, dass eine Buchung die erwartete Rechnung ist."
     }
+  },
+  "recurringLink": {
+    "linkToRecurring": "Mit Dauerposten verknüpfen",
+    "selectRecurring": "Dauerposten auswählen...",
+    "noRecurring": "Noch keine Dauerposten",
+    "offer": "Jeden Monat bezahlt? Mach einen Dauerposten daraus.",
+    "makeRecurring": "Als Dauerposten anlegen",
+    "dayOfMonth": "Tag des Monats",
+    "followAverage": "Betrag folgt dem Durchschnitt der letzten 3 Zahlungen",
+    "followAverageHelp": "Der erwartete Betrag passt sich selbst an, wenn sich der Preis ändert. Du kannst das ausschalten und deinen eigenen eingeben.",
+    "followAverageToggleHelp": "Wird nach jeder verknüpften Zahlung aktualisiert. Schalte es aus, um einen festen, selbst eingegebenen Betrag zu behalten.",
+    "amountFollowsAverage": "Aus dem Durchschnitt der letzten Zahlungen. Schalte unten „Betrag folgt dem Durchschnitt“ aus, um deinen eigenen einzugeben.",
+    "createRule": "Künftige Zahlungen automatisch verknüpfen",
+    "createRuleHelp": "Erstellt eine Regel: Passende Zahlungen werden mit diesem Posten verknüpft, auch wenn sich der Betrag ändert.",
+    "ruleField": "Vergleichen mit",
+    "ruleValue": "Gesuchter Text",
+    "ruleValuePlaceholder": "z. B. Name der Schule",
+    "fieldPayee": "Empfänger",
+    "fieldDescription": "Beschreibung",
+    "fieldNotes": "Notizen",
+    "create": "Dauerposten anlegen",
+    "created": "Dauerposten angelegt",
+    "createdWithHistory_one": "Dauerposten angelegt und {{count}} frühere Zahlung verknüpft",
+    "createdWithHistory_other": "Dauerposten angelegt und {{count}} frühere Zahlungen verknüpft",
+    "averageBadge": "Ø der letzten 3"
   }
 }

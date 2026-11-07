@@ -3302,5 +3302,32 @@
       "recurring": "Reguły Cyklicznych",
       "recurringHint": "Jak ustalamy, że obciążenie to rachunek, którego już oczekiwałeś."
     }
+  },
+  "recurringLink": {
+    "linkToRecurring": "Połącz z cykliczną",
+    "selectRecurring": "Wybierz pozycję cykliczną...",
+    "noRecurring": "Brak pozycji cyklicznych",
+    "offer": "Płacisz co miesiąc? Zrób z tego pozycję cykliczną.",
+    "makeRecurring": "Ustaw jako cykliczną",
+    "dayOfMonth": "Dzień miesiąca",
+    "followAverage": "Kwota podąża za średnią z 3 ostatnich płatności",
+    "followAverageHelp": "Oczekiwana kwota sama się aktualizuje, gdy zmienia się cena. Możesz to wyłączyć i wpisać własną.",
+    "followAverageToggleHelp": "Aktualizowana po każdej połączonej płatności. Wyłącz, aby zachować stałą kwotę wpisaną przez siebie.",
+    "amountFollowsAverage": "Ustalona na podstawie średniej z ostatnich płatności. Aby wpisać własną, wyłącz poniżej „Kwota podąża za średnią”.",
+    "createRule": "Automatycznie łącz przyszłe płatności",
+    "createRuleHelp": "Tworzy regułę: pasujące płatności są łączone z tą pozycją, nawet gdy kwota się zmienia.",
+    "ruleField": "Porównuj według",
+    "ruleValue": "Szukany tekst",
+    "ruleValuePlaceholder": "np. nazwa szkoły",
+    "fieldPayee": "Odbiorca",
+    "fieldDescription": "Opis",
+    "fieldNotes": "Notatki",
+    "create": "Utwórz cykliczną",
+    "created": "Utworzono pozycję cykliczną",
+    "createdWithHistory_one": "Utworzono pozycję cykliczną i połączono {{count}} wcześniejszą płatność",
+    "createdWithHistory_few": "Utworzono pozycję cykliczną i połączono {{count}} wcześniejsze płatności",
+    "createdWithHistory_many": "Utworzono pozycję cykliczną i połączono {{count}} wcześniejszych płatności",
+    "createdWithHistory_other": "Utworzono pozycję cykliczną i połączono {{count}} wcześniejszej płatności",
+    "averageBadge": "śr. z ost. 3"
   }
 }

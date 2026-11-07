@@ -67,6 +67,12 @@ celery_app.conf.beat_schedule = {
         # pick it up sooner; one rate request per run covers all accounts.
         "schedule": 60 * 60 * 6,
     },
+    "refresh-recurring-amounts": {
+        "task": "app.tasks.recurring_link_tasks.refresh_recurring_amounts",
+        # Hourly: re-averages recurring items whose amount follows their
+        # payments, after a bank sync linked a new one. Cheap and idempotent.
+        "schedule": 60 * 60,
+    },
 }
 
 celery_app.conf.include = [
@@ -76,6 +82,7 @@ celery_app.conf.include = [
     "app.tasks.asset_tasks",
     "app.tasks.fx_rate_tasks",
     "app.tasks.cdi_yield_tasks",
+    "app.tasks.recurring_link_tasks",
     # Optional agents module — registering the import is harmless when
     # AGENTS_ENABLED=false (the task just won't be dispatched).
     "app.agents.tasks.ingest",
