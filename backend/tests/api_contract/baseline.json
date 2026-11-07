@@ -158,6 +158,7 @@
   "GET /api/reconciliation/rules": 401,
   "GET /api/reconciliation/rules/export": 401,
   "GET /api/reconciliation/suggestions": 401,
+  "GET /api/recurring-links/amount-modes": 401,
   "GET /api/recurring-transactions": 401,
   "GET /api/reports/cash-flow": 401,
   "GET /api/reports/data-range": 401,
@@ -313,6 +314,7 @@
   "POST /api/reconciliation/rules/{node}/{strategy_id}/reset": 401,
   "POST /api/reconciliation/suggestions/{suggestion_id}/accept": 401,
   "POST /api/reconciliation/suggestions/{suggestion_id}/decline": 401,
+  "POST /api/recurring-links/from-transaction/{transaction_id}": 401,
   "POST /api/recurring-transactions": 401,
   "POST /api/recurring-transactions/generate": 401,
   "POST /api/rules": 401,
@@ -338,7 +340,8 @@
   "PUT /api/agents/{agent_id}/tools": 401,
   "PUT /api/budgets/year-plan": 401,
   "PUT /api/mortgage-payments/{payment_id}": 401,
-  "PUT /api/reconciliation/rules/{node}/order": 401
+  "PUT /api/reconciliation/rules/{node}/order": 401,
+  "PUT /api/recurring-links/{recurring_id}/amount-mode": 401
  },
  "empty": {
   "PATCH /api/admin/settings/{key}": 422,
@@ -412,7 +415,8 @@
   "PUT /api/accounts/{account_id}/cdi-yield": 422,
   "PUT /api/budgets/year-plan": 422,
   "PUT /api/mortgage-payments/{payment_id}": 422,
-  "PUT /api/reconciliation/rules/{node}/order": 422
+  "PUT /api/reconciliation/rules/{node}/order": 422,
+  "PUT /api/recurring-links/{recurring_id}/amount-mode": 422
  },
  "ok": {
   "DELETE /api/accounts/{account_id}": 204,
@@ -572,6 +576,7 @@
   "GET /api/reconciliation/rules": 200,
   "GET /api/reconciliation/rules/export": 200,
   "GET /api/reconciliation/suggestions": 200,
+  "GET /api/recurring-links/amount-modes": 200,
   "GET /api/recurring-transactions": 200,
   "GET /api/reports/cash-flow": 200,
   "GET /api/reports/data-range": 200,
@@ -726,6 +731,7 @@
   "POST /api/reconciliation/rules/{node}/{strategy_id}/reset": 204,
   "POST /api/reconciliation/suggestions/{suggestion_id}/accept": 404,
   "POST /api/reconciliation/suggestions/{suggestion_id}/decline": 404,
+  "POST /api/recurring-links/from-transaction/{transaction_id}": 201,
   "POST /api/recurring-transactions": 201,
   "POST /api/recurring-transactions/generate": 200,
   "POST /api/rules": 201,
@@ -751,7 +757,8 @@
   "PUT /api/agents/{agent_id}/tools": 200,
   "PUT /api/budgets/year-plan": 200,
   "PUT /api/mortgage-payments/{payment_id}": 404,
-  "PUT /api/reconciliation/rules/{node}/order": 400
+  "PUT /api/reconciliation/rules/{node}/order": 400,
+  "PUT /api/recurring-links/{recurring_id}/amount-mode": 200
  },
  "unknown_id": {
   "DELETE /api/accounts/{account_id}": 404,
@@ -915,6 +922,7 @@
   "POST /api/reconciliation/rules/{node}/{strategy_id}/reset": 204,
   "POST /api/reconciliation/suggestions/{suggestion_id}/accept": 404,
   "POST /api/reconciliation/suggestions/{suggestion_id}/decline": 404,
+  "POST /api/recurring-links/from-transaction/{transaction_id}": 404,
   "POST /api/transactions/{transaction_id}/attachments": 404,
   "POST /api/transactions/{transaction_id}/create-counterpart": 422,
   "POST /api/transactions/{transaction_id}/post-today": 404,
@@ -922,7 +930,8 @@
   "POST /api/workspaces/{workspace_id}/members": 404,
   "PUT /api/accounts/{account_id}/cdi-yield": 404,
   "PUT /api/agents/{agent_id}/tools": 404,
-  "PUT /api/mortgage-payments/{payment_id}": 422
+  "PUT /api/mortgage-payments/{payment_id}": 422,
+  "PUT /api/recurring-links/{recurring_id}/amount-mode": 404
  },
  "viewer": {
   "DELETE /api/accounts/{account_id}": 403,
@@ -1090,6 +1099,7 @@
   "POST /api/reconciliation/rules/{node}/{strategy_id}/reset": 403,
   "POST /api/reconciliation/suggestions/{suggestion_id}/accept": 403,
   "POST /api/reconciliation/suggestions/{suggestion_id}/decline": 403,
+  "POST /api/recurring-links/from-transaction/{transaction_id}": 403,
   "POST /api/recurring-transactions": 403,
   "POST /api/recurring-transactions/generate": 403,
   "POST /api/rules": 403,
@@ -1115,6 +1125,7 @@
   "PUT /api/agents/{agent_id}/tools": 403,
   "PUT /api/budgets/year-plan": 403,
   "PUT /api/mortgage-payments/{payment_id}": 403,
-  "PUT /api/reconciliation/rules/{node}/order": 403
+  "PUT /api/reconciliation/rules/{node}/order": 403,
+  "PUT /api/recurring-links/{recurring_id}/amount-mode": 403
  }
 }

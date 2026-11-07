@@ -285,9 +285,10 @@ def apply_rule_actions(
         elif op == "ignore":
             tx.is_ignored = True
 
-        # "transfer_to_account" needs the database (it creates the
-        # counterpart transaction), so it is carried out by the service
-        # layer through `transfer_target`, not here.
+        # "transfer_to_account" and "link_recurring" need the database (they
+        # create a counterpart or move a schedule along), so the service
+        # layer carries them out through `transfer_target` and
+        # `recurring_target`, not here.
 
     return category_already_set
 
@@ -325,4 +326,44 @@ def transfer_would_apply(tx: "Transaction", to_account_id: uuid.UUID | None) -> 
         and getattr(tx, "transfer_pair_id", None) is None
         and getattr(tx, "source", None) not in {"opening_balance", "transfer"}
         and getattr(tx, "account_id", None) != to_account_id
+    )
+
+
+LINK_RECURRING_ACTION = "link_recurring"
+
+
+def recurring_target(actions: list) -> uuid.UUID | None:
+    """The recurring item a rule's "link to recurring" action points at, if any.
+
+    The first well-formed one wins; a transaction belongs to one schedule.
+    """
+    for action in actions or []:
+        op = action.get("op") if isinstance(action, dict) else getattr(action, "op", None)
+        if op != LINK_RECURRING_ACTION:
+            continue
+        value = action.get("value") if isinstance(action, dict) else getattr(action, "value", None)
+        try:
+            return uuid.UUID(str(value))
+        except (ValueError, AttributeError, TypeError):
+            continue
+    return None
+
+
+def link_would_apply(
+    tx: "Transaction", recurring_id: uuid.UUID | None, recurring_type: str | None = None
+) -> bool:
+    """Whether `recurring_link_service.link_by_rule` would link `tx`.
+
+    Mirrors its row checks so a rule preview can count these rows as
+    changing. `recurring_type` is the schedule's direction when the caller
+    knows it; a credit never pays a debit schedule.
+    """
+    if recurring_id is None:
+        return False
+    if recurring_type is not None and getattr(tx, "type", None) != recurring_type:
+        return False
+    return (
+        not getattr(tx, "is_ignored", False)
+        and getattr(tx, "recurring_transaction_id", None) is None
+        and getattr(tx, "source", None) not in {"opening_balance", "recurring"}
     )

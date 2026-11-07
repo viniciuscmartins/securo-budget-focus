@@ -426,6 +426,7 @@ export interface RuleDialogInitialData {
 
 export function RuleDialog({
   open, onClose, rule, categories, categoryGroups, currentCategories = [], accounts, payees, onSave, loading, initialData,
+  recurringItems = [],
 }: {
   open: boolean
   onClose: () => void
@@ -438,6 +439,8 @@ export function RuleDialog({
   onSave: (data: Partial<Rule>) => void
   loading: boolean
   initialData?: RuleDialogInitialData
+  /** Targets of the "Link to recurring" action. */
+  recurringItems?: { id: string; description: string; is_active?: boolean }[]
 }) {
   const { t } = useTranslation()
   const sortedAccounts = useMemo(() => sortAccountsByDisplayName(accounts), [accounts])
@@ -709,6 +712,7 @@ export function RuleDialog({
                         <option value="append_notes">{t('rules.appendNotes')}</option>
                         <option value="ignore">{t('rules.ignoreAction')}</option>
                         <option value="transfer_to_account">{t('rules.transferToAccount')}</option>
+                        <option value="link_recurring">{t('recurringLink.linkToRecurring')}</option>
                       </select>
                       {action.op === 'ignore' ? (
                         <span className="min-w-0 text-sm italic text-muted-foreground sm:w-0 sm:flex-1">
@@ -742,6 +746,21 @@ export function RuleDialog({
                           </option>
                           {transferTargets.map((acc) => (
                             <option key={acc.id} value={acc.id}>{getAccountName(acc)}</option>
+                          ))}
+                        </select>
+                      ) : action.op === 'link_recurring' ? (
+                        <select
+                          className={`${SELECT_CLASS} w-full min-w-0 sm:w-0 sm:flex-1`}
+                          value={action.value}
+                          onChange={(e) => updateAction(i, 'value', e.target.value)}
+                          aria-label={t('recurringLink.linkToRecurring')}
+                          required
+                        >
+                          <option value="">
+                            {recurringItems.length ? t('recurringLink.selectRecurring') : t('recurringLink.noRecurring')}
+                          </option>
+                          {recurringItems.map((item) => (
+                            <option key={item.id} value={item.id}>{item.description}</option>
                           ))}
                         </select>
                       ) : action.op === 'set_payee' ? (

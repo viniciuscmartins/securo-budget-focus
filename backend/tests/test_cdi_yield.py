@@ -162,9 +162,9 @@ async def cofrinho(session, test_user, test_workspace) -> Account:
 
 
 async def _add(session, user, account, day, amount, kind="credit", **extra):
-    fields = {"status": "posted", **extra}
+    fields = {"status": "posted", "currency": "BRL", **extra}
     tx = Transaction(id=uuid.uuid4(), user_id=user.id, account_id=account.id, description="Deposit",
-                     amount=Decimal(amount), currency="BRL", date=day, type=kind, source="manual",
+                     amount=Decimal(amount), date=day, type=kind, source="manual",
                      created_at=datetime.now(timezone.utc), **fields)
     session.add(tx)
     await session.commit()
@@ -363,3 +363,58 @@ async def test_api_rates_outage_changes_nothing(client, auth_headers, cofrinho):
         assert r.json()["configured"] is False
     finally:
         set_cdi_provider(None)
+
+
+@pytest.mark.asyncio
+async def test_a_deposit_in_another_currency_earns_in_the_accounts_currency(
+    session, test_user, cofrinho
+):
+    from app.models.fx_rate import FxRate
+
+    # 1 USD = 5 BRL that day. The user's primary currency is irrelevant here:
+    # amount_primary (made up, 999) must not be used as the BRL value.
+    session.add(FxRate(base_currency="USD", quote_currency="BRL", date=date(2026, 10, 1),
+                       rate=Decimal("5"), source="test"))
+    await session.commit()
+    await _add(session, test_user, cofrinho, date(2026, 10, 1), "2000", currency="USD",
+               amount_primary=Decimal("999"))
+    settings = CdiSettings(percent=Decimal("100"), mode="business_days", start_date=FRI)
+
+    await svc.run_for_account(session, cofrinho, settings, {FRI: R}, today=SAT)
+    await session.commit()
+    assert (await _yields(session, cofrinho.id))[0].amount == Decimal("5.51")  # 10000 BRL * R
+
+
+@pytest.mark.asyncio
+async def test_rebuild_keeps_what_the_user_set_and_drops_transfer_legs(
+    session, test_user, cofrinho
+):
+    other = Account(id=uuid.uuid4(), user_id=test_user.id, name="Checking", type="checking",
+                    balance=Decimal("0"), currency="BRL")
+    session.add(other)
+    await _add(session, test_user, cofrinho, date(2026, 10, 1), "10000")
+    settings = CdiSettings(percent=Decimal("100"), mode="business_days", start_date=FRI)
+    rates = {FRI: R, MON: R}
+    await svc.run_for_account(session, cofrinho, settings, rates, today=date(2026, 10, 6))
+    await session.commit()
+
+    friday, monday = await _yields(session, cofrinho.id)
+    friday.notes = "checked against the bank app"
+    friday.payee = "Banco X"
+    # As if a rule had turned Monday's yield into a transfer to Checking.
+    pair = uuid.uuid4()
+    monday.transfer_pair_id = pair
+    session.add(Transaction(id=uuid.uuid4(), user_id=test_user.id, account_id=other.id,
+                            description="Rendimento CDI", amount=monday.amount, currency="BRL",
+                            date=MON, type="debit", source="transfer", status="posted",
+                            transfer_pair_id=pair, created_at=datetime.now(timezone.utc)))
+    await session.commit()
+
+    await svc.run_for_account(session, cofrinho, settings, rates, today=date(2026, 10, 6), rebuild=True)
+    await session.commit()
+
+    friday, monday = await _yields(session, cofrinho.id)
+    assert (friday.notes, friday.payee) == ("checked against the bank app", "Banco X")
+    assert monday.transfer_pair_id is None
+    left = await session.execute(select(Transaction).where(Transaction.transfer_pair_id == pair))
+    assert left.scalars().all() == []  # no leg left pointing at a deleted row
