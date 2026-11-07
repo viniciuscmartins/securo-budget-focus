@@ -587,3 +587,38 @@ async def test_api_unknown_ids_are_404_and_bad_input_422(client, auth_headers):
         json={"frequency": "daily"},
     )
     assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_deleting_a_recurring_item_unlinks_its_rules_and_setting(
+    session, test_user, test_workspace, checking
+):
+    from app.services.recurring_transaction_service import delete_recurring_transaction
+
+    rec = await _recurring(session, test_user, test_workspace, checking)
+    other = await _recurring(
+        session, test_user, test_workspace, checking, next_occurrence=date(2026, 11, 20)
+    )
+    only_link = await _link_rule(session, test_user, test_workspace, rec)
+    mixed = await _link_rule(session, test_user, test_workspace, rec, text="pix escola")
+    mixed.actions = [
+        {"op": "append_notes", "value": "escola"},
+        {"op": "link_recurring", "value": str(rec.id)},
+    ]
+    untouched = await _link_rule(session, test_user, test_workspace, other, text="gym")
+    await svc.set_amount_mode(session, test_workspace.id, rec.id, AmountMode())
+
+    assert await delete_recurring_transaction(session, rec.id, test_workspace.id)
+
+    for rule in (only_link, mixed, untouched):
+        await session.refresh(rule)
+    # Nothing left to do: off, but kept so its conditions aren't lost.
+    assert (only_link.actions, only_link.is_active) == ([], False)
+    assert (mixed.actions, mixed.is_active) == ([{"op": "append_notes", "value": "escola"}], True)
+    assert untouched.actions == [{"op": "link_recurring", "value": str(other.id)}]
+    assert untouched.is_active
+    assert await session.get(AppSetting, svc.setting_key(rec.id)) is None
+    # The rule that kept an action saves again (a missing item is refused).
+    await rule_service._validate_rule_definition(
+        session, test_workspace.id, mixed.conditions, mixed.actions
+    )

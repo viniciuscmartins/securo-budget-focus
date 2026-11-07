@@ -3203,6 +3203,7 @@
     "followAverage": "Valor segue a média dos últimos 3 pagamentos",
     "followAverageHelp": "O valor esperado se atualiza sozinho quando o preço muda. Você pode desligar e digitar o seu.",
     "followAverageToggleHelp": "Atualizado a cada pagamento vinculado. Desligue para manter um valor fixo digitado por você.",
+    "amountFollowsAverage": "Definido pela média dos últimos pagamentos. Desligue “Valor segue a média” abaixo para digitar o seu.",
     "createRule": "Vincular pagamentos futuros automaticamente",
     "createRuleHelp": "Cria uma regra: pagamentos que combinarem são vinculados a este item, mesmo com valor diferente.",
     "ruleField": "Comparar",

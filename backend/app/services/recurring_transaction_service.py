@@ -149,6 +149,10 @@ async def delete_recurring_transaction(
     if not recurring:
         return False
 
+    # Fork: rules that link payments to this item, and its amount mode.
+    from app.services.recurring_link_service import forget_recurring
+
+    await forget_recurring(session, workspace_id, recurring_id)
     await session.delete(recurring)
     await session.commit()
     return True

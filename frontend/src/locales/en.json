@@ -3199,6 +3199,7 @@
     "followAverage": "Amount follows the average of the last 3 payments",
     "followAverageHelp": "The expected value updates by itself when the price changes. You can turn it off and type your own.",
     "followAverageToggleHelp": "Updated after each linked payment. Turn it off to keep a fixed amount you type.",
+    "amountFollowsAverage": "Set from the average of the last payments. Turn off “Amount follows the average” below to type your own.",
     "createRule": "Link future payments automatically",
     "createRuleHelp": "Creates a rule: payments that match are linked to this item, even when the amount changes.",
     "ruleField": "Match on",

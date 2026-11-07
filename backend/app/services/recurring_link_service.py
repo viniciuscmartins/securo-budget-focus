@@ -39,6 +39,7 @@ from app.models.recurring_transaction import RecurringTransaction
 from app.models.rule import Rule
 from app.models.transaction import Transaction
 from app.services import recurring_match_service
+from app.services.rule_engine import LINK_RECURRING_ACTION
 from app.services.fx_rate_service import stamp_primary_amount
 
 logger = logging.getLogger(__name__)
@@ -338,6 +339,43 @@ async def link_by_rule(
     if linked:
         await refresh_amount(session, recurring)
     return linked
+
+
+async def forget_recurring(
+    session: AsyncSession, workspace_id: uuid.UUID, recurring_id: uuid.UUID
+) -> None:
+    """Drop what points at a recurring item about to be deleted. Does not commit.
+
+    Rules lose their "link to recurring" action for it, so they stay editable
+    (saving a rule that names a missing item is refused). A rule left with no
+    action at all is turned off rather than deleted, so its conditions aren't
+    lost. The amount-mode setting goes too.
+    """
+    target = str(recurring_id)
+    rules = (
+        (await session.execute(select(Rule).where(Rule.workspace_id == workspace_id)))
+        .scalars()
+        .all()
+    )
+    for rule in rules:
+        actions = list(rule.actions or [])
+        kept = [
+            a
+            for a in actions
+            if not (
+                isinstance(a, dict)
+                and a.get("op") == LINK_RECURRING_ACTION
+                and str(a.get("value")) == target
+            )
+        ]
+        if len(kept) == len(actions):
+            continue
+        rule.actions = kept  # a new list, so the JSON column is marked dirty
+        if not kept:
+            rule.is_active = False
+    row = await session.get(AppSetting, setting_key(recurring_id))
+    if row is not None:
+        await session.delete(row)
 
 
 async def recurring_type(session: AsyncSession, recurring_id: Optional[uuid.UUID]) -> Optional[str]:

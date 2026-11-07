@@ -335,6 +335,10 @@ function RecurringForm({
   })
   const [description, setDescription] = useState(recurring?.description ?? '')
   const [amount, setAmount] = useState(recurring?.amount?.toString() ?? '')
+  // While the amount follows the average of the last payments the server
+  // keeps rewriting it, so a typed value would be lost: turn the option off
+  // to type one.
+  const followsAverage = useRecurringAmountModes(!!recurring).has(recurring?.id ?? '')
   const [currency, setCurrency] = useState(recurring?.currency ?? userCurrency)
   const [type, setType] = useState<'debit' | 'credit'>(recurring?.type ?? 'debit')
   const [frequency, setFrequency] = useState(recurring?.frequency ?? 'monthly')
@@ -380,7 +384,19 @@ function RecurringForm({
       <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label>{t('recurring.amount')}</Label>
-          <Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+          <Input
+            type="number"
+            step="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            readOnly={followsAverage}
+            aria-describedby={followsAverage ? 'recurring-amount-average' : undefined}
+            className={followsAverage ? 'bg-muted text-muted-foreground' : undefined}
+            required
+          />
+          {followsAverage && (
+            <p id="recurring-amount-average" className="text-xs text-muted-foreground">{t('recurringLink.amountFollowsAverage')}</p>
+          )}
         </div>
         <div className="space-y-2">
           <Label>{t('recurring.currency')}</Label>
