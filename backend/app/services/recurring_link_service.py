@@ -302,6 +302,9 @@ async def link(
 
     - The occurrence's generated placeholder, if there is one, is removed:
       the real payment now stands for it. Its category fills an empty one.
+    - A recurring item split across categories gives an uncategorized
+      payment its parts, sized to the payment, as upstream's own matchers
+      do. A payment already categorized or split keeps what it has.
     - The schedule moves past the occurrence when this is the payment now
       due. An older payment linked retroactively (a rule applied to history)
       is only linked, so it can't push the schedule into the future.
@@ -318,11 +321,14 @@ async def link(
 
     placeholder = await _placeholder_for(session, recurring, transaction.date)
     if placeholder is not None and placeholder.id != transaction.id:
-        if transaction.category_id is None:
+        # A split payment keeps category_id empty: that is how a split row
+        # is told apart (category_line_service's invariant).
+        if transaction.category_id is None and not transaction.has_category_lines:
             transaction.category_id = placeholder.category_id
         await session.delete(placeholder)
 
     transaction.recurring_transaction_id = recurring.id
+    await category_line_service.apply_template_split(session, transaction, recurring)
     if recurring.is_active and transaction.date >= recurring.next_occurrence - half_period(
         recurring.frequency
     ):
@@ -434,6 +440,39 @@ async def _link_history(
     return count
 
 
+async def _copy_split(
+    session: AsyncSession, recurring: RecurringTransaction, transaction: Transaction
+) -> None:
+    """Give a recurring item made from a split payment the same split.
+
+    Without it the item would have no category at all (a split row's own
+    category is empty). If the split no longer validates (a part's category
+    was hidden since), the item takes the largest part's category instead.
+    """
+    from app.schemas.transaction_category_line import TransactionCategoryLinesInput
+
+    lines = sorted(transaction.category_lines, key=lambda line: line.position)
+    if len(lines) < 2:
+        return
+    share_type = lines[0].share_type
+    payload = TransactionCategoryLinesInput.model_validate(
+        {
+            "share_type": share_type,
+            "lines": [
+                {"category_id": line.category_id, "notes": line.notes}
+                | ({"share_pct": line.share_pct} if share_type == "percent" else {"amount": line.amount})
+                for line in lines
+            ],
+        }
+    )
+    try:
+        async with session.begin_nested():
+            await category_line_service.replace_template_lines(session, recurring, payload)
+    except ValueError:
+        await session.refresh(recurring)
+        recurring.category_id = max(lines, key=lambda line: line.amount).category_id
+
+
 def _unique_rule_name(base: str, taken: set[str]) -> str:
     name = base[:255]
     n = 2
@@ -520,6 +559,8 @@ async def create_from_transaction(
         )
 
     transaction.recurring_transaction_id = recurring.id
+    if category_id is None and transaction.has_category_lines:
+        await _copy_split(session, recurring, transaction)
     await stamp_primary_amount(session, user_id, recurring, date_field="start_date")
 
     linked_history = 0

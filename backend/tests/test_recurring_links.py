@@ -662,3 +662,95 @@ async def test_deleting_a_recurring_item_unlinks_its_rules_and_setting(
     await rule_service._validate_rule_definition(
         session, test_workspace.id, mixed.conditions, mixed.actions
     )
+
+
+# ---------------------------------------------------------------------------
+# Category splits (upstream v0.18.0)
+# ---------------------------------------------------------------------------
+
+
+def _split(share_type, *parts):
+    from app.schemas.transaction_category_line import TransactionCategoryLinesInput
+
+    key = "share_pct" if share_type == "percent" else "amount"
+    return TransactionCategoryLinesInput.model_validate(
+        {"share_type": share_type, "lines": [{"category_id": c.id, key: v} for c, v in parts]}
+    )
+
+
+@pytest.mark.asyncio
+async def test_linking_keeps_a_split_payment_split(
+    session, test_user, test_workspace, checking, test_categories
+):
+    from app.services import category_line_service
+
+    food, home, _ = test_categories
+    rec = await _recurring(session, test_user, test_workspace, checking)
+    rec.category_id = home.id
+    placeholder = await _tx(
+        session, test_user, checking, "School", "1000", date(2026, 11, 10),
+        source="recurring", recurring_transaction_id=rec.id, category_id=home.id,
+    )
+    pay = await _tx(session, test_user, checking, "PIX ESCOLA", "1000", date(2026, 11, 9))
+    await category_line_service.replace_lines(
+        session, pay, _split("exact", (food, Decimal("400")), (home, Decimal("600")))
+    )
+    await session.commit()
+
+    assert await svc.link(session, pay, rec)
+    await session.commit()
+    await session.refresh(pay)
+
+    # The placeholder's category must not land on a split row.
+    assert pay.category_id is None and pay.has_category_lines
+    assert sorted(line.amount for line in pay.category_lines) == [Decimal("400"), Decimal("600")]
+    assert await session.get(Transaction, placeholder.id) is None
+
+
+@pytest.mark.asyncio
+async def test_a_split_recurring_item_gives_its_parts_to_a_linked_payment(
+    session, test_user, test_workspace, checking, test_categories
+):
+    from app.services import category_line_service
+
+    food, home, _ = test_categories
+    rec = await _recurring(session, test_user, test_workspace, checking)
+    await category_line_service.replace_template_lines(
+        session, rec, _split("percent", (home, Decimal("70")), (food, Decimal("30")))
+    )
+    await session.commit()
+    pay = await _tx(session, test_user, checking, "PIX ESCOLA", "1200", date(2026, 11, 10))
+
+    assert await svc.link(session, pay, rec)
+    await session.commit()
+    await session.refresh(pay)
+
+    assert pay.category_id is None and pay.has_category_lines
+    parts = {line.category_id: line.amount for line in pay.category_lines}
+    assert parts == {home.id: Decimal("840.00"), food.id: Decimal("360.00")}
+
+
+@pytest.mark.asyncio
+async def test_make_recurring_from_a_split_payment_keeps_the_split(
+    session, test_user, test_workspace, checking, test_categories
+):
+    from app.services import category_line_service
+
+    food, home, _ = test_categories
+    tx = await _tx(session, test_user, checking, "CONDOMINIO", "900", date(2026, 10, 5))
+    await category_line_service.replace_lines(
+        session, tx, _split("percent", (home, Decimal("80")), (food, Decimal("20")))
+    )
+    await session.commit()
+
+    rec, _ = await svc.create_from_transaction(
+        session, test_workspace.id, test_user.id, tx.id, frequency="monthly", follow_average=False
+    )
+    await session.refresh(rec, ["category_lines"])
+
+    assert rec.category_id is None and rec.has_category_lines
+    parts = {line.category_id: (line.share_pct, line.amount) for line in rec.category_lines}
+    assert parts == {
+        home.id: (Decimal("80.00"), Decimal("720.00")),
+        food.id: (Decimal("20.00"), Decimal("180.00")),
+    }

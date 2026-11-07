@@ -35,9 +35,11 @@ _ROUTE_RESOURCES: dict[str, tuple[str, ...]] = {
     "rules": ("/api/rules",),
     "budgets": ("/api/budgets",),
     "goals": ("/api/goals",),
-    "recurring": ("/api/recurring-transactions",),
+    # Fork: making a recurring item from a transaction, and its amount mode.
+    "recurring": ("/api/recurring-transactions", "/api/recurring-links"),
     "assets": ("/api/assets", "/api/asset-groups"),
-    "reports": ("/api/reports", "/api/dashboard"),
+    # Fork: the dashboard's month outlook card.
+    "reports": ("/api/reports", "/api/dashboard", "/api/month-outlook"),
 }
 
 # Resources whose routes only ever read: a `:write` scope is meaningless.
