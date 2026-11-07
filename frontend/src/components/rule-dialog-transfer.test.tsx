@@ -47,7 +47,7 @@ async function chooseTransferAction(user: ReturnType<typeof renderDialog>['user'
   await user.selectOptions(opSelect, 'transfer_to_account')
 }
 
-describe('RuleDialog "Transfer to account" action', () => {
+describe('RuleDialog "Mark as transfer with account" action', () => {
   it('offers only manual, open accounts as the destination', async () => {
     const { user } = renderDialog()
     const dialog = await screen.findByRole('dialog')
@@ -56,6 +56,15 @@ describe('RuleDialog "Transfer to account" action', () => {
     const target = within(dialog).getByLabelText(t('rules.transferToAccount'))
     const names = within(target).getAllByRole('option').map((o) => o.textContent)
     expect(names).toEqual([t('rules.selectManualAccount'), 'Mercado Pago - Cofrinho'])
+  })
+
+  it('explains that the direction follows the matched transaction', async () => {
+    const { user } = renderDialog()
+    const dialog = await screen.findByRole('dialog')
+    await chooseTransferAction(user, dialog)
+
+    const target = within(dialog).getByLabelText(t('rules.transferToAccount'))
+    expect(target).toHaveAccessibleDescription(t('rules.transferToAccountHint'))
   })
 
   it('saves the chosen account as the action value', async () => {
