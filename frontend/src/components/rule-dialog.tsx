@@ -444,7 +444,7 @@ export function RuleDialog({
 }) {
   const { t } = useTranslation()
   const sortedAccounts = useMemo(() => sortAccountsByDisplayName(accounts), [accounts])
-  // "Transfer to account" only targets manual, open accounts: a synced one gets
+  // "Mark as transfer with account" only targets manual, open accounts: a synced one gets
   // its own copy of the movement from the bank, so a counterpart would count
   // the money twice. The server enforces the same rule.
   const transferTargets = useMemo(
@@ -739,6 +739,7 @@ export function RuleDialog({
                           value={action.value}
                           onChange={(e) => updateAction(i, 'value', e.target.value)}
                           aria-label={t('rules.transferToAccount')}
+                          aria-describedby={`action-${i}-transfer-hint`}
                           required
                         >
                           <option value="">
@@ -799,6 +800,13 @@ export function RuleDialog({
                         <X size={13} />
                       </button>
                     </div>
+                    {action.op === 'transfer_to_account' && (
+                      // Which way the money goes depends on the matched row,
+                      // not on the rule, so say it rather than imply "to".
+                      <p id={`action-${i}-transfer-hint`} className="text-xs text-muted-foreground">
+                        {t('rules.transferToAccountHint')}
+                      </p>
+                    )}
                     {invalidDescription && (
                       <p id={`action-${i}-description-error`} className="text-xs text-rose-500">
                         {t('rules.invalidDescriptionValue')}
