@@ -394,9 +394,6 @@ function RecurringForm({
             className={followsAverage ? 'bg-muted text-muted-foreground' : undefined}
             required
           />
-          {followsAverage && (
-            <p id="recurring-amount-average" className="text-xs text-muted-foreground">{t('recurringLink.amountFollowsAverage')}</p>
-          )}
         </div>
         <div className="space-y-2">
           <Label>{t('recurring.currency')}</Label>
@@ -414,6 +411,10 @@ function RecurringForm({
           </select>
         </div>
       </div>
+      {/* Full width under the row: a third-width column wraps it to five lines. */}
+      {followsAverage && (
+        <p id="recurring-amount-average" className="-mt-2 text-xs text-muted-foreground">{t('recurringLink.amountFollowsAverage')}</p>
+      )}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>{t('recurring.frequency')}</Label>
