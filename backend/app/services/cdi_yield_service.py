@@ -241,9 +241,18 @@ async def _balance_inputs(
     session: AsyncSession, account: Account, start: date
 ) -> tuple[Decimal, dict[date, Decimal]]:
     """Opening balance before `start` and each later day's net movement,
-    counted the way Securo counts an account's balance, without yield rows."""
+    counted the way Securo counts an account's balance, without yield rows.
+
+    Every amount is in the account's own currency: a row in another currency
+    is converted at its date's rate. `amount_primary` is the user's primary
+    currency, which is not the account's when, say, a BRL piggy bank belongs
+    to someone who reports in USD, so it is only a last resort.
+    """
+    from app.services.fx_rate_service import convert_or_none
+
     effective = func.coalesce(Transaction.amount_primary, Transaction.amount)
     amount = Transaction.amount
+    rates: dict[tuple[str, date], Optional[Decimal]] = {}
     rows = await session.execute(
         select(Transaction.date, Transaction.type, Transaction.currency, amount, effective)
         .outerjoin(Category, Transaction.category_id == Category.id)
@@ -258,13 +267,76 @@ async def _balance_inputs(
     opening = ZERO
     movements: dict[date, Decimal] = {}
     for tx_date, tx_type, currency, raw_amount, converted in rows.all():
-        value = Decimal(str(raw_amount if currency == account.currency else converted))
+        if not currency or currency == account.currency:
+            value = Decimal(str(raw_amount))
+        else:
+            key = (currency, tx_date)
+            if key not in rates:
+                # Stored rates only (the daily FX job keeps them), with the
+                # closest day as fallback: no network call per movement.
+                _, rates[key] = await convert_or_none(
+                    session, Decimal("1"), currency, account.currency, tx_date, allow_fetch=False
+                )
+            rate = rates[key]
+            if rate is not None:
+                value = Decimal(str(raw_amount)) * rate
+            else:
+                logger.warning(
+                    "No %s->%s rate for %s; using the primary-currency amount",
+                    currency,
+                    account.currency,
+                    tx_date,
+                )
+                value = Decimal(str(converted))
         signed = value if tx_type == "credit" else -value
         if tx_date < start:
             opening += signed
         else:
             movements[tx_date] = movements.get(tx_date, ZERO) + signed
     return opening, movements
+
+
+# Fields a person may have changed on a posted yield row, kept across a rebuild.
+_KEPT_FIELDS = ("category_id", "payee", "payee_id", "notes", "is_ignored")
+
+
+async def _delete_yield_rows(session: AsyncSession, account_id: uuid.UUID) -> dict[date, dict]:
+    """Delete the account's posted yield, with the other leg of any transfer
+    a rule made from it (it would be left pointing at nothing).
+
+    Returns, per day, the fields a person set on that day's row, so a rebuild
+    can put them back.
+    """
+    rows = (
+        (
+            await session.execute(
+                select(Transaction).where(
+                    Transaction.account_id == account_id, Transaction.source == YIELD_SOURCE
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    edits: dict[date, dict] = {}
+    for tx in rows:
+        kept = {f: getattr(tx, f) for f in _KEPT_FIELDS if getattr(tx, f) not in (None, False)}
+        if kept:
+            edits[tx.date] = kept
+    pair_ids = {tx.transfer_pair_id for tx in rows if tx.transfer_pair_id is not None}
+    if pair_ids:
+        await session.execute(
+            delete(Transaction).where(
+                Transaction.transfer_pair_id.in_(pair_ids),
+                Transaction.source != YIELD_SOURCE,
+            )
+        )
+    await session.execute(
+        delete(Transaction).where(
+            Transaction.account_id == account_id, Transaction.source == YIELD_SOURCE
+        )
+    )
+    return edits
 
 
 async def _existing_yield_days(session: AsyncSession, account_id: uuid.UUID) -> set[date]:
@@ -325,12 +397,9 @@ async def run_for_account(
     if end is None or end < settings.start_date:
         return 0
 
+    edits: dict[date, dict] = {}
     if rebuild:
-        await session.execute(
-            delete(Transaction).where(
-                Transaction.account_id == account.id, Transaction.source == YIELD_SOURCE
-            )
-        )
+        edits = await _delete_yield_rows(session, account.id)
         existing: set[date] = set()
     else:
         existing = await _existing_yield_days(session, account.id)
@@ -353,7 +422,10 @@ async def run_for_account(
     for day, amount in sorted(schedule.items()):
         if day in existing or (last_posted is not None and day <= last_posted):
             continue
-        await _post_yield(session, account, day, amount)
+        tx = await _post_yield(session, account, day, amount)
+        # What the user set on the old row of that day wins over the rules.
+        for field_name, value in edits.get(day, {}).items():
+            setattr(tx, field_name, value)
         created += 1
     return created
 
@@ -416,11 +488,7 @@ async def remove_settings(
     if row is not None:
         await session.delete(row)
     if delete_posted:
-        await session.execute(
-            delete(Transaction).where(
-                Transaction.account_id == account_id, Transaction.source == YIELD_SOURCE
-            )
-        )
+        await _delete_yield_rows(session, account_id)
     await session.commit()
 
 
