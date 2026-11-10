@@ -102,3 +102,73 @@ Clicking **Budgets** in the menu now opens the **annual plan** first.
 - The sidebar item is unchanged and stays highlighted on both screens
 
 Tests: typecheck and lint clean; 524 affected frontend tests pass locally, including new link tests on both pages.
+
+---
+
+From here on the entries are short summaries; the full write-ups are in the pull requests.
+
+## PR #4: Rule action "Transfer to account" and CDI yield for manual savings accounts
+
+Merged: 2026-11-03
+
+- **Rule action:** a rule can pair a matching transaction with a counterpart in a manual account, like the "create counterpart" button. Runs on sync, import and "apply to existing"; never targets a synced account. The stored action name is `transfer_to_account`.
+- **CDI yield:** a manual account can earn a percentage of CDI. One "Rendimento CDI" credit is posted per day from Banco Central's rate (SGS series 12), on business days or every day. Settings live in `app_settings` under `cdi_yield:<account id>`, so there is no migration.
+
+## PRs #5, #6, #7: Syncs with upstream v0.17.0 and the commits after it
+
+Merged: 2026-11-04 to 2026-11-06. No conflicts, no migrations.
+
+## PR #8: Recurring items from transactions, rule linking, and average amounts
+
+Merged: 2026-11-07
+
+- **Make recurring** from any transaction, synced ones included; the transaction becomes the first payment.
+- **Rule action "Link to recurring"** (`link_recurring`): a rule decides which payments belong to a recurring item, so payments with changing amounts or descriptions still link. Linking removes the generated placeholder and moves the schedule on.
+- **Amount follows the average** of the last 3 linked payments, refreshed hourly; the amount field is read-only while it is on. Settings live in `app_settings` under `recurring_amount:<recurring id>`.
+- Deleting a recurring item removes the link actions that point at it.
+
+## PR #9: Month outlook on the dashboard
+
+Merged: 2026-11-07
+
+"Will this month be covered?": money in cash accounts now, plus income still expected, minus bills and card bills still due, with the lowest point of the month. Unpaid bills already due this month count as overdue. Investment accounts are not cash. Card installments on later bills are shown apart. Follows the dashboard's Collection filter. Endpoint: `GET /api/month-outlook`.
+
+## PR #10: CDI yield fixes, plus translations
+
+Merged: 2026-11-07
+
+- CDI: movements in another currency are converted to the account's currency; a rebuild removes the transfer legs rules made from yield rows and keeps the user's edits on them.
+- The strings of #1, #3 and #4 translated in every locale.
+
+## PR #11: Rule action renamed to "Mark as transfer with account"
+
+Merged: 2026-11-07
+
+The label is direction-neutral and a hint explains which way the money goes: for incoming money the counterpart is a debit in the chosen account. The stored action name is unchanged.
+
+## PRs #12, #13: Sync with upstream v0.18.0, and the fork's features made to work with it
+
+Merged: 2026-11-07. Migrations 103 to 106 (upstream).
+
+- Upstream brought category splits and scoped access tokens.
+- Linking keeps a split payment split, a payment linked to a split recurring item takes its parts, and "Make recurring" from a split payment keeps the split.
+- Access tokens reach `/api/recurring-links` under the `recurring` scope and `/api/month-outlook` under `reports`.
+
+## PR #14: Sync with upstream after v0.18.0 (removable rule packs)
+
+Merged: 2026-11-09. Migration 107 (upstream).
+
+Removing a rule pack deletes only untouched pack rules; rules made by the fork, and pack rules extended with a fork action, are kept. `.gitignore` gains `/data/attachments/`.
+
+## PR #15: Review hardening
+
+- **CDI rates** that can't be a daily rate (not finite, negative, or above 1% a day) are ignored instead of being posted as yield.
+- **Access tokens:** "Make recurring" with a linking rule needs the `rules:write` scope as well as `recurring:write`.
+- **Bank duplicates:** a synced row with an already-paired twin (same account, amount and direction, within a day, near-identical description) is not transferred by a rule, so the sync's duplicate cleanup still sees it and the manual account is not credited twice. A real second transfer of the same amount on the same day has to be paired by hand.
+- **CDI rebuilds** remove the files attached to the yield rows they delete.
+- **Rule names** made by "Make recurring" follow the user's language.
+
+## Conventions
+
+- **Versions** follow upstream. Fork releases are tagged `v<upstream version>-plan.<N>`.
+- **Translations:** new fork strings are written in English and Portuguese (pt-BR, pt-PT). Other locales carry the English text, because the locale tests require every key in every file.

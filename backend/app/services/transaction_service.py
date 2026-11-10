@@ -1509,7 +1509,8 @@ async def transfer_by_rule(
     - destination missing, closed, or bank-synced (a synced account would
       soon get its own real copy of the movement, so a counterpart there
       would double count);
-    - linked to a mortgage payment.
+    - linked to a mortgage payment;
+    - a likely duplicate from the bank feed (see `_has_paired_twin`).
 
     Returns True when a counterpart was created. Flushes, never commits.
     """
@@ -1530,11 +1531,50 @@ async def transfer_by_rule(
         await _ensure_not_mortgage_linked(session, workspace_id, transaction)
     except ValueError:
         return False
+    if await _has_paired_twin(session, transaction):
+        return False
 
     await _add_transfer_counterpart(
         session, workspace_id, transaction.user_id, transaction, to_account
     )
     return True
+
+
+async def _has_paired_twin(session: AsyncSession, transaction: Transaction) -> bool:
+    """Whether a synced row looks like the bank reporting a payment twice.
+
+    Some providers send the same payment again under another id. The sync's
+    phantom-duplicate cleanup removes the copy that is *not* paired as a
+    transfer when a paired twin sits next to it (same account, amount and
+    direction, within a day, near-identical description). Pairing the copy
+    here would hide it from that cleanup and put the money in the
+    destination account twice, so it is left unpaired: the cleanup removes
+    it if it was a duplicate, and a real second transfer of the same amount
+    on the same day can be paired by hand.
+    """
+    if transaction.source != "sync":
+        return False
+    from datetime import timedelta
+
+    from app.services.text_similarity import token_overlap
+
+    siblings = await session.execute(
+        select(Transaction).where(
+            Transaction.account_id == transaction.account_id,
+            Transaction.source == "sync",
+            Transaction.amount == transaction.amount,
+            Transaction.type == transaction.type,
+            Transaction.date >= transaction.date - timedelta(days=1),
+            Transaction.date <= transaction.date + timedelta(days=1),
+            Transaction.transfer_pair_id.is_not(None),
+            Transaction.id != transaction.id,
+        )
+    )
+    text = transaction.original_description or transaction.description
+    return any(
+        token_overlap(sibling.original_description or sibling.description, text) >= 0.9
+        for sibling in siblings.scalars()
+    )
 
 
 async def _resync_bill_link_from_override(

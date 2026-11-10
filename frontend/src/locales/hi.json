@@ -3226,6 +3226,7 @@
     "fieldNotes": "नोट्स",
     "create": "आवर्ती बनाएँ",
     "created": "आवर्ती आइटम बनाया गया",
+    "ruleName": "Recurring: {{name}}",
     "createdWithHistory_one": "आवर्ती आइटम बनाया गया और {{count}} पिछला भुगतान जोड़ा गया",
     "createdWithHistory_other": "आवर्ती आइटम बनाया गया और {{count}} पिछले भुगतान जोड़े गए",
     "averageBadge": "पिछले 3 का औसत"

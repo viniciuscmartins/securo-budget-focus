@@ -3255,6 +3255,7 @@
     "fieldNotes": "Заметки",
     "create": "Создать регулярный",
     "created": "Регулярный платёж создан",
+    "ruleName": "Recurring: {{name}}",
     "createdWithHistory_one": "Регулярный платёж создан, связан {{count}} прошлый платёж",
     "createdWithHistory_few": "Регулярный платёж создан, связано {{count}} прошлых платежа",
     "createdWithHistory_many": "Регулярный платёж создан, связано {{count}} прошлых платежей",

@@ -3230,6 +3230,7 @@
     "fieldNotes": "Notas",
     "create": "Crear recurrente",
     "created": "Elemento recurrente creado",
+    "ruleName": "Recurring: {{name}}",
     "createdWithHistory_one": "Elemento recurrente creado y {{count}} pago anterior vinculado",
     "createdWithHistory_other": "Elemento recurrente creado y {{count}} pagos anteriores vinculados",
     "averageBadge": "prom. últimos 3"

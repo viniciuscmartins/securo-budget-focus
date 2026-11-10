@@ -298,3 +298,53 @@ async def test_api_rejects_two_transfer_actions(client, auth_headers, cofrinho):
     body["actions"].append({"op": "transfer_to_account", "value": str(cofrinho.id)})
     r = await client.post("/api/rules", headers=auth_headers, json=body)
     assert r.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_a_duplicate_from_the_bank_feed_is_not_transferred_twice(
+    session, test_user, test_workspace, test_account, cofrinho
+):
+    """The bank reports one payment twice under two ids. Pairing both would
+    hide the copy from the sync's phantom-duplicate cleanup and put the money
+    in the manual account twice."""
+    await _rule(session, test_workspace, test_user, cofrinho.id)
+    first = await _tx(session, test_user, test_account, "Dinheiro reservado Buffer", "4000",
+                      external_id="a1")
+    await rule_service.apply_rules_to_transaction(session, test_user.id, first)
+    await session.commit()
+
+    twin = await _tx(session, test_user, test_account, "Dinheiro reservado Buffer", "4000",
+                     external_id="b2")
+    await rule_service.apply_rules_to_transaction(session, test_user.id, twin)
+    await session.commit()
+
+    assert twin.transfer_pair_id is None
+    assert len(await _counterparts(session, cofrinho.id)) == 1
+
+
+@pytest.mark.asyncio
+async def test_a_different_payment_the_same_day_is_still_transferred(
+    session, test_user, test_workspace, test_account, cofrinho
+):
+    await _rule(session, test_workspace, test_user, cofrinho.id)
+    for description, amount in (("Dinheiro reservado Buffer", "4000"), ("Buffer extra", "4000"),
+                                ("Dinheiro reservado Buffer", "150")):
+        tx = await _tx(session, test_user, test_account, description, amount)
+        await rule_service.apply_rules_to_transaction(session, test_user.id, tx)
+        await session.commit()
+
+    assert len(await _counterparts(session, cofrinho.id)) == 3
+
+
+@pytest.mark.asyncio
+async def test_manual_entries_are_never_treated_as_bank_duplicates(
+    session, test_user, test_workspace, test_account, cofrinho
+):
+    await _rule(session, test_workspace, test_user, cofrinho.id)
+    for _ in range(2):
+        tx = await _tx(session, test_user, test_account, "Dinheiro reservado Buffer", "4000")
+        tx.source = "manual"
+        await rule_service.apply_rules_to_transaction(session, test_user.id, tx)
+        await session.commit()
+
+    assert len(await _counterparts(session, cofrinho.id)) == 2

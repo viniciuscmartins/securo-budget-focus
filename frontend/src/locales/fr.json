@@ -3230,6 +3230,7 @@
     "fieldNotes": "Notes",
     "create": "Créer la récurrence",
     "created": "Récurrence créée",
+    "ruleName": "Recurring: {{name}}",
     "createdWithHistory_one": "Récurrence créée et {{count}} paiement antérieur lié",
     "createdWithHistory_other": "Récurrence créée et {{count}} paiements antérieurs liés",
     "averageBadge": "moy. des 3 derniers"

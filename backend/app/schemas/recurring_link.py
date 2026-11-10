@@ -12,6 +12,9 @@ class LinkRuleCondition(BaseModel):
     field: Literal["description", "payee", "notes"] = "description"
     op: Literal["contains", "equals", "starts_with"] = "contains"
     value: str = Field(min_length=1, max_length=500)
+    # Name for the rule, in the user's language (the app sends it translated).
+    # Left out, the rule is named "Recurring: <description>".
+    name: Optional[str] = Field(default=None, max_length=255)
 
 
 class RecurringFromTransaction(BaseModel):
