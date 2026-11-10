@@ -324,6 +324,21 @@ async def _delete_yield_rows(session: AsyncSession, account_id: uuid.UUID) -> di
         if kept:
             edits[tx.date] = kept
     pair_ids = {tx.transfer_pair_id for tx in rows if tx.transfer_pair_id is not None}
+    # The rows go in bulk, which skips the ORM's cleanup: remove the files of
+    # anything attached to them (or to their transfer legs) first.
+    from app.services.attachment_service import cleanup_attachment_files
+
+    doomed = [tx.id for tx in rows]
+    if pair_ids:
+        doomed += (
+            await session.execute(
+                select(Transaction.id).where(
+                    Transaction.transfer_pair_id.in_(pair_ids),
+                    Transaction.source != YIELD_SOURCE,
+                )
+            )
+        ).scalars().all()
+    await cleanup_attachment_files(session, doomed)
     if pair_ids:
         await session.execute(
             delete(Transaction).where(

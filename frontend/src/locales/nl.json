@@ -3228,6 +3228,7 @@
     "fieldNotes": "Notities",
     "create": "Terugkerend aanmaken",
     "created": "Terugkerende post aangemaakt",
+    "ruleName": "Recurring: {{name}}",
     "createdWithHistory_one": "Terugkerende post aangemaakt en {{count}} eerdere betaling gekoppeld",
     "createdWithHistory_other": "Terugkerende post aangemaakt en {{count}} eerdere betalingen gekoppeld",
     "averageBadge": "gem. laatste 3"

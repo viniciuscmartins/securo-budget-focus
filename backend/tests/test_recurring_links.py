@@ -598,6 +598,21 @@ async def test_api_make_recurring_and_amount_mode(
     r = await client.get("/api/recurring-links/amount-modes", headers=auth_headers)
     assert r.json() == []
 
+    # The app names the rule in the user's language.
+    other = await _tx(session, test_user, checking, "ALUGUEL", "2000", date(2026, 10, 5))
+    r = await client.post(
+        f"/api/recurring-links/from-transaction/{other.id}",
+        headers=auth_headers,
+        json={
+            "frequency": "monthly",
+            "link_rule": {"field": "description", "op": "contains", "value": "aluguel",
+                          "name": "Recorrente: Aluguel"},
+        },
+    )
+    assert r.status_code == 201, r.text
+    names = {x["name"] for x in (await client.get("/api/rules", headers=auth_headers)).json()}
+    assert {"Recurring: School", "Recorrente: Aluguel"} <= names
+
     # Twice is refused: the transaction is already linked.
     r = await client.post(
         f"/api/recurring-links/from-transaction/{tx.id}",

@@ -2,9 +2,10 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.access_token_scopes import grants
 from app.core.database import get_async_session
 from app.core.workspace_context import (
     WorkspaceContext,
@@ -40,13 +41,25 @@ def _http(exc: svc.RecurringLinkError) -> HTTPException:
 async def create_from_transaction(
     transaction_id: uuid.UUID,
     data: RecurringFromTransaction,
+    request: Request,
     ctx: WorkspaceContext = Depends(current_writable_workspace),
     session: AsyncSession = Depends(get_async_session),
 ):
     """Turn a transaction into the first payment of a new recurring item."""
+    # This route sits under the "recurring" scope, but `link_rule` also
+    # creates a rule: an access token needs the rules scope for that part.
+    token = getattr(request.state, "access_token", None)
+    if data.link_rule is not None and token is not None and not grants(token.scopes, "rules:write"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Creating the linking rule needs the rules:write scope.",
+        )
     rule = (
         svc.LinkRuleSpec(
-            field=data.link_rule.field, op=data.link_rule.op, value=data.link_rule.value
+            field=data.link_rule.field,
+            op=data.link_rule.op,
+            value=data.link_rule.value,
+            name=data.link_rule.name,
         )
         if data.link_rule is not None
         else None

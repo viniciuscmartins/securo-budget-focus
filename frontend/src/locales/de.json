@@ -3227,6 +3227,7 @@
     "fieldNotes": "Notizen",
     "create": "Dauerposten anlegen",
     "created": "Dauerposten angelegt",
+    "ruleName": "Recurring: {{name}}",
     "createdWithHistory_one": "Dauerposten angelegt und {{count}} frühere Zahlung verknüpft",
     "createdWithHistory_other": "Dauerposten angelegt und {{count}} frühere Zahlungen verknüpft",
     "averageBadge": "Ø der letzten 3"

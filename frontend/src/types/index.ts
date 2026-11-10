@@ -765,7 +765,7 @@ export interface RecurringFromTransactionInput {
   /** Expected amount follows the average of the last three payments. */
   follow_average: boolean
   /** Also create a rule so later payments link themselves. */
-  link_rule?: { field: 'description' | 'payee' | 'notes'; op: 'contains' | 'equals' | 'starts_with'; value: string } | null
+  link_rule?: { field: 'description' | 'payee' | 'notes'; op: 'contains' | 'equals' | 'starts_with'; value: string; name?: string } | null
 }
 
 export interface RecurringAmountMode {

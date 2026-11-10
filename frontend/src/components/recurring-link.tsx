@@ -58,7 +58,15 @@ export function MakeRecurringPanel({
         frequency,
         description: description.trim(),
         follow_average: followAverage,
-        link_rule: withRule ? { field: ruleField, op: 'contains', value: ruleValue.trim() } : null,
+        link_rule: withRule
+          ? {
+              field: ruleField,
+              op: 'contains',
+              value: ruleValue.trim(),
+              // Named here so the rule reads in the user's language.
+              name: t('recurringLink.ruleName', { name: description.trim() }).slice(0, 255),
+            }
+          : null,
       }
       if (MONTHLY_LIKE.has(frequency)) body.day_of_month = dayNumber
       return recurringLinks.fromTransaction(transaction.id, body)

@@ -78,7 +78,7 @@ describe('MakeRecurringPanel', () => {
       description: 'Escola ABC',
       day_of_month: 7,
       follow_average: true,
-      link_rule: { field: 'payee', op: 'contains', value: 'Escola ABC' },
+      link_rule: { field: 'payee', op: 'contains', value: 'Escola ABC', name: 'Recurring: Escola ABC' },
     })
     await waitFor(() => expect(onCreated).toHaveBeenCalled())
   })

@@ -22,6 +22,10 @@ logger = logging.getLogger(__name__)
 SGS_CDI_URL = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados"
 # A little under the API's 10-year cap, so leap days can't push a chunk over.
 _MAX_SPAN = timedelta(days=365 * 9)
+# No real CDI comes near this (it runs around 0.05% a business day; even 100%
+# a year is under 0.3%). A value above it means bad data or a changed format,
+# and using it would post absurd yield into someone's account.
+MAX_DAILY_PERCENT = Decimal("1")
 
 
 class CdiRateProvider(Protocol):
@@ -44,7 +48,9 @@ def _parse_day(raw: str) -> date:
 def parse_sgs_items(items: list) -> dict[date, Decimal]:
     """Turn the SGS JSON list into {date: daily rate as a fraction}.
 
-    Malformed items are skipped rather than failing the whole batch.
+    Malformed items are skipped rather than failing the whole batch, and so
+    are values that can't be a daily CDI rate: not a finite number, negative,
+    or above `MAX_DAILY_PERCENT`.
     """
     rates: dict[date, Decimal] = {}
     for item in items or []:
@@ -53,7 +59,10 @@ def parse_sgs_items(items: list) -> dict[date, Decimal]:
             percent = Decimal(str(item["valor"]).replace(",", "."))
         except (KeyError, TypeError, ValueError, InvalidOperation):
             continue
-        if percent < 0:
+        if not percent.is_finite() or percent < 0:
+            continue
+        if percent > MAX_DAILY_PERCENT:
+            logger.warning("Ignoring implausible CDI rate for %s: %s%% a day", day, percent)
             continue
         rates[day] = percent / Decimal(100)
     return rates

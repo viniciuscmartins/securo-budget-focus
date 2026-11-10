@@ -3226,6 +3226,7 @@
     "fieldNotes": "Notes",
     "create": "Create recurring",
     "created": "Recurring item created",
+    "ruleName": "Recurring: {{name}}",
     "createdWithHistory_one": "Recurring item created and {{count}} earlier payment linked",
     "createdWithHistory_other": "Recurring item created and {{count}} earlier payments linked",
     "averageBadge": "avg. of last 3"

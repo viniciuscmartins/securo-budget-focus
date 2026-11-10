@@ -407,6 +407,7 @@ class LinkRuleSpec:
     field: Literal["description", "payee", "notes"]
     op: Literal["contains", "equals", "starts_with"]
     value: str
+    name: Optional[str] = None  # the rule's name; default "Recurring: <description>"
 
 
 def _next_after(start: date, frequency: str, day_of_month: Optional[int]) -> date:
@@ -573,7 +574,9 @@ async def create_from_transaction(
         rule = Rule(
             user_id=user_id,
             workspace_id=workspace_id,
-            name=_unique_rule_name(f"Recurring: {name}", taken),
+            name=_unique_rule_name(
+                (link_rule.name or "").strip() or f"Recurring: {name}", taken
+            ),
             conditions_op="and",
             conditions=[
                 {"field": link_rule.field, "op": link_rule.op, "value": link_rule.value.strip()}

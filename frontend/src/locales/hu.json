@@ -3226,6 +3226,7 @@
     "fieldNotes": "Jegyzetek",
     "create": "Ismétlődő létrehozása",
     "created": "Ismétlődő tétel létrehozva",
+    "ruleName": "Recurring: {{name}}",
     "createdWithHistory_one": "Ismétlődő tétel létrehozva, {{count}} korábbi fizetés összekapcsolva",
     "createdWithHistory_other": "Ismétlődő tétel létrehozva, {{count}} korábbi fizetés összekapcsolva",
     "averageBadge": "utolsó 3 átlaga"

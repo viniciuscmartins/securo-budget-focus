@@ -64,3 +64,49 @@ async def test_a_recurring_token_reads_amount_modes_but_a_read_one_cannot_write(
         json={"follow_average": False},
     )
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_make_recurring_with_a_rule_needs_the_rules_scope(
+    client: AsyncClient, auth_headers: dict, session, test_user, test_workspace
+):
+    """`link_rule` creates a rule, which the "recurring" scope alone must not allow."""
+    import uuid
+    from datetime import date, datetime, timezone
+    from decimal import Decimal
+
+    from sqlalchemy import select
+
+    from app.models.account import Account
+    from app.models.rule import Rule
+    from app.models.transaction import Transaction
+
+    account = Account(id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+                      name="Checking", type="checking", balance=Decimal("0"), currency="BRL")
+    session.add(account)
+    ids = []
+    for day in (10, 11):
+        tx = Transaction(id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+                         account_id=account.id, description=f"PIX ESCOLA {day}", amount=Decimal("100"),
+                         currency="BRL", date=date(2026, 10, day), type="debit", source="sync",
+                         status="posted", created_at=datetime.now(timezone.utc))
+        session.add(tx)
+        ids.append(tx.id)
+    await session.commit()
+    body = {"frequency": "monthly",
+            "link_rule": {"field": "description", "op": "contains", "value": "ESCOLA"}}
+
+    recurring_only = await _token(client, auth_headers, ["recurring:write"])
+    resp = await client.post(f"/api/recurring-links/from-transaction/{ids[0]}",
+                             headers=recurring_only, json=body)
+    assert resp.status_code == 403
+    assert (await session.execute(select(Rule))).scalars().all() == []
+    # Without the rule it is a plain recurring write.
+    resp = await client.post(f"/api/recurring-links/from-transaction/{ids[0]}",
+                             headers=recurring_only, json={"frequency": "monthly"})
+    assert resp.status_code == 201, resp.text
+
+    both = await _token(client, auth_headers, ["recurring:write", "rules:write"])
+    resp = await client.post(f"/api/recurring-links/from-transaction/{ids[1]}", headers=both, json=body)
+    assert resp.status_code == 201, resp.text
+    # A signed-in session is not limited by scopes (covered in test_recurring_links).

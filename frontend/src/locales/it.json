@@ -3230,6 +3230,7 @@
     "fieldNotes": "Note",
     "create": "Crea ricorrente",
     "created": "Voce ricorrente creata",
+    "ruleName": "Recurring: {{name}}",
     "createdWithHistory_one": "Voce ricorrente creata e {{count}} pagamento precedente collegato",
     "createdWithHistory_other": "Voce ricorrente creata e {{count}} pagamenti precedenti collegati",
     "averageBadge": "media ultimi 3"

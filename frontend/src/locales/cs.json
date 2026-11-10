@@ -3398,6 +3398,7 @@
     "fieldNotes": "Poznámky",
     "create": "Vytvořit opakovanou platbu",
     "created": "Opakovaná platba vytvořena",
+    "ruleName": "Recurring: {{name}}",
     "createdWithHistory_one": "Opakovaná platba vytvořena a propojena {{count}} dřívější platba",
     "createdWithHistory_few": "Opakovaná platba vytvořena a propojeny {{count}} dřívější platby",
     "createdWithHistory_many": "Opakovaná platba vytvořena a propojeno {{count}} dřívějších plateb",

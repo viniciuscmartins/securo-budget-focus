@@ -3226,6 +3226,7 @@
     "fieldNotes": "メモ",
     "create": "定期項目を作成",
     "created": "定期項目を作成しました",
+    "ruleName": "Recurring: {{name}}",
     "createdWithHistory_one": "定期項目を作成し、過去の支払い{{count}}件をリンクしました",
     "createdWithHistory_other": "定期項目を作成し、過去の支払い{{count}}件をリンクしました",
     "averageBadge": "直近3回の平均"

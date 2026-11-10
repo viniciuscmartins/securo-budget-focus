@@ -418,3 +418,40 @@ async def test_rebuild_keeps_what_the_user_set_and_drops_transfer_legs(
     assert monday.transfer_pair_id is None
     left = await session.execute(select(Transaction).where(Transaction.transfer_pair_id == pair))
     assert left.scalars().all() == []  # no leg left pointing at a deleted row
+
+
+def test_parse_sgs_items_skips_values_that_cannot_be_a_daily_rate():
+    rates = parse_sgs_items(
+        [
+            {"data": "02/10/2026", "valor": "0.055131"},
+            {"data": "05/10/2026", "valor": "NaN"},
+            {"data": "06/10/2026", "valor": "Infinity"},
+            {"data": "07/10/2026", "valor": "50"},  # 50% a day: bad data, not a rate
+            {"data": "08/10/2026", "valor": "1"},  # the cap itself still passes
+        ]
+    )
+    assert rates == {FRI: R, date(2026, 10, 8): Decimal("0.01")}
+
+
+@pytest.mark.asyncio
+async def test_deleting_yield_rows_cleans_up_their_attachment_files(
+    session, test_user, cofrinho, monkeypatch
+):
+    await _add(session, test_user, cofrinho, date(2026, 10, 1), "10000")
+    settings = CdiSettings(percent=Decimal("100"), mode="business_days", start_date=FRI)
+    await svc.run_for_account(session, cofrinho, settings, {FRI: R, MON: R}, today=date(2026, 10, 6))
+    await session.commit()
+    yield_ids = {r.id for r in await _yields(session, cofrinho.id)}
+
+    cleaned: list = []
+
+    async def fake_cleanup(_session, transaction_ids):
+        cleaned.extend(transaction_ids)
+
+    monkeypatch.setattr("app.services.attachment_service.cleanup_attachment_files", fake_cleanup)
+    await svc.run_for_account(
+        session, cofrinho, settings, {FRI: R, MON: R}, today=date(2026, 10, 6), rebuild=True
+    )
+    await session.commit()
+
+    assert set(cleaned) == yield_ids and len(yield_ids) == 2

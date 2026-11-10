@@ -3348,6 +3348,7 @@
     "fieldNotes": "Notatki",
     "create": "Utwórz cykliczną",
     "created": "Utworzono pozycję cykliczną",
+    "ruleName": "Recurring: {{name}}",
     "createdWithHistory_one": "Utworzono pozycję cykliczną i połączono {{count}} wcześniejszą płatność",
     "createdWithHistory_few": "Utworzono pozycję cykliczną i połączono {{count}} wcześniejsze płatności",
     "createdWithHistory_many": "Utworzono pozycję cykliczną i połączono {{count}} wcześniejszych płatności",
