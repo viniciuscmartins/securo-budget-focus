@@ -424,3 +424,123 @@ def test_apply_schema_rejects_amounts_the_column_cannot_hold():
     BudgetPlanCellWrite(category_id=uuid.uuid4(), month=1, amount=Decimal("9999999999999.99"))
     with pytest.raises(ValueError):
         BudgetPlanCellWrite(category_id=uuid.uuid4(), month=1, amount=Decimal("10000000000000"))
+
+
+# ---------------------------------------------------------------------------
+# Income, uncategorized spending and the net
+# ---------------------------------------------------------------------------
+
+
+async def _row(session, test_user, account, category, on: date, amount: str, kind="debit"):
+    session.add(
+        Transaction(
+            id=uuid.uuid4(), user_id=test_user.id, account_id=account.id,
+            category_id=category.id if category else None, description="x",
+            amount=Decimal(amount), date=on, type=kind, source="manual",
+            created_at=datetime.now(timezone.utc),
+        )
+    )
+    await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_spending_without_a_category_is_counted(
+    session, test_user, test_workspace, test_categories, account
+):
+    food = test_categories[0]
+    await _row(session, test_user, account, food, date(2024, 3, 10), "100")
+    await _row(session, test_user, account, None, date(2024, 3, 12), "40")
+    await _row(session, test_user, account, None, date(2024, 3, 15), "15", kind="credit")
+
+    plan = await get_year_plan(session, test_workspace.id, test_user.id, 2024)
+
+    # Money in without a category is income, not a refund of the spending.
+    assert plan.uncategorized_by_month[2] == Decimal("40")
+    assert plan.uncategorized_total == Decimal("40")
+    assert plan.actual_by_month[2] == Decimal("140")  # food 100 + uncategorized 40
+    assert plan.uncategorized_income_by_month[2] == Decimal("15")
+    assert plan.income_actual_by_month[2] == Decimal("15")
+    assert all(r.category_id != food.id or r.actual_total == 100 for r in plan.rows)
+
+
+@pytest.mark.asyncio
+async def test_income_shows_actual_credits_and_never_counts_as_spending(
+    session, test_user, test_workspace, test_categories, account
+):
+    food, _, salary = test_categories
+    await _row(session, test_user, account, salary, date(2024, 1, 5), "5000", kind="credit")
+    await _row(session, test_user, account, salary, date(2024, 2, 5), "5200", kind="credit")
+    # A small debit in the income category (a correction) nets against it.
+    await _row(session, test_user, account, salary, date(2024, 2, 20), "200")
+    await _row(session, test_user, account, food, date(2024, 2, 10), "300")
+
+    plan = await get_year_plan(session, test_workspace.id, test_user.id, 2024)
+
+    [income] = plan.income_rows
+    assert income.category_id == salary.id
+    assert [c.actual for c in income.cells[:3]] == [Decimal("5000"), Decimal("5000"), Decimal("0")]
+    assert income.actual_total == Decimal("10000")
+    assert plan.income_actual_by_month[0] == Decimal("5000")
+    assert plan.income_actual_total == Decimal("10000")
+    assert all(r.category_id != salary.id for r in plan.rows)
+    assert plan.actual_by_month[1] == Decimal("300")
+
+
+@pytest.mark.asyncio
+async def test_planned_income_comes_from_recurring_credits(
+    session, test_user, test_workspace, test_categories, account
+):
+    from app.models.recurring_transaction import RecurringTransaction
+
+    _, _, salary = test_categories
+    session.add(RecurringTransaction(
+        id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id, account_id=account.id,
+        category_id=salary.id, description="Salary", amount=Decimal("5000"), currency="BRL",
+        type="credit", frequency="monthly", day_of_month=5, start_date=date(2024, 3, 5),
+        next_occurrence=date(2024, 3, 5), auto_generate=False, is_active=True,
+    ))
+    # An inactive item and a recurring bill are not income plans.
+    session.add(RecurringTransaction(
+        id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id, account_id=account.id,
+        category_id=salary.id, description="Old job", amount=Decimal("9999"), currency="BRL",
+        type="credit", frequency="monthly", day_of_month=1, start_date=date(2023, 1, 1),
+        next_occurrence=date(2024, 1, 1), auto_generate=False, is_active=False,
+    ))
+    await session.commit()
+    await _row(session, test_user, account, salary, date(2024, 3, 5), "5100", kind="credit")
+
+    plan = await get_year_plan(session, test_workspace.id, test_user.id, 2024)
+
+    [income] = plan.income_rows
+    assert income.cells[1].planned is None  # before the item started
+    assert [c.planned for c in income.cells[2:]] == [Decimal("5000.00")] * 10
+    assert income.cells[2].actual == Decimal("5100")
+    assert plan.income_planned_total == Decimal("50000.00")
+    # Planned income never shows up in the expense plan.
+    assert plan.planned_total == Decimal("0")
+
+
+@pytest.mark.asyncio
+async def test_a_category_in_the_income_group_is_income_even_without_credits_yet(
+    session, test_user, test_workspace, account
+):
+    from app.models.category import Category
+    from app.models.category_group import CategoryGroup
+
+    group = CategoryGroup(id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id, name="Renda")
+    session.add(group)
+    await session.flush()
+    bonus = Category(id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+                     name="Bônus", group_id=group.id)
+    moved = Category(id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+                     name="Investimentos", group_id=group.id, treat_as_transfer=True)
+    session.add_all([bonus, moved])
+    await session.commit()
+    # A debit in the income group still counts against income, not as spending.
+    await _row(session, test_user, account, bonus, date(2024, 6, 1), "50")
+
+    plan = await get_year_plan(session, test_workspace.id, test_user.id, 2024)
+
+    assert [r.category_id for r in plan.income_rows] == [bonus.id]
+    assert plan.income_rows[0].cells[5].actual == Decimal("-50")
+    assert all(r.category_id not in (bonus.id, moved.id) for r in plan.rows)

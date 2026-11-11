@@ -1504,7 +1504,15 @@
     "entriesToSave": "Montants à enregistrer : {{total}}",
     "apply": "Appliquer le budget",
     "applied": "Plan budgétaire enregistré",
-    "noHistory": "Pas encore assez d’historique de dépenses pour suggérer un budget."
+    "noHistory": "Pas encore assez d’historique de dépenses pour suggérer un budget.",
+    "income": "Income",
+    "incomeHint": "Planned income comes from your recurring income items.",
+    "noIncome": "No income yet. Categorize your salary, or make it a recurring item to plan it.",
+    "incomeYear": "Income received",
+    "netYear": "Net (income − spent)",
+    "net": "Net",
+    "netHint": "Income received minus everything spent, uncategorized included.",
+    "uncategorized": "Uncategorized"
   },
   "cdiYield": {
     "title": "Rendement CDI",

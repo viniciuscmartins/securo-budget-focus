@@ -141,11 +141,24 @@ class BudgetYearRow(BaseModel):
 
 class BudgetYearPlan(BaseModel):
     year: int
-    rows: list[BudgetYearRow]
-    planned_by_month: list[Decimal]  # 12 entries
-    actual_by_month: list[Decimal]  # 12 entries
+    rows: list[BudgetYearRow]  # expense categories
+    planned_by_month: list[Decimal]  # 12 entries, expenses
+    actual_by_month: list[Decimal]  # 12 entries, expenses incl. uncategorized
     planned_total: Decimal
     actual_total: Decimal
+    # Spending with no category: actuals only (it can't have a budget).
+    uncategorized_by_month: list[Decimal] = Field(default_factory=lambda: [Decimal("0")] * 12)
+    uncategorized_total: Decimal = Decimal("0")
+    # Income categories: planned from recurring credit items, actual from
+    # credits minus debits. Amounts are positive for money coming in.
+    income_rows: list[BudgetYearRow] = Field(default_factory=list)
+    # Money received with no category (included in income_actual_by_month).
+    uncategorized_income_by_month: list[Decimal] = Field(default_factory=lambda: [Decimal("0")] * 12)
+    uncategorized_income_total: Decimal = Decimal("0")
+    income_planned_by_month: list[Decimal] = Field(default_factory=lambda: [Decimal("0")] * 12)
+    income_actual_by_month: list[Decimal] = Field(default_factory=lambda: [Decimal("0")] * 12)
+    income_planned_total: Decimal = Decimal("0")
+    income_actual_total: Decimal = Decimal("0")
 
 
 class BudgetSuggestionRow(BaseModel):

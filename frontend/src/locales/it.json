@@ -1504,7 +1504,15 @@
     "entriesToSave": "Importi da salvare: {{total}}",
     "apply": "Applica budget",
     "applied": "Piano di budget salvato",
-    "noHistory": "Lo storico delle spese non basta ancora per suggerire un budget."
+    "noHistory": "Lo storico delle spese non basta ancora per suggerire un budget.",
+    "income": "Income",
+    "incomeHint": "Planned income comes from your recurring income items.",
+    "noIncome": "No income yet. Categorize your salary, or make it a recurring item to plan it.",
+    "incomeYear": "Income received",
+    "netYear": "Net (income − spent)",
+    "net": "Net",
+    "netHint": "Income received minus everything spent, uncategorized included.",
+    "uncategorized": "Uncategorized"
   },
   "cdiYield": {
     "title": "Rendimento CDI",

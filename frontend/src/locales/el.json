@@ -1500,7 +1500,15 @@
     "entriesToSave": "Τιμές προς αποθήκευση: {{total}}",
     "apply": "Εφαρμογή προϋπολογισμού",
     "applied": "Το πλάνο προϋπολογισμού αποθηκεύτηκε",
-    "noHistory": "Δεν υπάρχει ακόμη αρκετό ιστορικό εξόδων για πρόταση προϋπολογισμού."
+    "noHistory": "Δεν υπάρχει ακόμη αρκετό ιστορικό εξόδων για πρόταση προϋπολογισμού.",
+    "income": "Income",
+    "incomeHint": "Planned income comes from your recurring income items.",
+    "noIncome": "No income yet. Categorize your salary, or make it a recurring item to plan it.",
+    "incomeYear": "Income received",
+    "netYear": "Net (income − spent)",
+    "net": "Net",
+    "netHint": "Income received minus everything spent, uncategorized included.",
+    "uncategorized": "Uncategorized"
   },
   "cdiYield": {
     "title": "Απόδοση CDI",

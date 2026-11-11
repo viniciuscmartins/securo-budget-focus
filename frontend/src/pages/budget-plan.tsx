@@ -18,7 +18,7 @@ import { useDisplayLocale } from '@/hooks/use-display-locale'
 import { usePrivacyMode } from '@/hooks/use-privacy-mode'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkspace } from '@/contexts/workspace-context'
-import type { BudgetYearCell, BudgetYearPlan } from '@/types'
+import type { BudgetYearCell, BudgetYearPlan, BudgetYearRow } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -32,6 +32,30 @@ type Cell = Pick<BudgetYearCell, 'planned' | 'actual'>
 
 const OVER = 'text-rose-500'
 const UNDER = 'text-emerald-600'
+const SHORT = 'text-amber-600'
+const UNCATEGORIZED_ID = '__uncategorized__'
+
+/** Money with no category, shown as a read-only row (it can't have a budget). */
+function uncategorizedRow(
+  plan: BudgetYearPlan,
+  name: string,
+  kind: 'spending' | 'income' = 'spending',
+): BudgetYearRow | null {
+  const byMonth = kind === 'income' ? plan.uncategorized_income_by_month : plan.uncategorized_by_month
+  const total = kind === 'income' ? plan.uncategorized_income_total : plan.uncategorized_total
+  if (!(total > 0)) return null
+  return {
+    category_id: UNCATEGORIZED_ID,
+    category_name: name,
+    category_icon: 'circle-help',
+    category_color: '#6B7280',
+    group_id: null,
+    group_name: null,
+    cells: byMonth.map((actual, i) => ({ month: i + 1, planned: null, actual })),
+    planned_total: 0,
+    actual_total: total,
+  }
+}
 
 const NAV_BUTTON =
   'h-8 w-8 flex items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground transition-all text-base'
@@ -263,7 +287,12 @@ export default function BudgetPlanPage() {
     )
   }
 
-  if (plan.rows.length === 0) {
+  if (
+    plan.rows.length === 0 &&
+    plan.income_rows.length === 0 &&
+    !(plan.uncategorized_total > 0) &&
+    !(plan.uncategorized_income_total > 0)
+  ) {
     return (
       <div>
         {header}
@@ -283,12 +312,14 @@ export default function BudgetPlanPage() {
   }
 
   const left = plan.planned_total - plan.actual_total
+  const net = plan.income_actual_total - plan.actual_total
 
   return (
     <div className="space-y-4">
       {header}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <SummaryCard label={t('budgetPlan.incomeYear')} value={fmt(plan.income_actual_total)} />
         <SummaryCard label={t('budgetPlan.plannedYear')} value={fmt(plan.planned_total)} />
         <SummaryCard label={t('budgetPlan.spentYear')} value={fmt(plan.actual_total)} />
         <SummaryCard
@@ -296,6 +327,7 @@ export default function BudgetPlanPage() {
           value={fmt(left)}
           tone={plan.planned_total > 0 ? (left < 0 ? OVER : UNDER) : undefined}
         />
+        <SummaryCard label={t('budgetPlan.netYear')} value={fmt(net)} tone={net < 0 ? OVER : UNDER} />
       </div>
 
       <SectionCard>
@@ -371,6 +403,10 @@ export default function BudgetPlanPage() {
         )}
       </div>
 
+      {view === 'grid' && (
+        <IncomeSection plan={plan} year={year} monthNames={monthNames} fmt={fmt} noBudget={noBudget} />
+      )}
+
       {view === 'grid' ? (
         <GridView
           plan={plan}
@@ -441,6 +477,8 @@ function GridView({ plan, year, metric, canWrite, monthNames, fmt, noBudget, onS
     planned: plan.planned_by_month[i] > 0 ? plan.planned_by_month[i] : null,
     actual: plan.actual_by_month[i],
   }))
+  const uncategorized = uncategorizedRow(plan, t('budgetPlan.uncategorized'))
+  const displayRows = uncategorized ? [...plan.rows, uncategorized] : plan.rows
 
   return (
     <SectionCard>
@@ -462,7 +500,7 @@ function GridView({ plan, year, metric, canWrite, monthNames, fmt, noBudget, onS
             </tr>
           </thead>
           <tbody>
-            {plan.rows.map((row) => (
+            {displayRows.map((row) => (
               <tr key={row.category_id} className="border-b border-border hover:bg-muted/50">
                 <td className="sticky left-0 z-[1] bg-card py-2 pl-4 pr-2 sm:pl-5">
                   <span className="flex min-w-[9rem] items-center gap-2 text-sm font-medium text-foreground">
@@ -472,7 +510,7 @@ function GridView({ plan, year, metric, canWrite, monthNames, fmt, noBudget, onS
                 </td>
                 {row.cells.map((cell, i) => (
                   <td key={cell.month} className="px-1 py-2 text-center tabular-nums">
-                    {editing ? (
+                    {editing && row.category_id !== UNCATEGORIZED_ID ? (
                       <PlannedInput
                         value={cell.planned}
                         label={t('budgetPlan.cellLabel', { category: row.category_name, month: monthNames[i] })}
@@ -516,6 +554,137 @@ function GridView({ plan, year, metric, canWrite, monthNames, fmt, noBudget, onS
   )
 }
 
+interface IncomeSectionProps {
+  plan: BudgetYearPlan
+  year: number
+  monthNames: string[]
+  fmt: (n: number) => string
+  noBudget: string
+}
+
+/** What came in against what was expected, coloured the other way round from spending. */
+function IncomeCell({ cell, future, fmt, noBudget }: { cell: Cell; future: boolean; fmt: (n: number) => string; noBudget: string }) {
+  if (cell.planned == null && (future || cell.actual === 0)) return <Dash />
+  const tone = future ? 'text-muted-foreground' : cell.planned == null ? 'text-foreground' : cell.actual >= cell.planned ? UNDER : SHORT
+  return (
+    <span className="flex flex-col items-center leading-tight">
+      <span className={`font-medium ${tone}`}>{future ? '—' : fmt(cell.actual)}</span>
+      <span className="text-[10px] text-muted-foreground">{cell.planned == null ? noBudget : fmt(cell.planned)}</span>
+    </span>
+  )
+}
+
+/**
+ * Income per category and month (planned from recurring income items), and
+ * the net: income received minus everything spent, uncategorized included.
+ */
+function IncomeSection({ plan, year, monthNames, fmt, noBudget }: IncomeSectionProps) {
+  const { t } = useTranslation()
+  const futures = MONTH_NUMBERS.map((m) => isFutureMonth(year, m))
+  const plannedToDate = (cells: Cell[]) => cells.reduce((sum, c, i) => (futures[i] ? sum : sum + (c.planned ?? 0)), 0)
+  const totals: Cell[] = MONTH_NUMBERS.map((_, i) => ({
+    planned: plan.income_planned_by_month[i] > 0 ? plan.income_planned_by_month[i] : null,
+    actual: plan.income_actual_by_month[i],
+  }))
+  const nets = MONTH_NUMBERS.map((_, i) => plan.income_actual_by_month[i] - plan.actual_by_month[i])
+  const netYear = plan.income_actual_total - plan.actual_total
+  const td = 'px-1 py-2 text-center tabular-nums'
+  const first = 'sticky left-0 z-[1] py-2 pl-4 pr-2 sm:pl-5'
+  const uncategorized = uncategorizedRow(plan, t('budgetPlan.uncategorized'), 'income')
+  const rows = uncategorized ? [...plan.income_rows, uncategorized] : plan.income_rows
+
+  return (
+    <SectionCard>
+      <div className="flex items-baseline justify-between gap-3 px-4 pt-4 sm:px-5">
+        <p className="text-sm font-semibold text-foreground">{t('budgetPlan.income')}</p>
+        <p className="text-xs text-muted-foreground">{t('budgetPlan.incomeHint')}</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="sticky left-0 z-10 bg-card py-3 pl-4 pr-2 text-left font-medium text-muted-foreground sm:pl-5">
+                {t('budgets.category')}
+              </th>
+              {MONTH_NUMBERS.map((m) => (
+                <th key={m} className="px-1 py-3 text-center font-medium capitalize text-muted-foreground">
+                  {monthNames[m - 1]}
+                </th>
+              ))}
+              <th className="px-2 py-3 pr-4 text-center font-medium text-muted-foreground sm:pr-5">
+                {t('budgetPlan.yearColumn')}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr className="border-b border-border">
+                <td colSpan={14} className="px-4 py-4 text-center text-muted-foreground sm:px-5">
+                  {t('budgetPlan.noIncome')}
+                </td>
+              </tr>
+            )}
+            {rows.map((row) => (
+              <tr key={row.category_id} className="border-b border-border hover:bg-muted/50">
+                <td className={`${first} bg-card`}>
+                  <span className="flex min-w-[9rem] items-center gap-2 text-sm font-medium text-foreground">
+                    <CategoryIcon icon={row.category_icon} color={row.category_color} size="sm" />
+                    <span className="truncate">{row.category_name}</span>
+                  </span>
+                </td>
+                {row.cells.map((cell, i) => (
+                  <td key={cell.month} className={td}>
+                    <IncomeCell cell={cell} future={futures[i]} fmt={fmt} noBudget={noBudget} />
+                  </td>
+                ))}
+                <td className="px-2 py-2 pr-4 text-center font-semibold tabular-nums sm:pr-5">
+                  <IncomeCell
+                    cell={{ planned: plannedToDate(row.cells) || null, actual: row.actual_total }}
+                    future={false}
+                    fmt={fmt}
+                    noBudget={noBudget}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="bg-muted font-semibold">
+              <td className={`${first} bg-muted text-sm text-foreground`}>{t('budgetPlan.total')}</td>
+              {totals.map((cell, i) => (
+                <td key={i} className={td}>
+                  <IncomeCell cell={cell} future={futures[i]} fmt={fmt} noBudget={noBudget} />
+                </td>
+              ))}
+              <td className="px-2 py-2 pr-4 text-center tabular-nums sm:pr-5">
+                <IncomeCell
+                  cell={{ planned: plannedToDate(totals) || null, actual: plan.income_actual_total }}
+                  future={false}
+                  fmt={fmt}
+                  noBudget={noBudget}
+                />
+              </td>
+            </tr>
+            <tr className="border-t border-border font-semibold">
+              <td className={`${first} bg-card text-sm text-foreground`} title={t('budgetPlan.netHint')}>
+                {t('budgetPlan.net')}
+              </td>
+              {nets.map((value, i) => (
+                <td key={i} className={`${td} ${futures[i] ? 'text-muted-foreground' : value < 0 ? OVER : UNDER}`}>
+                  {futures[i] ? '—' : fmt(value)}
+                </td>
+              ))}
+              <td className={`px-2 py-2 pr-4 text-center tabular-nums sm:pr-5 ${netYear < 0 ? OVER : UNDER}`}>
+                {fmt(netYear)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </SectionCard>
+  )
+}
+
 interface MonthViewProps {
   plan: BudgetYearPlan
   year: number
@@ -530,7 +699,8 @@ function MonthView({ plan, year, month, fmt, noBudget }: MonthViewProps) {
   const i = month - 1
 
   // Only categories that have a budget or spending in this month.
-  const rows = plan.rows
+  const uncategorized = uncategorizedRow(plan, t('budgetPlan.uncategorized'))
+  const rows = (uncategorized ? [...plan.rows, uncategorized] : plan.rows)
     .map((r) => ({ row: r, cell: r.cells[i] }))
     .filter(({ cell }) => cell.planned != null || cell.actual > 0)
     .sort((a, b) => b.cell.actual - a.cell.actual || (b.cell.planned ?? 0) - (a.cell.planned ?? 0))

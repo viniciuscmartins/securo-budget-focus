@@ -1500,7 +1500,15 @@
     "entriesToSave": "Entries to save: {{total}}",
     "apply": "Apply budget",
     "applied": "Budget plan saved",
-    "noHistory": "Not enough spending history to suggest a budget yet."
+    "noHistory": "Not enough spending history to suggest a budget yet.",
+    "income": "Income",
+    "incomeHint": "Planned income comes from your recurring income items.",
+    "noIncome": "No income yet. Categorize your salary, or make it a recurring item to plan it.",
+    "incomeYear": "Income received",
+    "netYear": "Net (income − spent)",
+    "net": "Net",
+    "netHint": "Income received minus everything spent, uncategorized included.",
+    "uncategorized": "Uncategorized"
   },
   "cdiYield": {
     "title": "CDI yield",

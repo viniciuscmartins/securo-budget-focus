@@ -30,6 +30,7 @@ from app.schemas.budget import (
     BudgetYearSuggestion,
 )
 from app.services.budget_service import _build_budget_map, get_budget_vs_actual
+from app.services.category_defaults import DEFAULT_GROUPS
 
 Method = Literal["median", "average", "seasonal"]
 
@@ -148,12 +149,29 @@ async def get_year_plan(
                 actual_total=sum(a, ZERO),
             )
         )
+    net_by_category = await _monthly_net_by_category(session, workspace_id, user_id, year)
+    planned_income = await _planned_income(session, workspace_id, user_id, year)
+    income_ids = await _income_category_ids(session, workspace_id, net_by_category, planned_income)
+    # An income category never shows as an expense, even in a month where
+    # its debits happen to outweigh its credits.
+    rows_out = [r for r in rows_out if r.category_id not in income_ids]
     rows_out.sort(key=lambda r: (r.actual_total, r.planned_total), reverse=True)
+
+    uncategorized = net_by_category.get(UNCATEGORIZED_OUT, [ZERO] * 12)
+    uncategorized_income = net_by_category.get(UNCATEGORIZED_IN, [ZERO] * 12)
 
     planned_by_month = [
         sum((r.cells[i].planned or ZERO for r in rows_out), ZERO) for i in range(12)
     ]
-    actual_by_month = [sum((r.cells[i].actual for r in rows_out), ZERO) for i in range(12)]
+    actual_by_month = [
+        sum((r.cells[i].actual for r in rows_out), ZERO) + uncategorized[i] for i in range(12)
+    ]
+    income_rows = await _income_rows(session, income_ids, net_by_category, planned_income)
+    income_planned = [sum((r.cells[i].planned or ZERO for r in income_rows), ZERO) for i in range(12)]
+    income_actual = [
+        sum((r.cells[i].actual for r in income_rows), ZERO) + uncategorized_income[i]
+        for i in range(12)
+    ]
     return BudgetYearPlan(
         year=year,
         rows=rows_out,
@@ -161,7 +179,219 @@ async def get_year_plan(
         actual_by_month=actual_by_month,
         planned_total=sum(planned_by_month, ZERO),
         actual_total=sum(actual_by_month, ZERO),
+        uncategorized_by_month=uncategorized,
+        uncategorized_total=sum(uncategorized, ZERO),
+        income_rows=income_rows,
+        uncategorized_income_by_month=uncategorized_income,
+        uncategorized_income_total=sum(uncategorized_income, ZERO),
+        income_planned_by_month=income_planned,
+        income_actual_by_month=income_actual,
+        income_planned_total=sum(income_planned, ZERO),
+        income_actual_total=sum(income_actual, ZERO),
     )
+
+
+# Keys for rows with no category in `_monthly_net_by_category`.
+UNCATEGORIZED_OUT = "uncategorized_out"
+UNCATEGORIZED_IN = "uncategorized_in"
+NetKey = uuid.UUID | str
+
+
+async def _monthly_net_by_category(
+    session: AsyncSession, workspace_id: uuid.UUID, user_id: uuid.UUID, year: int
+) -> dict[NetKey, list[Decimal]]:
+    """Debits minus credits per category (None = no category) and month.
+
+    The same rows the Budgets page counts: posted, up to today, not a
+    transfer between your accounts, not ignored, not in a transfer-like or
+    ignored category, by the credit-card accounting mode's date. Positive
+    is money spent, negative is money received. Rows with no category are
+    split instead: debits under `UNCATEGORIZED_OUT`, credits under
+    `UNCATEGORIZED_IN`, both as positive amounts.
+    """
+    from sqlalchemy import extract, func
+
+    from app.models.transaction import Transaction
+    from app.services._query_filters import (
+        counts_as_user_pnl,
+        line_category_id,
+        line_primary_or_amount,
+        reporting_date_col,
+        with_category_lines,
+    )
+    from app.services.admin_service import get_credit_card_accounting_mode
+
+    report_date = reporting_date_col(await get_credit_card_accounting_mode(session))
+    month = extract("month", report_date)
+    result = await session.execute(
+        with_category_lines(
+            select(
+                line_category_id(),
+                month,
+                Transaction.type,
+                func.sum(line_primary_or_amount()),
+            ).select_from(Transaction)
+        )
+        .where(
+            Transaction.workspace_id == workspace_id,
+            report_date >= date(year, 1, 1),
+            report_date < date(year + 1, 1, 1),
+            report_date <= app_today(),
+            Transaction.status == "posted",
+            Transaction.source != "opening_balance",
+            counts_as_user_pnl(line_category_id()),
+        )
+        .group_by(line_category_id(), month, Transaction.type)
+    )
+    out: dict[NetKey, list[Decimal]] = {}
+    for cat_id, m, kind, total in result.all():
+        amount = abs(Decimal(str(total or 0)))
+        signed = amount if kind == "debit" else -amount
+        if cat_id is None:
+            # Without a category there is nothing to net against: money out
+            # is spending and money in is income, kept apart.
+            key = UNCATEGORIZED_OUT if kind == "debit" else UNCATEGORIZED_IN
+            out.setdefault(key, [ZERO] * 12)[int(m) - 1] += amount
+            continue
+        out.setdefault(uuid.UUID(str(cat_id)), [ZERO] * 12)[int(m) - 1] += signed
+    return out
+
+
+async def _planned_income(
+    session: AsyncSession, workspace_id: uuid.UUID, user_id: uuid.UUID, year: int
+) -> dict[uuid.UUID, list[Decimal]]:
+    """Expected income per category and month, from active recurring credits.
+
+    Every occurrence from the item's start date counts, past months included,
+    so the plan for January still shows the salary that was due then. The
+    item's current amount is used (with "follow the average" on, that is the
+    average of its last payments). A split item counts each part in its own
+    category; an item without a category is left out.
+    """
+    from app.models.recurring_transaction import RecurringTransaction
+    from app.models.user import User
+    from app.core.config import get_settings
+    from app.services.fx_rate_service import convert
+    from app.services.recurring_transaction_service import get_occurrences_in_range
+
+    user = await session.get(User, user_id)
+    primary = user.primary_currency if user else get_settings().default_currency
+    items = (
+        await session.execute(
+            select(RecurringTransaction).where(
+                RecurringTransaction.workspace_id == workspace_id,
+                RecurringTransaction.type == "credit",
+                RecurringTransaction.is_active == True,  # noqa: E712
+            )
+        )
+    ).scalars().all()
+    out: dict[uuid.UUID, list[Decimal]] = {}
+    for rec in items:
+        occurrences = get_occurrences_in_range(
+            start=rec.start_date,
+            frequency=rec.frequency,
+            end_date=rec.end_date,
+            range_start=date(year, 1, 1),
+            range_end=date(year + 1, 1, 1),
+            intended_day=rec.day_of_month or rec.start_date.day,
+            weekend_adjustment=rec.weekend_adjustment,
+        )
+        if not occurrences:
+            continue
+        amount, _ = await convert(session, Decimal(str(rec.amount)), rec.currency, primary)
+        lines = list(rec.category_lines) if rec.has_category_lines else []
+        if lines:
+            whole = sum((Decimal(str(line.amount)) for line in lines), ZERO) or Decimal("1")
+            parts = [(line.category_id, amount * Decimal(str(line.amount)) / whole) for line in lines]
+        elif rec.category_id is not None:
+            parts = [(rec.category_id, amount)]
+        else:
+            continue
+        for occurrence in occurrences:
+            for cat_id, part in parts:
+                out.setdefault(cat_id, [ZERO] * 12)[occurrence.month - 1] += part
+    return {k: [v.quantize(Decimal("0.01")) for v in vals] for k, vals in out.items()}
+
+
+# Names of the default income group in every language Securo seeds
+# ("Renda", "Income", ...). A renamed group is still caught by its credits.
+_INCOME_GROUP_NAMES = {
+    name.strip().casefold() for name in DEFAULT_GROUPS["income"]["names"].values()
+}
+
+
+async def _income_category_ids(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    net_by_category: dict[NetKey, list[Decimal]],
+    planned_income: dict[uuid.UUID, list[Decimal]],
+) -> set[uuid.UUID]:
+    """Categories that hold income: in the default income group, or with
+    more money coming in than going out over the year, or expected from a
+    recurring credit. Transfer-like and ignored categories never count."""
+    from app.models.category_group import CategoryGroup
+
+    rows = (
+        await session.execute(
+            select(Category.id, Category.treat_as_transfer, Category.is_ignored, CategoryGroup.name)
+            .outerjoin(CategoryGroup, Category.group_id == CategoryGroup.id)
+            .where(Category.workspace_id == workspace_id)
+        )
+    ).all()
+    ids: set[uuid.UUID] = set()
+    for cat_id, is_transfer, is_ignored, group_name in rows:
+        if is_transfer or is_ignored:
+            continue
+        in_income_group = (group_name or "").strip().casefold() in _INCOME_GROUP_NAMES
+        net = sum(net_by_category.get(cat_id, []), ZERO)
+        if in_income_group or net < 0 or cat_id in planned_income:
+            ids.add(cat_id)
+    return ids
+
+
+async def _income_rows(
+    session: AsyncSession,
+    income_ids: set[uuid.UUID],
+    net_by_category: dict[NetKey, list[Decimal]],
+    planned_income: dict[uuid.UUID, list[Decimal]],
+) -> list[BudgetYearRow]:
+    """One row per income category with something planned or received."""
+    from app.models.category_group import CategoryGroup
+
+    if not income_ids:
+        return []
+    cats = (
+        await session.execute(
+            select(Category, CategoryGroup)
+            .outerjoin(CategoryGroup, Category.group_id == CategoryGroup.id)
+            .where(Category.id.in_(income_ids))
+        )
+    ).all()
+    rows: list[BudgetYearRow] = []
+    for category, group in cats:
+        actual = [-x for x in net_by_category.get(category.id, [ZERO] * 12)]
+        planned = planned_income.get(category.id)
+        if not any(actual) and not planned:
+            continue
+        cells = [
+            BudgetYearCell(month=i + 1, planned=planned[i] if planned and planned[i] else None, actual=actual[i])
+            for i in range(12)
+        ]
+        rows.append(
+            BudgetYearRow(
+                category_id=category.id,
+                category_name=category.name,
+                category_icon=category.icon,
+                category_color=category.color,
+                group_id=group.id if group else None,
+                group_name=group.name if group else None,
+                cells=cells,
+                planned_total=sum((c.planned or ZERO for c in cells), ZERO),
+                actual_total=sum(actual, ZERO),
+            )
+        )
+    rows.sort(key=lambda r: (r.actual_total, r.planned_total), reverse=True)
+    return rows
 
 
 async def suggest_year_budget(

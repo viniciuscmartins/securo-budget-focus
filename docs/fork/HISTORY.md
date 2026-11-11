@@ -168,6 +168,15 @@ Removing a rule pack deletes only untouched pack rules; rules made by the fork, 
 - **CDI rebuilds** remove the files attached to the yield rows they delete.
 - **Rule names** made by "Make recurring" follow the user's language.
 
+## PR #16: Annual plan shows income and uncategorized money
+
+No migration.
+
+- **Spending without a category** is counted in the plan's totals, as a read-only "Uncategorized" row (it can't have a budget).
+- **Income section** above the spending grid: one row per income category, plus money received without a category. A category counts as income if it sits in the default "Income" group, has more money in than out over the year, or has a recurring income item. Income categories never count as spending.
+- **Planned income** comes from active recurring income items (credits), month by month, with split items shared by their parts.
+- **Net** per month and for the year: income received minus everything spent, as a row and a summary card.
+
 ## Conventions
 
 - **Versions** follow upstream. Fork releases are tagged `v<upstream version>-plan.<N>`.

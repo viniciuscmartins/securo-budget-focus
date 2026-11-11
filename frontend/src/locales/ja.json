@@ -1500,7 +1500,15 @@
     "entriesToSave": "保存する値：{{total}}",
     "apply": "予算を適用",
     "applied": "予算計画を保存しました",
-    "noHistory": "予算を提案できるだけの支出履歴がまだありません。"
+    "noHistory": "予算を提案できるだけの支出履歴がまだありません。",
+    "income": "Income",
+    "incomeHint": "Planned income comes from your recurring income items.",
+    "noIncome": "No income yet. Categorize your salary, or make it a recurring item to plan it.",
+    "incomeYear": "Income received",
+    "netYear": "Net (income − spent)",
+    "net": "Net",
+    "netHint": "Income received minus everything spent, uncategorized included.",
+    "uncategorized": "Uncategorized"
   },
   "cdiYield": {
     "title": "CDI利息",

@@ -1501,7 +1501,15 @@
     "entriesToSave": "Zu speichernde Werte: {{total}}",
     "apply": "Budget übernehmen",
     "applied": "Budgetplan gespeichert",
-    "noHistory": "Noch nicht genug Ausgabenverlauf, um ein Budget vorzuschlagen."
+    "noHistory": "Noch nicht genug Ausgabenverlauf, um ein Budget vorzuschlagen.",
+    "income": "Income",
+    "incomeHint": "Planned income comes from your recurring income items.",
+    "noIncome": "No income yet. Categorize your salary, or make it a recurring item to plan it.",
+    "incomeYear": "Income received",
+    "netYear": "Net (income − spent)",
+    "net": "Net",
+    "netHint": "Income received minus everything spent, uncategorized included.",
+    "uncategorized": "Uncategorized"
   },
   "cdiYield": {
     "title": "CDI-Ertrag",

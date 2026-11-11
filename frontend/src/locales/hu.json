@@ -1500,7 +1500,15 @@
     "entriesToSave": "Mentendő értékek: {{total}}",
     "apply": "Költségvetés alkalmazása",
     "applied": "Költségvetési terv mentve",
-    "noHistory": "Még nincs elég kiadási előzmény a javaslathoz."
+    "noHistory": "Még nincs elég kiadási előzmény a javaslathoz.",
+    "income": "Income",
+    "incomeHint": "Planned income comes from your recurring income items.",
+    "noIncome": "No income yet. Categorize your salary, or make it a recurring item to plan it.",
+    "incomeYear": "Income received",
+    "netYear": "Net (income − spent)",
+    "net": "Net",
+    "netHint": "Income received minus everything spent, uncategorized included.",
+    "uncategorized": "Uncategorized"
   },
   "cdiYield": {
     "title": "CDI-hozam",

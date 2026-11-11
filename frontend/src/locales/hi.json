@@ -1500,7 +1500,15 @@
     "entriesToSave": "सहेजने वाली प्रविष्टियाँ: {{total}}",
     "apply": "बजट लागू करें",
     "applied": "बजट योजना सहेजी गई",
-    "noHistory": "बजट सुझाने के लिए अभी पर्याप्त खर्च इतिहास नहीं है।"
+    "noHistory": "बजट सुझाने के लिए अभी पर्याप्त खर्च इतिहास नहीं है।",
+    "income": "Income",
+    "incomeHint": "Planned income comes from your recurring income items.",
+    "noIncome": "No income yet. Categorize your salary, or make it a recurring item to plan it.",
+    "incomeYear": "Income received",
+    "netYear": "Net (income − spent)",
+    "net": "Net",
+    "netHint": "Income received minus everything spent, uncategorized included.",
+    "uncategorized": "Uncategorized"
   },
   "cdiYield": {
     "title": "CDI ब्याज",

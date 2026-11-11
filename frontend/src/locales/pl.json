@@ -1553,7 +1553,15 @@
     "entriesToSave": "Pozycje do zapisania: {{total}}",
     "apply": "Zastosuj budżet",
     "applied": "Plan budżetu zapisany",
-    "noHistory": "Za mało historii wydatków, by zaproponować budżet."
+    "noHistory": "Za mało historii wydatków, by zaproponować budżet.",
+    "income": "Income",
+    "incomeHint": "Planned income comes from your recurring income items.",
+    "noIncome": "No income yet. Categorize your salary, or make it a recurring item to plan it.",
+    "incomeYear": "Income received",
+    "netYear": "Net (income − spent)",
+    "net": "Net",
+    "netHint": "Income received minus everything spent, uncategorized included.",
+    "uncategorized": "Uncategorized"
   },
   "cdiYield": {
     "title": "Odsetki CDI",
