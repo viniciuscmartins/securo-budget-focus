@@ -1377,7 +1377,11 @@
       "active": "Активне",
       "error": "Помилка",
       "expired": "Термін дії минув"
-    }
+    },
+    "sidebarCashGroup": "Account balances",
+    "sidebarCardsGroup": "Credit cards",
+    "sidebarBillDue": "Bill due {{date}}",
+    "sidebarNoDueDate": "No due date set"
   },
   "loans": {
     "title": "Кредитний договір",

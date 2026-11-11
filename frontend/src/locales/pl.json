@@ -1413,7 +1413,11 @@
       "active": "Aktywne",
       "error": "Błąd",
       "expired": "Wygasłe"
-    }
+    },
+    "sidebarCashGroup": "Account balances",
+    "sidebarCardsGroup": "Credit cards",
+    "sidebarBillDue": "Bill due {{date}}",
+    "sidebarNoDueDate": "No due date set"
   },
   "loans": {
     "title": "Umowa kredytu",

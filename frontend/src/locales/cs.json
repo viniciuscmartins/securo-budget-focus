@@ -1444,7 +1444,11 @@
       "active": "Aktivní",
       "error": "Chyba",
       "expired": "Vypršelo"
-    }
+    },
+    "sidebarCashGroup": "Account balances",
+    "sidebarCardsGroup": "Credit cards",
+    "sidebarBillDue": "Bill due {{date}}",
+    "sidebarNoDueDate": "No due date set"
   },
   "loans": {
     "title": "Úvěrová smlouva",

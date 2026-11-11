@@ -1360,7 +1360,11 @@
       "active": "सक्रिय",
       "error": "त्रुटि",
       "expired": "समाप्त"
-    }
+    },
+    "sidebarCashGroup": "Account balances",
+    "sidebarCardsGroup": "Credit cards",
+    "sidebarBillDue": "Bill due {{date}}",
+    "sidebarNoDueDate": "No due date set"
   },
   "loans": {
     "title": "ऋण अनुबंध",
