@@ -1568,7 +1568,18 @@
     "entriesToSave": "Položky na uloženie: {{total}}",
     "apply": "Použiť rozpočet",
     "applied": "Rozpočtový plán uložený",
-    "noHistory": "Zatiaľ nie je dosť histórie výdavkov na návrh rozpočtu."
+    "noHistory": "Zatiaľ nie je dosť histórie výdavkov na návrh rozpočtu.",
+    "income": "Income",
+    "incomeHint": "Planned income comes from your recurring income items.",
+    "noIncome": "No income yet. Categorize your salary, or make it a recurring item to plan it.",
+    "incomeYear": "Income received",
+    "netYear": "Balance so far",
+    "net": "Balance",
+    "netHint": "Money in minus money out for the month. Under it, the planned balance: planned income minus budgets.",
+    "uncategorized": "Uncategorized",
+    "netAccumulated": "Accumulated balance",
+    "netAccumulatedHint": "The balance added up since January. Under it, where the plan says you should be; the Year column shows the plan for the whole year.",
+    "netPlannedToDate": "Planned to date: {{value}}"
   },
   "cdiYield": {
     "title": "Výnos CDI",

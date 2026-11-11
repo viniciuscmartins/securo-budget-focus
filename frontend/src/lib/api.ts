@@ -1456,18 +1456,41 @@ export const budgets = {
     const { data } = await api.get('/budgets/year-plan', { params: { year } })
     const num = (v: unknown) => Number(v)
     const numOrNull = (v: unknown) => (v == null ? null : Number(v))
+    const months = (v: unknown) => (Array.isArray(v) ? v.map(num) : Array(12).fill(0))
+    const row = (r: BudgetYearPlan['rows'][number]) => ({
+      ...r,
+      planned_total: num(r.planned_total),
+      actual_total: num(r.actual_total),
+      cells: r.cells.map((c) => ({ ...c, planned: numOrNull(c.planned), actual: num(c.actual) })),
+    })
+    // An older backend has no balance fields: fall back to income minus spending.
+    const netActual: number[] = Array.isArray(data.net_actual_by_month)
+      ? data.net_actual_by_month.map(num)
+      : months(data.income_actual_by_month).map((v: number, i: number) => v - num(data.actual_by_month[i]))
+    const netPlanned: number[] = Array.isArray(data.net_planned_by_month)
+      ? data.net_planned_by_month.map(num)
+      : months(data.income_planned_by_month).map((v: number, i: number) => v - num(data.planned_by_month[i]))
+    const total = (values: number[]) => values.reduce((a, b) => a + b, 0)
     return {
       ...data,
+      net_actual_by_month: netActual,
+      net_planned_by_month: netPlanned,
+      net_actual_total: total(netActual),
+      net_planned_total: total(netPlanned),
       planned_total: num(data.planned_total),
       actual_total: num(data.actual_total),
       planned_by_month: data.planned_by_month.map(num),
       actual_by_month: data.actual_by_month.map(num),
-      rows: data.rows.map((r: BudgetYearPlan['rows'][number]) => ({
-        ...r,
-        planned_total: num(r.planned_total),
-        actual_total: num(r.actual_total),
-        cells: r.cells.map((c) => ({ ...c, planned: numOrNull(c.planned), actual: num(c.actual) })),
-      })),
+      rows: data.rows.map(row),
+      uncategorized_by_month: months(data.uncategorized_by_month),
+      uncategorized_total: num(data.uncategorized_total ?? 0),
+      income_rows: (data.income_rows ?? []).map(row),
+      income_planned_by_month: months(data.income_planned_by_month),
+      income_actual_by_month: months(data.income_actual_by_month),
+      income_planned_total: num(data.income_planned_total ?? 0),
+      income_actual_total: num(data.income_actual_total ?? 0),
+      uncategorized_income_by_month: months(data.uncategorized_income_by_month),
+      uncategorized_income_total: num(data.uncategorized_income_total ?? 0),
     }
   },
   yearSuggestion: async (

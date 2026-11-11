@@ -1504,7 +1504,18 @@
     "entriesToSave": "Valores a salvar: {{total}}",
     "apply": "Aplicar orçamento",
     "applied": "Plano de orçamento salvo",
-    "noHistory": "Ainda não há histórico de gastos suficiente para sugerir um orçamento."
+    "noHistory": "Ainda não há histórico de gastos suficiente para sugerir um orçamento.",
+    "income": "Receitas",
+    "incomeHint": "As receitas planejadas vêm dos seus itens recorrentes de receita.",
+    "noIncome": "Nenhuma receita ainda. Categorize seu salário ou torne-o recorrente para planejá-lo.",
+    "incomeYear": "Receitas recebidas",
+    "netYear": "Saldo até agora",
+    "net": "Saldo",
+    "netHint": "Entradas menos saídas no mês. Abaixo, o saldo planejado: receitas planejadas menos orçamentos.",
+    "uncategorized": "Sem categoria",
+    "netAccumulated": "Saldo acumulado",
+    "netAccumulatedHint": "O saldo somado desde janeiro. Abaixo, onde o plano diz que você deveria estar; a coluna Ano mostra o plano para o ano inteiro.",
+    "netPlannedToDate": "Planejado até agora: {{value}}"
   },
   "cdiYield": {
     "title": "Rendimento CDI",

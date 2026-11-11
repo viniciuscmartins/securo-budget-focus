@@ -18,7 +18,7 @@ import { useDisplayLocale } from '@/hooks/use-display-locale'
 import { usePrivacyMode } from '@/hooks/use-privacy-mode'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkspace } from '@/contexts/workspace-context'
-import type { BudgetYearCell, BudgetYearPlan } from '@/types'
+import type { BudgetYearCell, BudgetYearPlan, BudgetYearRow } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -32,6 +32,30 @@ type Cell = Pick<BudgetYearCell, 'planned' | 'actual'>
 
 const OVER = 'text-rose-500'
 const UNDER = 'text-emerald-600'
+const SHORT = 'text-amber-600'
+const UNCATEGORIZED_ID = '__uncategorized__'
+
+/** Money with no category, shown as a read-only row (it can't have a budget). */
+function uncategorizedRow(
+  plan: BudgetYearPlan,
+  name: string,
+  kind: 'spending' | 'income' = 'spending',
+): BudgetYearRow | null {
+  const byMonth = kind === 'income' ? plan.uncategorized_income_by_month : plan.uncategorized_by_month
+  const total = kind === 'income' ? plan.uncategorized_income_total : plan.uncategorized_total
+  if (!(total > 0)) return null
+  return {
+    category_id: UNCATEGORIZED_ID,
+    category_name: name,
+    category_icon: 'circle-help',
+    category_color: '#6B7280',
+    group_id: null,
+    group_name: null,
+    cells: byMonth.map((actual, i) => ({ month: i + 1, planned: null, actual })),
+    planned_total: 0,
+    actual_total: total,
+  }
+}
 
 const NAV_BUTTON =
   'h-8 w-8 flex items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground transition-all text-base'
@@ -48,11 +72,12 @@ function SectionCard({ children }: { children: React.ReactNode }) {
   return <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">{children}</div>
 }
 
-function SummaryCard({ label, value, tone }: { label: string; value: string; tone?: string }) {
+function SummaryCard({ label, value, tone, hint }: { label: string; value: string; tone?: string; hint?: string }) {
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm px-4 py-3">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p className={`mt-1 text-xl font-semibold tabular-nums ${tone ?? 'text-foreground'}`}>{value}</p>
+      {hint && <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">{hint}</p>}
     </div>
   )
 }
@@ -263,7 +288,12 @@ export default function BudgetPlanPage() {
     )
   }
 
-  if (plan.rows.length === 0) {
+  if (
+    plan.rows.length === 0 &&
+    plan.income_rows.length === 0 &&
+    !(plan.uncategorized_total > 0) &&
+    !(plan.uncategorized_income_total > 0)
+  ) {
     return (
       <div>
         {header}
@@ -283,18 +313,31 @@ export default function BudgetPlanPage() {
   }
 
   const left = plan.planned_total - plan.actual_total
+  const net = plan.net_actual_total
+  const netPlannedToDate = plan.net_planned_by_month.reduce(
+    (sum, value, i) => (isFutureMonth(year, i + 1) ? sum : sum + value),
+    0,
+  )
+  const hasNetPlan = plan.income_planned_total > 0 || plan.planned_total > 0
 
   return (
     <div className="space-y-4">
       {header}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <SummaryCard label={t('budgetPlan.incomeYear')} value={fmt(plan.income_actual_total)} />
         <SummaryCard label={t('budgetPlan.plannedYear')} value={fmt(plan.planned_total)} />
         <SummaryCard label={t('budgetPlan.spentYear')} value={fmt(plan.actual_total)} />
         <SummaryCard
           label={t('budgetPlan.leftYear')}
           value={fmt(left)}
           tone={plan.planned_total > 0 ? (left < 0 ? OVER : UNDER) : undefined}
+        />
+        <SummaryCard
+          label={t('budgetPlan.netYear')}
+          value={fmt(net)}
+          tone={netTone(net, hasNetPlan ? netPlannedToDate : null)}
+          hint={hasNetPlan ? t('budgetPlan.netPlannedToDate', { value: fmt(netPlannedToDate) }) : undefined}
         />
       </div>
 
@@ -371,6 +414,10 @@ export default function BudgetPlanPage() {
         )}
       </div>
 
+      {view === 'grid' && (
+        <IncomeSection plan={plan} year={year} monthNames={monthNames} fmt={fmt} />
+      )}
+
       {view === 'grid' ? (
         <GridView
           plan={plan}
@@ -441,6 +488,8 @@ function GridView({ plan, year, metric, canWrite, monthNames, fmt, noBudget, onS
     planned: plan.planned_by_month[i] > 0 ? plan.planned_by_month[i] : null,
     actual: plan.actual_by_month[i],
   }))
+  const uncategorized = uncategorizedRow(plan, t('budgetPlan.uncategorized'))
+  const displayRows = uncategorized ? [...plan.rows, uncategorized] : plan.rows
 
   return (
     <SectionCard>
@@ -462,7 +511,7 @@ function GridView({ plan, year, metric, canWrite, monthNames, fmt, noBudget, onS
             </tr>
           </thead>
           <tbody>
-            {plan.rows.map((row) => (
+            {displayRows.map((row) => (
               <tr key={row.category_id} className="border-b border-border hover:bg-muted/50">
                 <td className="sticky left-0 z-[1] bg-card py-2 pl-4 pr-2 sm:pl-5">
                   <span className="flex min-w-[9rem] items-center gap-2 text-sm font-medium text-foreground">
@@ -472,7 +521,7 @@ function GridView({ plan, year, metric, canWrite, monthNames, fmt, noBudget, onS
                 </td>
                 {row.cells.map((cell, i) => (
                   <td key={cell.month} className="px-1 py-2 text-center tabular-nums">
-                    {editing ? (
+                    {editing && row.category_id !== UNCATEGORIZED_ID ? (
                       <PlannedInput
                         value={cell.planned}
                         label={t('budgetPlan.cellLabel', { category: row.category_name, month: monthNames[i] })}
@@ -516,6 +565,186 @@ function GridView({ plan, year, metric, canWrite, monthNames, fmt, noBudget, onS
   )
 }
 
+interface IncomeSectionProps {
+  plan: BudgetYearPlan
+  year: number
+  monthNames: string[]
+  fmt: (n: number) => string
+}
+
+/** What came in against what was expected, coloured the other way round from spending. */
+function IncomeCell({ cell, future, fmt }: { cell: Cell; future: boolean; fmt: (n: number) => string }) {
+  if (cell.planned == null && (future || cell.actual === 0)) return <Dash />
+  const tone = future ? 'text-muted-foreground' : cell.planned == null ? 'text-foreground' : cell.actual >= cell.planned ? UNDER : SHORT
+  return (
+    <span className="flex flex-col items-center leading-tight">
+      <span className={`font-medium ${tone}`}>{future ? '—' : fmt(cell.actual)}</span>
+      {cell.planned != null && <span className="text-[10px] text-muted-foreground">{fmt(cell.planned)}</span>}
+    </span>
+  )
+}
+
+/** Red when money is going out, amber when behind the plan, green otherwise. */
+function netTone(actual: number, planned: number | null) {
+  if (actual < 0) return OVER
+  return planned != null && actual < planned ? SHORT : UNDER
+}
+
+/** A balance: the real one, with the planned one under it. A future month shows only the plan. */
+function NetCell({ cell, future, fmt }: { cell: Cell; future: boolean; fmt: (n: number) => string }) {
+  if (cell.planned == null && (future || cell.actual === 0)) return <Dash />
+  return (
+    <span className="flex flex-col items-center leading-tight">
+      <span className={future ? 'text-muted-foreground' : netTone(cell.actual, cell.planned)}>
+        {future ? '—' : fmt(cell.actual)}
+      </span>
+      {cell.planned != null && (
+        <span className="text-[10px] font-normal text-muted-foreground">{fmt(cell.planned)}</span>
+      )}
+    </span>
+  )
+}
+
+/**
+ * Income per category and month (planned from recurring income items), and
+ * the net: income received minus everything spent, uncategorized included.
+ */
+function IncomeSection({ plan, year, monthNames, fmt }: IncomeSectionProps) {
+  const { t } = useTranslation()
+  const futures = MONTH_NUMBERS.map((m) => isFutureMonth(year, m))
+  const plannedToDate = (cells: Cell[]) => cells.reduce((sum, c, i) => (futures[i] ? sum : sum + (c.planned ?? 0)), 0)
+  const totals: Cell[] = MONTH_NUMBERS.map((_, i) => ({
+    planned: plan.income_planned_by_month[i] > 0 ? plan.income_planned_by_month[i] : null,
+    actual: plan.income_actual_by_month[i],
+  }))
+  // The balance of each month against the plan (planned income minus
+  // budgets), and the same accumulated through the year.
+  const hasNetPlan = plan.income_planned_total > 0 || plan.planned_total > 0
+  const nets: Cell[] = MONTH_NUMBERS.map((_, i) => ({
+    actual: plan.net_actual_by_month[i],
+    // A month with nothing planned has no plan to compare against.
+    planned: plan.income_planned_by_month[i] > 0 || plan.planned_by_month[i] > 0 ? plan.net_planned_by_month[i] : null,
+  }))
+  const accumulated: Cell[] = nets.map((_, i) => {
+    const soFar = nets.slice(0, i + 1)
+    return {
+      actual: soFar.reduce((sum, c, j) => (futures[j] ? sum : sum + c.actual), 0),
+      planned: soFar.some((c) => c.planned != null) ? soFar.reduce((sum, c) => sum + (c.planned ?? 0), 0) : null,
+    }
+  })
+  const netPlannedToDate = hasNetPlan ? plannedToDate(nets) : null
+  const td = 'px-1 py-2 text-center tabular-nums'
+  const first = 'sticky left-0 z-[1] py-2 pl-4 pr-2 sm:pl-5'
+  const uncategorized = uncategorizedRow(plan, t('budgetPlan.uncategorized'), 'income')
+  const rows = uncategorized ? [...plan.income_rows, uncategorized] : plan.income_rows
+
+  return (
+    <SectionCard>
+      <div className="flex items-baseline justify-between gap-3 px-4 pt-4 sm:px-5">
+        <p className="text-sm font-semibold text-foreground">{t('budgetPlan.income')}</p>
+        <p className="text-xs text-muted-foreground">{t('budgetPlan.incomeHint')}</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="sticky left-0 z-10 bg-card py-3 pl-4 pr-2 text-left font-medium text-muted-foreground sm:pl-5">
+                {t('budgets.category')}
+              </th>
+              {MONTH_NUMBERS.map((m) => (
+                <th key={m} className="px-1 py-3 text-center font-medium capitalize text-muted-foreground">
+                  {monthNames[m - 1]}
+                </th>
+              ))}
+              <th className="px-2 py-3 pr-4 text-center font-medium text-muted-foreground sm:pr-5">
+                {t('budgetPlan.yearColumn')}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr className="border-b border-border">
+                <td colSpan={14} className="px-4 py-4 text-center text-muted-foreground sm:px-5">
+                  {t('budgetPlan.noIncome')}
+                </td>
+              </tr>
+            )}
+            {rows.map((row) => (
+              <tr key={row.category_id} className="border-b border-border hover:bg-muted/50">
+                <td className={`${first} bg-card`}>
+                  <span className="flex min-w-[9rem] items-center gap-2 text-sm font-medium text-foreground">
+                    <CategoryIcon icon={row.category_icon} color={row.category_color} size="sm" />
+                    <span className="truncate">{row.category_name}</span>
+                  </span>
+                </td>
+                {row.cells.map((cell, i) => (
+                  <td key={cell.month} className={td}>
+                    <IncomeCell cell={cell} future={futures[i]} fmt={fmt} />
+                  </td>
+                ))}
+                <td className="px-2 py-2 pr-4 text-center font-semibold tabular-nums sm:pr-5">
+                  <IncomeCell
+                    cell={{ planned: plannedToDate(row.cells) || null, actual: row.actual_total }}
+                    future={false}
+                    fmt={fmt}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="bg-muted font-semibold">
+              <td className={`${first} bg-muted text-sm text-foreground`}>{t('budgetPlan.total')}</td>
+              {totals.map((cell, i) => (
+                <td key={i} className={td}>
+                  <IncomeCell cell={cell} future={futures[i]} fmt={fmt} />
+                </td>
+              ))}
+              <td className="px-2 py-2 pr-4 text-center tabular-nums sm:pr-5">
+                <IncomeCell
+                  cell={{ planned: plannedToDate(totals) || null, actual: plan.income_actual_total }}
+                  future={false}
+                  fmt={fmt}
+                />
+              </td>
+            </tr>
+            <tr className="border-t border-border font-semibold">
+              <td className={`${first} bg-card text-sm text-foreground`} title={t('budgetPlan.netHint')}>
+                {t('budgetPlan.net')}
+              </td>
+              {nets.map((cell, i) => (
+                <td key={i} className={td}>
+                  <NetCell cell={cell} future={futures[i]} fmt={fmt} />
+                </td>
+              ))}
+              <td className="px-2 py-2 pr-4 text-center tabular-nums sm:pr-5">
+                <NetCell cell={{ actual: plan.net_actual_total, planned: netPlannedToDate }} future={false} fmt={fmt} />
+              </td>
+            </tr>
+            <tr className="border-t border-border font-semibold">
+              <td className={`${first} bg-card text-sm text-foreground`} title={t('budgetPlan.netAccumulatedHint')}>
+                {t('budgetPlan.netAccumulated')}
+              </td>
+              {accumulated.map((cell, i) => (
+                <td key={i} className={td}>
+                  <NetCell cell={cell} future={futures[i]} fmt={fmt} />
+                </td>
+              ))}
+              <td className="px-2 py-2 pr-4 text-center tabular-nums sm:pr-5">
+                <NetCell
+                  cell={{ actual: plan.net_actual_total, planned: hasNetPlan ? plan.net_planned_total : null }}
+                  future={false}
+                  fmt={fmt}
+                />
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </SectionCard>
+  )
+}
+
 interface MonthViewProps {
   plan: BudgetYearPlan
   year: number
@@ -530,7 +759,8 @@ function MonthView({ plan, year, month, fmt, noBudget }: MonthViewProps) {
   const i = month - 1
 
   // Only categories that have a budget or spending in this month.
-  const rows = plan.rows
+  const uncategorized = uncategorizedRow(plan, t('budgetPlan.uncategorized'))
+  const rows = (uncategorized ? [...plan.rows, uncategorized] : plan.rows)
     .map((r) => ({ row: r, cell: r.cells[i] }))
     .filter(({ cell }) => cell.planned != null || cell.actual > 0)
     .sort((a, b) => b.cell.actual - a.cell.actual || (b.cell.planned ?? 0) - (a.cell.planned ?? 0))

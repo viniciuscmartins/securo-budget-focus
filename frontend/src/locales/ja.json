@@ -1500,7 +1500,18 @@
     "entriesToSave": "保存する値：{{total}}",
     "apply": "予算を適用",
     "applied": "予算計画を保存しました",
-    "noHistory": "予算を提案できるだけの支出履歴がまだありません。"
+    "noHistory": "予算を提案できるだけの支出履歴がまだありません。",
+    "income": "Income",
+    "incomeHint": "Planned income comes from your recurring income items.",
+    "noIncome": "No income yet. Categorize your salary, or make it a recurring item to plan it.",
+    "incomeYear": "Income received",
+    "netYear": "Balance so far",
+    "net": "Balance",
+    "netHint": "Money in minus money out for the month. Under it, the planned balance: planned income minus budgets.",
+    "uncategorized": "Uncategorized",
+    "netAccumulated": "Accumulated balance",
+    "netAccumulatedHint": "The balance added up since January. Under it, where the plan says you should be; the Year column shows the plan for the whole year.",
+    "netPlannedToDate": "Planned to date: {{value}}"
   },
   "cdiYield": {
     "title": "CDI利息",

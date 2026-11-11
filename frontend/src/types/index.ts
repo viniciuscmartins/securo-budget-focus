@@ -997,6 +997,23 @@ export interface BudgetYearPlan {
   actual_by_month: number[]
   planned_total: number
   actual_total: number
+  /** Spending with no category (already included in actual_by_month). */
+  uncategorized_by_month: number[]
+  uncategorized_total: number
+  /** Income categories: planned from recurring income items, actual received. */
+  income_rows: BudgetYearRow[]
+  income_planned_by_month: number[]
+  income_actual_by_month: number[]
+  income_planned_total: number
+  income_actual_total: number
+  /** Balance (money in minus money out): the real one, and the planned one. */
+  net_actual_by_month: number[]
+  net_planned_by_month: number[]
+  net_actual_total: number
+  net_planned_total: number
+  /** Money received with no category (already included in income_actual_by_month). */
+  uncategorized_income_by_month: number[]
+  uncategorized_income_total: number
 }
 
 export type BudgetSuggestionMethod = 'median' | 'average' | 'seasonal'
