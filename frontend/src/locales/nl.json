@@ -1362,7 +1362,11 @@
       "active": "Actief",
       "error": "Fout",
       "expired": "Verlopen"
-    }
+    },
+    "sidebarCashGroup": "Account balances",
+    "sidebarCardsGroup": "Credit cards",
+    "sidebarBillDue": "Bill due {{date}}",
+    "sidebarNoDueDate": "No due date set"
   },
   "loans": {
     "title": "Leningcontract",

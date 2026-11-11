@@ -1360,7 +1360,11 @@
       "active": "有効",
       "error": "エラー",
       "expired": "期限切れ"
-    }
+    },
+    "sidebarCashGroup": "Account balances",
+    "sidebarCardsGroup": "Credit cards",
+    "sidebarBillDue": "Bill due {{date}}",
+    "sidebarNoDueDate": "No due date set"
   },
   "loans": {
     "title": "ローン契約",

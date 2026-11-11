@@ -1,12 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
-import {
-  getAccountName,
-  sidebarAccountBalance,
-  sidebarAccounts,
-  sortAccountsByAbsoluteBalance,
-  sumAccountsTotal,
-} from '@/lib/account-utils'
+import { sidebarAccounts, sumAccountsTotal } from '@/lib/account-utils'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { SidebarAccountGroups } from '@/components/sidebar-account-groups'
 import { useTranslation } from 'react-i18next'
 import { useDisplayLocale } from '@/hooks/use-display-locale'
 import { useQuery } from '@tanstack/react-query'
@@ -108,7 +103,6 @@ export function AppLayout() {
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const { collapsed: desktopSidebarCollapsed, toggleCollapsed: toggleDesktopSidebar } = useSidebarState()
   const [accountsExpanded, setAccountsExpanded] = useState(true)
-  const [accountsShowAll, setAccountsShowAll] = useState(false)
   const { privacyMode, togglePrivacyMode, mask } = usePrivacyMode()
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const [twoFactorOpen, setTwoFactorOpen] = useState(false)
@@ -513,48 +507,13 @@ export function AppLayout() {
                 </div>
               </button>
               {accountsExpanded && (
-                <div className="mt-1 space-y-0.5">
-                  {sortAccountsByAbsoluteBalance(visibleAccounts, (a) => sidebarAccountBalance(a).amount).slice(0, accountsShowAll ? visibleAccounts.length : 3).map((acc) => {
-                    const { amount: balance, isPrimary: balanceIsPrimary } = sidebarAccountBalance(acc)
-                    const balanceCurrency = balanceIsPrimary ? userCurrency : acc.currency
-                    const typeKey = acc.type.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase()).replace(/^./, c => c.toUpperCase())
-
-                    return (
-                      <Link
-                        key={acc.id}
-                        to={`/accounts/${acc.id}`}
-                        onClick={() => setSidebarOpen(false)}
-                        className="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all"
-                      >
-                        <div className="truncate min-w-0">
-                          <span className="block truncate font-medium">{getAccountName(acc)}</span>
-                          <span className="block text-[10px] text-sidebar-muted/60">
-                            {t(`accounts.type${typeKey}`)}
-                            {acc.shared_balance_group && ` · ${t('accounts.sharedCreditBalance')}`}
-                          </span>
-                        </div>
-                        <div className="text-right shrink-0 ml-2">
-                          <span className={`block tabular-nums font-medium text-xs ${balance < 0 ? 'text-rose-400' : 'text-sidebar-foreground'}`}>
-                            {mask(formatCurrency(balance, balanceCurrency, locale))}
-                          </span>
-                        </div>
-                      </Link>
-                    )
-                  })}
-                  {visibleAccounts.length > 3 && (
-                    <button
-                      onClick={() => setAccountsShowAll(!accountsShowAll)}
-                      className="w-full px-3 py-1.5 text-[11px] font-medium text-sidebar-muted/70 hover:text-sidebar-foreground transition-colors text-center"
-                    >
-                      {accountsShowAll
-                        ? t('common.showLess', { defaultValue: 'Show less' })
-                        : t('common.showMore', {
-                            count: visibleAccounts.length - 3,
-                            defaultValue: `+${visibleAccounts.length - 3} more`,
-                          })}
-                    </button>
-                  )}
-                </div>
+                <SidebarAccountGroups
+                  accounts={visibleAccounts}
+                  currency={userCurrency}
+                  locale={locale}
+                  mask={mask}
+                  onNavigate={() => setSidebarOpen(false)}
+                />
               )}
             </div>
           )}

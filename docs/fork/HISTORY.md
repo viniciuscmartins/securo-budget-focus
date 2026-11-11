@@ -178,6 +178,10 @@ No migration.
 - **Balance** per month: the real money in minus money out (a refund larger than a category's spending counts), with the planned balance under it (planned income minus budgets).
 - **Accumulated balance:** the balance added up since January against where the plan says it should be, with the plan for the rest of the year shown ahead. The summary card shows the balance so far and the plan to date.
 
+## PR #17: Sidebar accounts grouped, cards with their bill date
+
+The sidebar's account list keeps the total in its header and splits the accounts in two groups, each with a subtotal: account balances first (checking, savings, investments), then credit cards ordered by the next bill, each showing its due date ("No due date set" when the card has no due day). The list always shows every account; the old "show more" cut at three is gone. New component `frontend/src/components/sidebar-account-groups.tsx`; `app-layout.tsx` only renders it.
+
 ## Conventions
 
 - **Versions** follow upstream. Fork releases are tagged `v<upstream version>-plan.<N>`.

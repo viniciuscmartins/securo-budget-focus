@@ -1364,7 +1364,11 @@
       "active": "Attiva",
       "error": "Errore",
       "expired": "Scaduta"
-    }
+    },
+    "sidebarCashGroup": "Account balances",
+    "sidebarCardsGroup": "Credit cards",
+    "sidebarBillDue": "Bill due {{date}}",
+    "sidebarNoDueDate": "No due date set"
   },
   "loans": {
     "title": "Contratto del prestito",
