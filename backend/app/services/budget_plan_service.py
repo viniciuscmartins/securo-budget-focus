@@ -177,9 +177,23 @@ async def get_year_plan(
         sum((r.cells[i].actual for r in income_rows), ZERO) + uncategorized_income[i]
         for i in range(12)
     ]
+    # The real balance of each month: a spending category where refunds
+    # outweighed spending shows as zero in the grid, but the money did come in.
+    refund_surplus = [ZERO] * 12
+    for key, months in net_by_category.items():
+        if isinstance(key, uuid.UUID) and key not in income_ids:
+            for i, value in enumerate(months):
+                if value < 0:
+                    refund_surplus[i] -= value
+    net_actual = [income_actual[i] - actual_by_month[i] + refund_surplus[i] for i in range(12)]
+    net_planned = [income_planned[i] - planned_by_month[i] for i in range(12)]
     return BudgetYearPlan(
         year=year,
         rows=rows_out,
+        net_actual_by_month=net_actual,
+        net_planned_by_month=net_planned,
+        net_actual_total=sum(net_actual, ZERO),
+        net_planned_total=sum(net_planned, ZERO),
         planned_by_month=planned_by_month,
         actual_by_month=actual_by_month,
         planned_total=sum(planned_by_month, ZERO),

@@ -72,11 +72,12 @@ function SectionCard({ children }: { children: React.ReactNode }) {
   return <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">{children}</div>
 }
 
-function SummaryCard({ label, value, tone }: { label: string; value: string; tone?: string }) {
+function SummaryCard({ label, value, tone, hint }: { label: string; value: string; tone?: string; hint?: string }) {
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm px-4 py-3">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p className={`mt-1 text-xl font-semibold tabular-nums ${tone ?? 'text-foreground'}`}>{value}</p>
+      {hint && <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">{hint}</p>}
     </div>
   )
 }
@@ -312,7 +313,12 @@ export default function BudgetPlanPage() {
   }
 
   const left = plan.planned_total - plan.actual_total
-  const net = plan.income_actual_total - plan.actual_total
+  const net = plan.net_actual_total
+  const netPlannedToDate = plan.net_planned_by_month.reduce(
+    (sum, value, i) => (isFutureMonth(year, i + 1) ? sum : sum + value),
+    0,
+  )
+  const hasNetPlan = plan.income_planned_total > 0 || plan.planned_total > 0
 
   return (
     <div className="space-y-4">
@@ -327,7 +333,12 @@ export default function BudgetPlanPage() {
           value={fmt(left)}
           tone={plan.planned_total > 0 ? (left < 0 ? OVER : UNDER) : undefined}
         />
-        <SummaryCard label={t('budgetPlan.netYear')} value={fmt(net)} tone={net < 0 ? OVER : UNDER} />
+        <SummaryCard
+          label={t('budgetPlan.netYear')}
+          value={fmt(net)}
+          tone={netTone(net, hasNetPlan ? netPlannedToDate : null)}
+          hint={hasNetPlan ? t('budgetPlan.netPlannedToDate', { value: fmt(netPlannedToDate) }) : undefined}
+        />
       </div>
 
       <SectionCard>
@@ -573,6 +584,27 @@ function IncomeCell({ cell, future, fmt }: { cell: Cell; future: boolean; fmt: (
   )
 }
 
+/** Red when money is going out, amber when behind the plan, green otherwise. */
+function netTone(actual: number, planned: number | null) {
+  if (actual < 0) return OVER
+  return planned != null && actual < planned ? SHORT : UNDER
+}
+
+/** A balance: the real one, with the planned one under it. A future month shows only the plan. */
+function NetCell({ cell, future, fmt }: { cell: Cell; future: boolean; fmt: (n: number) => string }) {
+  if (cell.planned == null && (future || cell.actual === 0)) return <Dash />
+  return (
+    <span className="flex flex-col items-center leading-tight">
+      <span className={future ? 'text-muted-foreground' : netTone(cell.actual, cell.planned)}>
+        {future ? '—' : fmt(cell.actual)}
+      </span>
+      {cell.planned != null && (
+        <span className="text-[10px] font-normal text-muted-foreground">{fmt(cell.planned)}</span>
+      )}
+    </span>
+  )
+}
+
 /**
  * Income per category and month (planned from recurring income items), and
  * the net: income received minus everything spent, uncategorized included.
@@ -585,8 +617,22 @@ function IncomeSection({ plan, year, monthNames, fmt }: IncomeSectionProps) {
     planned: plan.income_planned_by_month[i] > 0 ? plan.income_planned_by_month[i] : null,
     actual: plan.income_actual_by_month[i],
   }))
-  const nets = MONTH_NUMBERS.map((_, i) => plan.income_actual_by_month[i] - plan.actual_by_month[i])
-  const netYear = plan.income_actual_total - plan.actual_total
+  // The balance of each month against the plan (planned income minus
+  // budgets), and the same accumulated through the year.
+  const hasNetPlan = plan.income_planned_total > 0 || plan.planned_total > 0
+  const nets: Cell[] = MONTH_NUMBERS.map((_, i) => ({
+    actual: plan.net_actual_by_month[i],
+    // A month with nothing planned has no plan to compare against.
+    planned: plan.income_planned_by_month[i] > 0 || plan.planned_by_month[i] > 0 ? plan.net_planned_by_month[i] : null,
+  }))
+  const accumulated: Cell[] = nets.map((_, i) => {
+    const soFar = nets.slice(0, i + 1)
+    return {
+      actual: soFar.reduce((sum, c, j) => (futures[j] ? sum : sum + c.actual), 0),
+      planned: soFar.some((c) => c.planned != null) ? soFar.reduce((sum, c) => sum + (c.planned ?? 0), 0) : null,
+    }
+  })
+  const netPlannedToDate = hasNetPlan ? plannedToDate(nets) : null
   const td = 'px-1 py-2 text-center tabular-nums'
   const first = 'sticky left-0 z-[1] py-2 pl-4 pr-2 sm:pl-5'
   const uncategorized = uncategorizedRow(plan, t('budgetPlan.uncategorized'), 'income')
@@ -666,13 +712,30 @@ function IncomeSection({ plan, year, monthNames, fmt }: IncomeSectionProps) {
               <td className={`${first} bg-card text-sm text-foreground`} title={t('budgetPlan.netHint')}>
                 {t('budgetPlan.net')}
               </td>
-              {nets.map((value, i) => (
-                <td key={i} className={`${td} ${futures[i] ? 'text-muted-foreground' : value < 0 ? OVER : UNDER}`}>
-                  {futures[i] ? '—' : fmt(value)}
+              {nets.map((cell, i) => (
+                <td key={i} className={td}>
+                  <NetCell cell={cell} future={futures[i]} fmt={fmt} />
                 </td>
               ))}
-              <td className={`px-2 py-2 pr-4 text-center tabular-nums sm:pr-5 ${netYear < 0 ? OVER : UNDER}`}>
-                {fmt(netYear)}
+              <td className="px-2 py-2 pr-4 text-center tabular-nums sm:pr-5">
+                <NetCell cell={{ actual: plan.net_actual_total, planned: netPlannedToDate }} future={false} fmt={fmt} />
+              </td>
+            </tr>
+            <tr className="border-t border-border font-semibold">
+              <td className={`${first} bg-card text-sm text-foreground`} title={t('budgetPlan.netAccumulatedHint')}>
+                {t('budgetPlan.netAccumulated')}
+              </td>
+              {accumulated.map((cell, i) => (
+                <td key={i} className={td}>
+                  <NetCell cell={cell} future={futures[i]} fmt={fmt} />
+                </td>
+              ))}
+              <td className="px-2 py-2 pr-4 text-center tabular-nums sm:pr-5">
+                <NetCell
+                  cell={{ actual: plan.net_actual_total, planned: hasNetPlan ? plan.net_planned_total : null }}
+                  future={false}
+                  fmt={fmt}
+                />
               </td>
             </tr>
           </tfoot>

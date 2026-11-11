@@ -175,7 +175,8 @@ No migration.
 - **Spending without a category** is counted in the plan's totals, as a read-only "Uncategorized" row (it can't have a budget). For an expense shared in a group, only your share counts, as on the Budgets page.
 - **Income section** above the spending grid: one row per income category, plus money received without a category. A category counts as income if it sits in the default "Income" group, has more money in than out over the year, or has a recurring income item. Income categories never count as spending. A category with a budget this year is not moved to income just because a refund outweighed its spending.
 - **Planned income** comes from active recurring income items (credits), month by month, with split items shared by their parts.
-- **Net** per month and for the year: income received minus everything spent, as a row and a summary card.
+- **Balance** per month: the real money in minus money out (a refund larger than a category's spending counts), with the planned balance under it (planned income minus budgets).
+- **Accumulated balance:** the balance added up since January against where the plan says it should be, with the plan for the rest of the year shown ahead. The summary card shows the balance so far and the plan to date.
 
 ## Conventions
 

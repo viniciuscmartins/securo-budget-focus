@@ -1006,6 +1006,11 @@ export interface BudgetYearPlan {
   income_actual_by_month: number[]
   income_planned_total: number
   income_actual_total: number
+  /** Balance (money in minus money out): the real one, and the planned one. */
+  net_actual_by_month: number[]
+  net_planned_by_month: number[]
+  net_actual_total: number
+  net_planned_total: number
   /** Money received with no category (already included in income_actual_by_month). */
   uncategorized_income_by_month: number[]
   uncategorized_income_total: number

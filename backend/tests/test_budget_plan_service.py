@@ -596,3 +596,28 @@ async def test_uncategorized_spending_counts_only_your_share_of_a_split(
 
     assert plan.uncategorized_by_month[4] == Decimal("60")
     assert plan.actual_total == Decimal("60")
+
+
+@pytest.mark.asyncio
+async def test_the_balance_is_real_money_in_minus_out_against_the_plan(
+    session, test_user, test_workspace, test_categories, account
+):
+    food, _, salary = test_categories
+    session.add(Budget(id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+                       category_id=food.id, amount=Decimal("500"), month=date(2024, 1, 1)))
+    await _row(session, test_user, account, salary, date(2024, 1, 5), "5000", kind="credit")
+    await _row(session, test_user, account, food, date(2024, 1, 10), "300")
+    # February: a refund bigger than the month's spending. The grid shows
+    # zero spent, but the balance keeps the money that came back.
+    await _row(session, test_user, account, food, date(2024, 2, 10), "50")
+    await _row(session, test_user, account, food, date(2024, 2, 12), "120", kind="credit")
+    await _row(session, test_user, account, None, date(2024, 2, 15), "30")
+
+    plan = await get_year_plan(session, test_workspace.id, test_user.id, 2024)
+
+    assert plan.net_actual_by_month[0] == Decimal("4700")
+    assert plan.net_actual_by_month[1] == Decimal("40")  # +70 refund surplus, -30 uncategorized
+    assert plan.net_actual_total == Decimal("4740")
+    # Planned: no recurring income, a 500 budget in January.
+    assert plan.net_planned_by_month[0] == Decimal("-500")
+    assert plan.net_planned_total == Decimal("-500")

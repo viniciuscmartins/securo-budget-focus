@@ -31,8 +31,13 @@ function plan(): BudgetYearPlan {
   foodActual[2] = 650 // March is over budget
   const funActual = Array(12).fill(0)
   funActual[4] = 80
+  const spent = foodActual.map((v, i) => v + funActual[i])
   return {
     year: YEAR,
+    net_actual_by_month: spent.map((v) => -v),
+    net_planned_by_month: Array(12).fill(-500),
+    net_actual_total: -5030,
+    net_planned_total: -6000,
     rows: [
       {
         category_id: 'food',
@@ -267,8 +272,13 @@ describe('BudgetPlanPage', () => {
     const salaryActual = Array(12).fill(0)
     for (let m = 0; m < 10; m++) salaryActual[m] = 5000
     salaryActual[9] = 4500 // October came in short
+    const base = plan()
     api.yearPlan.mockResolvedValue({
-      ...plan(),
+      ...base,
+      net_actual_by_month: salaryActual.map((v, i) => v - base.actual_by_month[i]),
+      net_planned_by_month: Array(12).fill(4500),
+      net_actual_total: 44470,
+      net_planned_total: 54000,
       income_rows: [{
         category_id: 'salary', category_name: 'Salary', category_icon: 'x', category_color: '#16A34A',
         group_id: null, group_name: null,
@@ -285,9 +295,21 @@ describe('BudgetPlanPage', () => {
     expect(within(row).getAllByText('$5,000')[0].className).toContain('text-emerald-600')
     expect(within(row).getByText('$4,500').className).toContain('text-amber-600')
     expect(screen.getByText('Income received').nextSibling).toHaveTextContent('$49,500')
-    // Net = income received - everything spent.
-    expect(screen.getByText('Net (income − spent)').nextSibling).toHaveTextContent('$44,470')
-    expect(screen.getByText('Net').closest('tr')).toHaveTextContent('$4,600')
+    // The balance so far against the plan to date, on the card.
+    const card = screen.getByText('Balance so far').parentElement!
+    expect(card).toHaveTextContent('$44,470')
+    expect(card).toHaveTextContent('Planned to date: $54,000')
+    // Each month: the real balance over the planned one (5,000 - 500).
+    const balance = screen.getByText('Balance').closest('tr')!
+    expect(within(balance).getAllByText('$4,600')[0].className).toContain('text-emerald-600')
+    expect(within(balance).getAllByText('$4,500').length).toBeGreaterThan(0)
+    // December had no salary: money went out.
+    expect(within(balance).getAllByText('-$400').at(-1)!.className).toContain('text-rose')
+    // Added up through the year, against where the plan should be.
+    const running = screen.getByText('Accumulated balance').closest('tr')!
+    expect(within(running).getAllByText('$4,600')[0].className).toContain('text-emerald-600')
+    expect(within(running).getAllByText('$44,470')[0].className).toContain('text-amber-600')
+    expect(within(running).getAllByText('$54,000').length).toBeGreaterThan(0)
   })
 
   it('shows spending without a category as its own read-only row', async () => {
@@ -326,6 +348,10 @@ describe('BudgetPlanPage', () => {
       actual_by_month: Array(12).fill(0),
       planned_total: 0,
       actual_total: 0,
+      net_actual_by_month: Array(12).fill(0),
+      net_planned_by_month: Array(12).fill(0),
+      net_actual_total: 0,
+      net_planned_total: 0,
       uncategorized_by_month: Array(12).fill(0),
       uncategorized_total: 0,
       income_rows: [],

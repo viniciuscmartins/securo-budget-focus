@@ -1463,8 +1463,20 @@ export const budgets = {
       actual_total: num(r.actual_total),
       cells: r.cells.map((c) => ({ ...c, planned: numOrNull(c.planned), actual: num(c.actual) })),
     })
+    // An older backend has no balance fields: fall back to income minus spending.
+    const netActual: number[] = Array.isArray(data.net_actual_by_month)
+      ? data.net_actual_by_month.map(num)
+      : months(data.income_actual_by_month).map((v: number, i: number) => v - num(data.actual_by_month[i]))
+    const netPlanned: number[] = Array.isArray(data.net_planned_by_month)
+      ? data.net_planned_by_month.map(num)
+      : months(data.income_planned_by_month).map((v: number, i: number) => v - num(data.planned_by_month[i]))
+    const total = (values: number[]) => values.reduce((a, b) => a + b, 0)
     return {
       ...data,
+      net_actual_by_month: netActual,
+      net_planned_by_month: netPlanned,
+      net_actual_total: total(netActual),
+      net_planned_total: total(netPlanned),
       planned_total: num(data.planned_total),
       actual_total: num(data.actual_total),
       planned_by_month: data.planned_by_month.map(num),

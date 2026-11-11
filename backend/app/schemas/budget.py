@@ -152,6 +152,12 @@ class BudgetYearPlan(BaseModel):
     # Income categories: planned from recurring credit items, actual from
     # credits minus debits. Amounts are positive for money coming in.
     income_rows: list[BudgetYearRow] = Field(default_factory=list)
+    # Balance: money in minus money out. Actual is the real one (refunds
+    # included); planned is planned income minus budgets.
+    net_actual_by_month: list[Decimal] = Field(default_factory=lambda: [Decimal("0")] * 12)
+    net_planned_by_month: list[Decimal] = Field(default_factory=lambda: [Decimal("0")] * 12)
+    net_actual_total: Decimal = Decimal("0")
+    net_planned_total: Decimal = Decimal("0")
     # Money received with no category (included in income_actual_by_month).
     uncategorized_income_by_month: list[Decimal] = Field(default_factory=lambda: [Decimal("0")] * 12)
     uncategorized_income_total: Decimal = Decimal("0")
