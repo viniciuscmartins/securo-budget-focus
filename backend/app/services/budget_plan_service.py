@@ -151,13 +151,18 @@ async def get_year_plan(
         )
     net_by_category = await _monthly_net_by_category(session, workspace_id, user_id, year)
     planned_income = await _planned_income(session, workspace_id, user_id, year)
-    income_ids = await _income_category_ids(session, workspace_id, net_by_category, planned_income)
+    budgeted = {cat_id for cat_id, cells in planned.items() if any(x is not None for x in cells)}
+    income_ids = await _income_category_ids(
+        session, workspace_id, net_by_category, planned_income, budgeted
+    )
     # An income category never shows as an expense, even in a month where
     # its debits happen to outweigh its credits.
     rows_out = [r for r in rows_out if r.category_id not in income_ids]
     rows_out.sort(key=lambda r: (r.actual_total, r.planned_total), reverse=True)
 
-    uncategorized = net_by_category.get(UNCATEGORIZED_OUT, [ZERO] * 12)
+    uncategorized = await _own_share_of_uncategorized(
+        session, workspace_id, user_id, year, net_by_category.get(UNCATEGORIZED_OUT, [ZERO] * 12)
+    )
     uncategorized_income = net_by_category.get(UNCATEGORIZED_IN, [ZERO] * 12)
 
     planned_by_month = [
@@ -200,7 +205,7 @@ NetKey = uuid.UUID | str
 async def _monthly_net_by_category(
     session: AsyncSession, workspace_id: uuid.UUID, user_id: uuid.UUID, year: int
 ) -> dict[NetKey, list[Decimal]]:
-    """Debits minus credits per category (None = no category) and month.
+    """Debits minus credits per category and month.
 
     The same rows the Budgets page counts: posted, up to today, not a
     transfer between your accounts, not ignored, not in a transfer-like or
@@ -254,6 +259,46 @@ async def _monthly_net_by_category(
             out.setdefault(key, [ZERO] * 12)[int(m) - 1] += amount
             continue
         out.setdefault(uuid.UUID(str(cat_id)), [ZERO] * 12)[int(m) - 1] += signed
+    return out
+
+
+async def _own_share_of_uncategorized(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID,
+    year: int,
+    spent: list[Decimal],
+) -> list[Decimal]:
+    """Uncategorized spending as the Budgets page would count it: without
+    the part of your own expenses that other people owe you, and with your
+    part of expenses someone else paid in a shared group."""
+    from app.core.config import get_settings
+    from app.models.user import User
+    from app.services._query_filters import (
+        owner_split_offset_by_category,
+        viewer_shared_spending_by_category,
+    )
+    from app.services.admin_service import get_credit_card_accounting_mode
+
+    user = await session.get(User, user_id)
+    primary = user.primary_currency if user else get_settings().default_currency
+    accrual = await get_credit_card_accounting_mode(session) == "accrual"
+    today = app_today()
+    out = list(spent)
+    starts = _month_starts(year)
+    for i, start in enumerate(starts):
+        if start > today:
+            break
+        end = starts[i + 1] if i < 11 else date(year + 1, 1, 1)
+        owed = await owner_split_offset_by_category(
+            session, user_id, start, end, use_effective_date=accrual,
+            primary_currency=primary, workspace_id=workspace_id,
+        )
+        shared = await viewer_shared_spending_by_category(
+            session, user_id, start, end, use_effective_date=accrual, primary_currency=primary,
+        )
+        value = out[i] - Decimal(str(owed.get(None, 0))) + Decimal(str(shared.get(None, 0)))
+        out[i] = max(value, ZERO)
     return out
 
 
@@ -325,10 +370,15 @@ async def _income_category_ids(
     workspace_id: uuid.UUID,
     net_by_category: dict[NetKey, list[Decimal]],
     planned_income: dict[uuid.UUID, list[Decimal]],
+    budgeted: set[uuid.UUID],
 ) -> set[uuid.UUID]:
     """Categories that hold income: in the default income group, or with
     more money coming in than going out over the year, or expected from a
-    recurring credit. Transfer-like and ignored categories never count."""
+    recurring credit. Transfer-like and ignored categories never count.
+
+    A category with a budget this year stays a spending category when the
+    only sign of income is its balance: a large refund must not hide a
+    budget the user set."""
     from app.models.category_group import CategoryGroup
 
     rows = (
@@ -344,7 +394,8 @@ async def _income_category_ids(
             continue
         in_income_group = (group_name or "").strip().casefold() in _INCOME_GROUP_NAMES
         net = sum(net_by_category.get(cat_id, []), ZERO)
-        if in_income_group or net < 0 or cat_id in planned_income:
+        received_more = net < 0 and cat_id not in budgeted
+        if in_income_group or received_more or cat_id in planned_income:
             ids.add(cat_id)
     return ids
 

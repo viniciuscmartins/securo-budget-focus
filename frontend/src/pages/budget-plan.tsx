@@ -404,7 +404,7 @@ export default function BudgetPlanPage() {
       </div>
 
       {view === 'grid' && (
-        <IncomeSection plan={plan} year={year} monthNames={monthNames} fmt={fmt} noBudget={noBudget} />
+        <IncomeSection plan={plan} year={year} monthNames={monthNames} fmt={fmt} />
       )}
 
       {view === 'grid' ? (
@@ -559,17 +559,16 @@ interface IncomeSectionProps {
   year: number
   monthNames: string[]
   fmt: (n: number) => string
-  noBudget: string
 }
 
 /** What came in against what was expected, coloured the other way round from spending. */
-function IncomeCell({ cell, future, fmt, noBudget }: { cell: Cell; future: boolean; fmt: (n: number) => string; noBudget: string }) {
+function IncomeCell({ cell, future, fmt }: { cell: Cell; future: boolean; fmt: (n: number) => string }) {
   if (cell.planned == null && (future || cell.actual === 0)) return <Dash />
   const tone = future ? 'text-muted-foreground' : cell.planned == null ? 'text-foreground' : cell.actual >= cell.planned ? UNDER : SHORT
   return (
     <span className="flex flex-col items-center leading-tight">
       <span className={`font-medium ${tone}`}>{future ? '—' : fmt(cell.actual)}</span>
-      <span className="text-[10px] text-muted-foreground">{cell.planned == null ? noBudget : fmt(cell.planned)}</span>
+      {cell.planned != null && <span className="text-[10px] text-muted-foreground">{fmt(cell.planned)}</span>}
     </span>
   )
 }
@@ -578,7 +577,7 @@ function IncomeCell({ cell, future, fmt, noBudget }: { cell: Cell; future: boole
  * Income per category and month (planned from recurring income items), and
  * the net: income received minus everything spent, uncategorized included.
  */
-function IncomeSection({ plan, year, monthNames, fmt, noBudget }: IncomeSectionProps) {
+function IncomeSection({ plan, year, monthNames, fmt }: IncomeSectionProps) {
   const { t } = useTranslation()
   const futures = MONTH_NUMBERS.map((m) => isFutureMonth(year, m))
   const plannedToDate = (cells: Cell[]) => cells.reduce((sum, c, i) => (futures[i] ? sum : sum + (c.planned ?? 0)), 0)
@@ -634,7 +633,7 @@ function IncomeSection({ plan, year, monthNames, fmt, noBudget }: IncomeSectionP
                 </td>
                 {row.cells.map((cell, i) => (
                   <td key={cell.month} className={td}>
-                    <IncomeCell cell={cell} future={futures[i]} fmt={fmt} noBudget={noBudget} />
+                    <IncomeCell cell={cell} future={futures[i]} fmt={fmt} />
                   </td>
                 ))}
                 <td className="px-2 py-2 pr-4 text-center font-semibold tabular-nums sm:pr-5">
@@ -642,7 +641,6 @@ function IncomeSection({ plan, year, monthNames, fmt, noBudget }: IncomeSectionP
                     cell={{ planned: plannedToDate(row.cells) || null, actual: row.actual_total }}
                     future={false}
                     fmt={fmt}
-                    noBudget={noBudget}
                   />
                 </td>
               </tr>
@@ -653,7 +651,7 @@ function IncomeSection({ plan, year, monthNames, fmt, noBudget }: IncomeSectionP
               <td className={`${first} bg-muted text-sm text-foreground`}>{t('budgetPlan.total')}</td>
               {totals.map((cell, i) => (
                 <td key={i} className={td}>
-                  <IncomeCell cell={cell} future={futures[i]} fmt={fmt} noBudget={noBudget} />
+                  <IncomeCell cell={cell} future={futures[i]} fmt={fmt} />
                 </td>
               ))}
               <td className="px-2 py-2 pr-4 text-center tabular-nums sm:pr-5">
@@ -661,7 +659,6 @@ function IncomeSection({ plan, year, monthNames, fmt, noBudget }: IncomeSectionP
                   cell={{ planned: plannedToDate(totals) || null, actual: plan.income_actual_total }}
                   future={false}
                   fmt={fmt}
-                  noBudget={noBudget}
                 />
               </td>
             </tr>

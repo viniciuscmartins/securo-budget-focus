@@ -544,3 +544,55 @@ async def test_a_category_in_the_income_group_is_income_even_without_credits_yet
     assert [r.category_id for r in plan.income_rows] == [bonus.id]
     assert plan.income_rows[0].cells[5].actual == Decimal("-50")
     assert all(r.category_id not in (bonus.id, moved.id) for r in plan.rows)
+
+
+@pytest.mark.asyncio
+async def test_a_budgeted_category_with_a_big_refund_stays_in_spending(
+    session, test_user, test_workspace, test_categories, account
+):
+    """More money in than out is not enough to call a budgeted category income."""
+    food = test_categories[0]
+    session.add(Budget(id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+                       category_id=food.id, amount=Decimal("500"), month=date(2024, 1, 1)))
+    await _row(session, test_user, account, food, date(2024, 1, 10), "300")
+    await _row(session, test_user, account, food, date(2024, 2, 10), "900", kind="credit")
+
+    plan = await get_year_plan(session, test_workspace.id, test_user.id, 2024)
+
+    assert food.id in {r.category_id for r in plan.rows}
+    assert food.id not in {r.category_id for r in plan.income_rows}
+    assert plan.planned_by_month[0] == Decimal("500")
+
+
+@pytest.mark.asyncio
+async def test_uncategorized_spending_counts_only_your_share_of_a_split(
+    session, test_user, test_workspace, account
+):
+    from app.models.group import Group, GroupMember
+    from app.models.transaction_split import TransactionSplit
+
+    group = Group(id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+                  name="Trip", default_currency="BRL")
+    session.add(group)
+    await session.flush()
+    me = GroupMember(id=uuid.uuid4(), group_id=group.id, workspace_id=test_workspace.id,
+                     name="Me", linked_user_id=test_user.id, is_self=True)
+    friend = GroupMember(id=uuid.uuid4(), group_id=group.id, workspace_id=test_workspace.id,
+                         name="Friend", is_self=False)
+    session.add_all([me, friend])
+    tx = Transaction(id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+                     account_id=account.id, description="dinner", amount=Decimal("100"),
+                     currency="BRL", date=date(2024, 5, 3), type="debit", source="manual",
+                     created_at=datetime.now(timezone.utc))
+    session.add(tx)
+    await session.flush()
+    for member, share in ((me, "60"), (friend, "40")):
+        session.add(TransactionSplit(id=uuid.uuid4(), transaction_id=tx.id,
+                                     workspace_id=test_workspace.id, group_member_id=member.id,
+                                     share_amount=Decimal(share), share_type="exact"))
+    await session.commit()
+
+    plan = await get_year_plan(session, test_workspace.id, test_user.id, 2024)
+
+    assert plan.uncategorized_by_month[4] == Decimal("60")
+    assert plan.actual_total == Decimal("60")
