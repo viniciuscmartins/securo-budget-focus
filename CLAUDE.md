@@ -36,7 +36,7 @@ Check each item a change touches. If the Security Guidance or claude-security pl
 on the diff before opening the PR, and run a full claude-security scan before a release with many changes.
 - **Access control:** every query is scoped to the caller's workspace. Every new `/api` route is in
   `backend/app/core/access_token_scopes.py` under the right scope, with a test. Write routes need write
-  permission (`require_workspace_write` or the equivalent). Never trust an id from the client without
+  permission (`require_write` or `require_module_write`). Never trust an id from the client without
   checking that it belongs to the workspace.
 - **Injection:** SQLAlchemy expressions only, never SQL built from strings. All input goes through
   Pydantic schemas with bounds (lengths, ranges, enums).
