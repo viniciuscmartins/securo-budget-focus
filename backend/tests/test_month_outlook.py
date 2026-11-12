@@ -397,3 +397,119 @@ async def test_api_collection_filter(client, auth_headers, household):
     )
     assert r.status_code == 200, r.text
     assert D(r.json()["cash_now"]) == D("1000")
+
+
+# ---------------------------------------------------------------------------
+# next bill per card (sidebar)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_next_card_bill_is_the_one_due_next(session, test_user, test_workspace, household):
+    _, _, card = household
+
+    bills = await svc.get_next_card_bills(session, test_workspace.id, test_user.id)
+
+    [bill] = bills
+    assert (bill.account_id, bill.due_date) == (card.id, date(2026, 11, 10))
+    assert (bill.amount, bill.total) == (D("800"), D("800"))
+
+
+@pytest.mark.asyncio
+async def test_a_paid_bill_moves_on_to_the_following_one(
+    session, test_user, test_workspace, household
+):
+    checking, _, card = household
+    pair = uuid.uuid4()
+    await _tx(session, test_user, checking, "800", date(2026, 11, 5), transfer_pair_id=pair)
+    await _tx(
+        session, test_user, card, "800", date(2026, 11, 5), kind="credit", transfer_pair_id=pair
+    )
+
+    [bill] = await svc.get_next_card_bills(session, test_workspace.id, test_user.id)
+
+    # November's bill is paid; December's holds the streaming charge of Nov 12.
+    assert (bill.due_date, bill.amount) == (date(2026, 12, 10), D("50"))
+
+
+@pytest.mark.asyncio
+async def test_next_card_bill_uses_the_banks_bill(session, test_user, test_workspace, household):
+    _, _, card = household
+    session.add(
+        CreditCardBill(
+            user_id=test_user.id, workspace_id=test_workspace.id, account_id=card.id,
+            external_id="b1", due_date=date(2026, 11, 10), total_amount=D("950"), currency="BRL",
+        )
+    )
+    await session.commit()
+
+    [bill] = await svc.get_next_card_bills(session, test_workspace.id, test_user.id)
+
+    assert (bill.amount, bill.source) == (D("950"), "bank")
+
+
+@pytest.mark.asyncio
+async def test_a_card_with_nothing_to_pay_has_no_next_bill(session, test_user, test_workspace):
+    await _account(
+        session, test_user, "Empty card", "credit_card", statement_close_day=1, payment_due_day=10
+    )
+
+    assert await svc.get_next_card_bills(session, test_workspace.id, test_user.id) == []
+
+
+@pytest.mark.asyncio
+async def test_card_bills_api(client, auth_headers, household):
+    _, _, card = household
+    r = await client.get("/api/month-outlook/card-bills", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    [bill] = r.json()
+    assert bill["account_id"] == str(card.id)
+    assert bill["due_date"] == "2026-11-10"
+    assert D(bill["amount"]) == D("800")
+
+
+@pytest.mark.asyncio
+async def test_card_bills_api_needs_a_login(client):
+    r = await client.get("/api/month-outlook/card-bills")
+    assert r.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_an_unpaid_bill_past_its_due_date_shows_first_and_overdue(
+    session, test_user, test_workspace, household, monkeypatch
+):
+    _, _, card = household
+    later = date(2026, 11, 12)  # November's bill (due Nov 10, R$ 800) is unpaid
+    for target in (
+        "app.services.month_outlook_service.app_today",
+        "app.services.dashboard_service.app_today",
+    ):
+        monkeypatch.setattr(target, lambda: later)
+
+    [bill] = await svc.get_next_card_bills(session, test_workspace.id, test_user.id)
+
+    assert (bill.account_id, bill.due_date, bill.amount) == (card.id, date(2026, 11, 10), D("800"))
+    assert bill.overdue is True
+
+
+@pytest.mark.asyncio
+async def test_a_late_payment_settles_the_overdue_bill(
+    session, test_user, test_workspace, household, monkeypatch
+):
+    checking, _, card = household
+    later = date(2026, 11, 12)
+    for target in (
+        "app.services.month_outlook_service.app_today",
+        "app.services.dashboard_service.app_today",
+    ):
+        monkeypatch.setattr(target, lambda: later)
+    pair = uuid.uuid4()
+    # Paid two days late.
+    await _tx(session, test_user, checking, "800", date(2026, 11, 12), transfer_pair_id=pair)
+    await _tx(
+        session, test_user, card, "800", date(2026, 11, 12), kind="credit", transfer_pair_id=pair
+    )
+
+    [bill] = await svc.get_next_card_bills(session, test_workspace.id, test_user.id)
+
+    assert (bill.due_date, bill.amount, bill.overdue) == (date(2026, 12, 10), D("50"), False)

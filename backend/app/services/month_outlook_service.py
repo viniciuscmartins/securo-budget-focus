@@ -102,6 +102,7 @@ class CardBill:
     total: Decimal  # the whole bill, primary currency
     paid: Decimal  # paid toward it already, primary currency
     source: Literal["bank", "computed"]
+    overdue: bool = False  # its due date has passed and it is still unpaid
 
 
 @dataclass
@@ -457,9 +458,18 @@ async def _card_bills(
 
 
 async def _paid_toward(
-    session: AsyncSession, card: Account, due: date, today: date, to_primary: _Converter
+    session: AsyncSession,
+    card: Account,
+    due: date,
+    today: date,
+    to_primary: _Converter,
+    until: Optional[date] = None,
 ) -> Decimal:
-    """Card payments that already arrived for the bill due on `due`."""
+    """Card payments that already arrived for the bill due on `due`.
+
+    Counted up to the due date (or today, if earlier); `until` extends that,
+    so a payment made after the due date counts for an overdue bill.
+    """
     rows = (
         (
             await session.execute(
@@ -470,7 +480,7 @@ async def _paid_toward(
                     Transaction.type == "credit",
                     Transaction.is_ignored == False,  # noqa: E712
                     Transaction.date >= due - timedelta(days=PAYMENT_LOOKBACK_DAYS),
-                    Transaction.date <= min(due, today),
+                    Transaction.date <= (until or min(due, today)),
                     or_(
                         Transaction.transfer_pair_id.isnot(None), Category.treat_as_transfer == True
                     ),  # noqa: E712
@@ -548,3 +558,111 @@ async def get_outlook(
     outlook.card_bill_details = [b for b in bills if b.due_date >= first]
     outlook.cash_accounts = cash_rows
     return outlook
+
+
+# How far ahead the sidebar looks for a card's next bill: the bill due next is
+# at most about a month away.
+NEXT_BILL_WINDOW_DAYS = 45
+# How far back it looks for a bill that is past due and still unpaid. Shorter
+# than a month, so it reaches one due date at most and a late payment is never
+# counted toward two bills.
+OVERDUE_LOOKBACK_DAYS = 25
+
+
+async def _overdue_card_bills(
+    session: AsyncSession, cards: list[Account], today: date, to_primary: _Converter
+) -> list[CardBill]:
+    """Bills due in the last few weeks (before today) that are still unpaid.
+
+    The bank's own bill when there is one, otherwise the card's charges on it.
+    Payments count from shortly before the due date up to today, so a bill
+    paid late is settled.
+    """
+    start = today - timedelta(days=OVERDUE_LOOKBACK_DAYS)
+    bills: list[CardBill] = []
+    for card in cards:
+        totals: dict[date, tuple[Decimal, Literal["bank", "computed"]]] = {}
+        rows = (
+            await session.execute(
+                select(Transaction)
+                .outerjoin(Category, Transaction.category_id == Category.id)
+                .where(
+                    Transaction.account_id == card.id,
+                    Transaction.effective_date >= start,
+                    Transaction.effective_date < today,
+                    _counts_on_bill(),
+                )
+            )
+        ).scalars().all()
+        for tx in rows:
+            amount = await to_primary(Decimal(str(tx.amount)), tx.currency)
+            signed = amount if tx.type == "debit" else -amount
+            total, _ = totals.get(tx.effective_date, (ZERO, "computed"))
+            totals[tx.effective_date] = (total + signed, "computed")
+        bank = (
+            await session.execute(
+                select(CreditCardBill).where(
+                    CreditCardBill.account_id == card.id,
+                    CreditCardBill.due_date >= start,
+                    CreditCardBill.due_date < today,
+                )
+            )
+        ).scalars().all()
+        for b in bank:
+            totals[b.due_date] = (await to_primary(b.total_amount, b.currency or card.currency), "bank")
+        for due, (total, source) in sorted(totals.items()):
+            if total <= 0:
+                continue
+            # A late payment still settles the bill: count up to today.
+            paid = await _paid_toward(session, card, due, today, to_primary, until=today)
+            if total - paid > 0:
+                bills.append(
+                    CardBill(
+                        account_id=card.id,
+                        account_name=_name(card),
+                        due_date=due,
+                        amount=total - paid,
+                        total=total,
+                        paid=paid,
+                        source=source,
+                        overdue=True,
+                    )
+                )
+    return bills
+
+
+async def get_next_card_bills(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> list[CardBill]:
+    """Each open credit card's next bill with something still to pay.
+
+    A bill past its due date and still unpaid comes first, flagged overdue.
+    Otherwise it is the bill the outlook shows: the bank's own bill when the
+    bank sends bills, or the card's charges on that bill, plus recurring
+    charges still to come on it, minus what was already paid toward it. A bill
+    paid in full moves on to the following one. Cards with nothing to pay are
+    left out.
+    """
+    today = app_today()
+    end = today + timedelta(days=NEXT_BILL_WINDOW_DAYS)
+    user = await session.get(User, user_id)
+    primary = user.primary_currency if user else get_settings().default_currency
+    to_primary = _Converter(session, primary)
+
+    accounts = await _open_accounts(session, workspace_id)
+    cards = [a for a in accounts if a.type == "credit_card"]
+    if not cards:
+        return []
+    _, card_charges = await _recurring_events(
+        session, workspace_id, today, end, {a.id: a for a in cards}, to_primary
+    )
+    bills, _ = await _card_bills(session, workspace_id, cards, today, end, card_charges, to_primary)
+    bills += await _overdue_card_bills(session, cards, today, to_primary)
+    nearest: dict[uuid.UUID, CardBill] = {}
+    for bill in sorted(bills, key=lambda b: b.due_date):
+        if bill.amount > 0 and bill.account_id not in nearest:
+            nearest[bill.account_id] = bill
+    return list(nearest.values())
+

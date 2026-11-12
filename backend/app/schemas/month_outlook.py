@@ -24,6 +24,7 @@ class CardBillRead(BaseModel):
     total: Decimal
     paid: Decimal
     source: Literal["bank", "computed"]
+    overdue: bool = False  # past its due date and still unpaid
 
 
 class CashAccountRead(BaseModel):

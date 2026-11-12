@@ -25,6 +25,7 @@ from app.core.access_token_scopes import required_scope
         ("PUT", "/api/recurring-links/abc/amount-mode", "recurring:write"),
         # The month outlook: a read-only report.
         ("GET", "/api/month-outlook", "reports:read"),
+        ("GET", "/api/month-outlook/card-bills", "reports:read"),
     ],
 )
 def test_fork_routes_map_to_the_expected_scope(method, path, scope):
@@ -47,6 +48,7 @@ async def _token(client: AsyncClient, headers: dict, scopes: list[str]) -> dict:
 async def test_a_reports_token_reads_the_month_outlook(client: AsyncClient, auth_headers: dict):
     bearer = await _token(client, auth_headers, ["reports:read"])
     assert (await client.get("/api/month-outlook", headers=bearer)).status_code == 200
+    assert (await client.get("/api/month-outlook/card-bills", headers=bearer)).status_code == 200
     # Not a recurring scope.
     resp = await client.get("/api/recurring-links/amount-modes", headers=bearer)
     assert resp.status_code == 403

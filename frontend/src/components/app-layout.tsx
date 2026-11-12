@@ -14,7 +14,7 @@ import { auth as authApi, admin as adminApi } from '@/lib/api'
 import { resolveSupportedLang } from '@/lib/i18n'
 import { OnboardingTour } from '@/components/onboarding-tour'
 import { useTheme } from 'next-themes'
-import { accounts as accountsApi } from '@/lib/api'
+import { accounts as accountsApi, monthOutlook as monthOutlookApi } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -188,6 +188,14 @@ export function AppLayout() {
   const { data: accountsList } = useQuery({
     queryKey: ['accounts'],
     queryFn: () => accountsApi.list(),
+  })
+
+  // Each card's next bill. Under the 'accounts' key so that whatever refreshes
+  // the account list (a new transaction, a payment) refreshes the bills too.
+  const { data: cardBills } = useQuery({
+    queryKey: ['accounts', 'card-bills'],
+    queryFn: () => monthOutlookApi.cardBills(),
+    enabled: (accountsList ?? []).some((a) => a.type === 'credit_card'),
   })
 
   const allAccounts = sidebarAccounts(accountsList ?? [])
@@ -509,6 +517,7 @@ export function AppLayout() {
               {accountsExpanded && (
                 <SidebarAccountGroups
                   accounts={visibleAccounts}
+                  cardBills={cardBills}
                   currency={userCurrency}
                   locale={locale}
                   mask={mask}
