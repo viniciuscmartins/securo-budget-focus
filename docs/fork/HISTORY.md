@@ -195,6 +195,10 @@ Each credit card in the sidebar now leads with its next bill still to pay, with 
 - The sidebar header is now account balances plus the cards' next bills, so it matches the two groups below it (`frontend/src/lib/sidebar-account-totals.ts`). Each card's full debt still shows on its row as "Total".
 - A past bill counts as overdue only for the part of the card's debt today that later charges don't explain (`_owed_on_card`, `_charged_after`). A payment recorded as a plain credit (common on bank-synced cards) now settles the bill, and a partial payment leaves only the rest overdue.
 
+## PR #22: "Link to recurring" lists the items wherever a rule is created
+
+The rule dialog only listed recurring items when the Rules page passed them in. Opened with "Create Rule" from a transaction, the transactions page or the dashboard, the "Link to recurring" picker said "No recurring items yet". The dialog now loads them itself when none are passed (query key `['recurring']`, shared with the Rules page). Test: `frontend/src/components/rule-dialog-recurring.test.tsx`.
+
 ## Conventions
 
 - **Agent instructions:** `CLAUDE.md` (repository root) is fork-only. It asks Claude to suggest an effort level before each task, sets the code-quality process and OWASP checklist, and repeats the standing rules below.
