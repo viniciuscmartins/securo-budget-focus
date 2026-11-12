@@ -97,6 +97,44 @@ function Variance({ value, fmt }: { value: number | null; fmt: (n: number) => st
   )
 }
 
+/**
+ * The Transactions page filtered to what a plan cell counts: posted
+ * transactions of one category in one month (or the whole year when `month`
+ * is null). The list filters by the same date the plan uses, so a card
+ * purchase shows in the month of its bill, as it does here.
+ */
+function transactionsHref(year: number, month: number | null, categoryId: string, kind: 'spending' | 'income') {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const first = month ?? 1
+  const last = month ?? 12
+  const lastDay = new Date(year, last, 0).getDate()
+  const range = `from=${year}-${pad(first)}-01&to=${year}-${pad(last)}-${pad(lastDay)}&status=posted`
+  if (categoryId === UNCATEGORIZED_ID) {
+    return `/transactions?${range}&uncategorized=1&type=${kind === 'income' ? 'credit' : 'debit'}`
+  }
+  return `/transactions?${range}&category_id=${encodeURIComponent(categoryId)}`
+}
+
+interface CellLink {
+  href: string
+  label: string
+}
+
+/** An actual amount that opens its transactions; plain text when there is nothing to open. */
+function ActualAmount({ link, className, children }: { link?: CellLink; className: string; children: React.ReactNode }) {
+  if (!link) return <span className={className}>{children}</span>
+  return (
+    <Link
+      to={link.href}
+      aria-label={link.label}
+      title={link.label}
+      className={`${className} rounded-sm underline-offset-2 hover:underline focus-visible:underline focus-visible:outline-none`}
+    >
+      {children}
+    </Link>
+  )
+}
+
 /** Actual on top, plan underneath; coloured against the plan once the month has happened. */
 function ActualVsPlan({
   cell,
@@ -104,11 +142,14 @@ function ActualVsPlan({
   fmt,
   noBudget,
   compareTo,
+  link,
 }: {
   cell: Cell
   future: boolean
   fmt: (n: number) => string
   noBudget: string
+  /** Where the actual leads; ignored while there is nothing spent. */
+  link?: CellLink
   /**
    * What the actual is judged against, when that differs from the plan shown.
    * The Year column shows the full-year plan but must colour against the plan
@@ -124,7 +165,9 @@ function ActualVsPlan({
   const tone = future ? 'text-muted-foreground' : cell.planned == null ? 'text-foreground' : over ? OVER : UNDER
   return (
     <span className="flex flex-col items-center leading-tight">
-      <span className={`font-medium ${tone}`}>{future ? '—' : fmt(cell.actual)}</span>
+      <ActualAmount link={hasSpend ? link : undefined} className={`font-medium ${tone}`}>
+        {future ? '—' : fmt(cell.actual)}
+      </ActualAmount>
       <span className="text-[10px] text-muted-foreground">{cell.planned == null ? noBudget : fmt(cell.planned)}</span>
     </span>
   )
@@ -463,13 +506,22 @@ function GridView({ plan, year, metric, canWrite, monthNames, fmt, noBudget, onS
     return parts.length ? parts.reduce((a, b) => a + b, 0) : null
   }
 
-  const renderCell = (cell: Cell, future: boolean) => {
+  /** The link of a category's cell; `month` null is the Year column. */
+  const linkFor = (row: BudgetYearRow, month: number | null): CellLink => ({
+    href: transactionsHref(year, month, row.category_id, 'spending'),
+    label: t('budgetPlan.seeTransactions', {
+      category: row.category_name,
+      month: month == null ? t('budgetPlan.yearColumn') : monthNames[month - 1],
+    }),
+  })
+
+  const renderCell = (cell: Cell, future: boolean, link?: CellLink) => {
     if (metric === 'variance') return <Variance value={cellVariance(cell, future)} fmt={fmt} />
     if (metric === 'planned') return cell.planned == null ? <Dash /> : fmt(cell.planned)
-    return <ActualVsPlan cell={cell} future={future} fmt={fmt} noBudget={noBudget} />
+    return <ActualVsPlan cell={cell} future={future} fmt={fmt} noBudget={noBudget} link={link} />
   }
 
-  const renderYear = (cells: Cell[], plannedTotal: number, actualTotal: number) => {
+  const renderYear = (cells: Cell[], plannedTotal: number, actualTotal: number, link?: CellLink) => {
     if (metric === 'variance') return <Variance value={varianceSum(cells)} fmt={fmt} />
     if (metric === 'planned') return fmt(plannedTotal)
     const plannedToDate = cells.reduce((sum, c, i) => (futures[i] ? sum : sum + (c.planned ?? 0)), 0)
@@ -480,6 +532,7 @@ function GridView({ plan, year, metric, canWrite, monthNames, fmt, noBudget, onS
         fmt={fmt}
         noBudget={noBudget}
         compareTo={plannedToDate}
+        link={link}
       />
     )
   }
@@ -529,12 +582,12 @@ function GridView({ plan, year, metric, canWrite, monthNames, fmt, noBudget, onS
                         resetKey={resetKey}
                       />
                     ) : (
-                      renderCell(cell, futures[i])
+                      renderCell(cell, futures[i], linkFor(row, cell.month))
                     )}
                   </td>
                 ))}
                 <td className="px-2 py-2 pr-4 text-center font-semibold tabular-nums sm:pr-5">
-                  {renderYear(row.cells, row.planned_total, row.actual_total)}
+                  {renderYear(row.cells, row.planned_total, row.actual_total, linkFor(row, null))}
                 </td>
               </tr>
             ))}
@@ -573,12 +626,24 @@ interface IncomeSectionProps {
 }
 
 /** What came in against what was expected, coloured the other way round from spending. */
-function IncomeCell({ cell, future, fmt }: { cell: Cell; future: boolean; fmt: (n: number) => string }) {
+function IncomeCell({
+  cell,
+  future,
+  fmt,
+  link,
+}: {
+  cell: Cell
+  future: boolean
+  fmt: (n: number) => string
+  link?: CellLink
+}) {
   if (cell.planned == null && (future || cell.actual === 0)) return <Dash />
   const tone = future ? 'text-muted-foreground' : cell.planned == null ? 'text-foreground' : cell.actual >= cell.planned ? UNDER : SHORT
   return (
     <span className="flex flex-col items-center leading-tight">
-      <span className={`font-medium ${tone}`}>{future ? '—' : fmt(cell.actual)}</span>
+      <ActualAmount link={!future && cell.actual !== 0 ? link : undefined} className={`font-medium ${tone}`}>
+        {future ? '—' : fmt(cell.actual)}
+      </ActualAmount>
       {cell.planned != null && <span className="text-[10px] text-muted-foreground">{fmt(cell.planned)}</span>}
     </span>
   )
@@ -637,6 +702,13 @@ function IncomeSection({ plan, year, monthNames, fmt }: IncomeSectionProps) {
   const first = 'sticky left-0 z-[1] py-2 pl-4 pr-2 sm:pl-5'
   const uncategorized = uncategorizedRow(plan, t('budgetPlan.uncategorized'), 'income')
   const rows = uncategorized ? [...plan.income_rows, uncategorized] : plan.income_rows
+  const linkFor = (row: BudgetYearRow, month: number | null): CellLink => ({
+    href: transactionsHref(year, month, row.category_id, 'income'),
+    label: t('budgetPlan.seeTransactions', {
+      category: row.category_name,
+      month: month == null ? t('budgetPlan.yearColumn') : monthNames[month - 1],
+    }),
+  })
 
   return (
     <SectionCard>
@@ -679,7 +751,7 @@ function IncomeSection({ plan, year, monthNames, fmt }: IncomeSectionProps) {
                 </td>
                 {row.cells.map((cell, i) => (
                   <td key={cell.month} className={td}>
-                    <IncomeCell cell={cell} future={futures[i]} fmt={fmt} />
+                    <IncomeCell cell={cell} future={futures[i]} fmt={fmt} link={linkFor(row, cell.month)} />
                   </td>
                 ))}
                 <td className="px-2 py-2 pr-4 text-center font-semibold tabular-nums sm:pr-5">
@@ -687,6 +759,7 @@ function IncomeSection({ plan, year, monthNames, fmt }: IncomeSectionProps) {
                     cell={{ planned: plannedToDate(row.cells) || null, actual: row.actual_total }}
                     future={false}
                     fmt={fmt}
+                    link={linkFor(row, null)}
                   />
                 </td>
               </tr>
@@ -754,9 +827,10 @@ interface MonthViewProps {
 }
 
 function MonthView({ plan, year, month, fmt, noBudget }: MonthViewProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const future = isFutureMonth(year, month)
   const i = month - 1
+  const monthLabel = new Intl.DateTimeFormat(i18n.language, { month: 'short' }).format(new Date(year, month - 1, 1))
 
   // Only categories that have a budget or spending in this month.
   const uncategorized = uncategorizedRow(plan, t('budgetPlan.uncategorized'))
@@ -810,7 +884,26 @@ function MonthView({ plan, year, month, fmt, noBudget }: MonthViewProps) {
                     {cell.planned == null ? <span className="text-muted-foreground">{noBudget}</span> : fmt(cell.planned)}
                   </td>
                   <td className="py-3 text-right text-sm font-medium tabular-nums text-foreground">
-                    {future ? <Dash /> : fmt(cell.actual)}
+                    {future ? (
+                      <Dash />
+                    ) : (
+                      <ActualAmount
+                        className=""
+                        link={
+                          cell.actual > 0
+                            ? {
+                                href: transactionsHref(year, month, row.category_id, 'spending'),
+                                label: t('budgetPlan.seeTransactions', {
+                                  category: row.category_name,
+                                  month: monthLabel,
+                                }),
+                              }
+                            : undefined
+                        }
+                      >
+                        {fmt(cell.actual)}
+                      </ActualAmount>
+                    )}
                   </td>
                   <td className="py-3 text-right text-sm tabular-nums">
                     <Variance value={cellVariance(cell, future)} fmt={fmt} />

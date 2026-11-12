@@ -199,6 +199,10 @@ Each credit card in the sidebar now leads with its next bill still to pay, with 
 
 The rule dialog only listed recurring items when the Rules page passed them in. Opened with "Create Rule" from a transaction, the transactions page or the dashboard, the "Link to recurring" picker said "No recurring items yet". The dialog now loads them itself when none are passed (query key `['recurring']`, shared with the Rules page). Test: `frontend/src/components/rule-dialog-recurring.test.tsx`.
 
+## PR #23: Annual plan actuals open their transactions
+
+In the annual plan, each actual amount (spending grid, income section, single-month view, and the Year column) is a link to the Transactions page filtered to that category, that month (or the year) and posted transactions; the "Uncategorized" rows open the uncategorized expenses or income. The list filters by the same reporting date the plan uses, so card purchases show in their bill month in both. Frontend only (`transactionsHref` and `ActualAmount` in `budget-plan.tsx`).
+
 ## Conventions
 
 - **Agent instructions:** `CLAUDE.md` (repository root) is fork-only. It asks Claude to suggest an effort level before each task, sets the code-quality process and OWASP checklist, and repeats the standing rules below.
