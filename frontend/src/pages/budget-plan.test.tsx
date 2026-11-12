@@ -312,6 +312,35 @@ describe('BudgetPlanPage', () => {
     expect(within(running).getAllByText('$54,000').length).toBeGreaterThan(0)
   })
 
+  it('links each actual to that month\'s transactions for the category', async () => {
+    await renderPage()
+    // Food, March: the posted transactions of that category in that month.
+    const march = screen.getByRole('link', { name: 'Food, Mar: see transactions' })
+    expect(march).toHaveTextContent('$650')
+    expect(march).toHaveAttribute(
+      'href',
+      `/transactions?from=${YEAR}-03-01&to=${YEAR}-03-31&status=posted&category_id=food`,
+    )
+    // The year column covers the whole year.
+    expect(screen.getByRole('link', { name: 'Food, Year: see transactions' })).toHaveAttribute(
+      'href',
+      `/transactions?from=${YEAR}-01-01&to=${YEAR}-12-31&status=posted&category_id=food`,
+    )
+    // A month with nothing spent has nothing to open.
+    expect(screen.queryByRole('link', { name: 'Fun, Jan: see transactions' })).toBeNull()
+  })
+
+  it('links uncategorized spending to the uncategorized expenses of the month', async () => {
+    const uncategorized = Array(12).fill(0)
+    uncategorized[1] = 70
+    api.yearPlan.mockResolvedValue({ ...plan(), uncategorized_by_month: uncategorized, uncategorized_total: 70 })
+    await renderPage()
+    expect(screen.getByRole('link', { name: 'Uncategorized, Feb: see transactions' })).toHaveAttribute(
+      'href',
+      `/transactions?from=${YEAR}-02-01&to=${YEAR}-02-28&status=posted&uncategorized=1&type=debit`,
+    )
+  })
+
   it('shows spending without a category as its own read-only row', async () => {
     workspace.canWrite = true
     const uncategorized = Array(12).fill(0)

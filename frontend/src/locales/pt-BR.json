@@ -1523,7 +1523,8 @@
     "uncategorized": "Sem categoria",
     "netAccumulated": "Saldo acumulado",
     "netAccumulatedHint": "O saldo somado desde janeiro. Abaixo, onde o plano diz que você deveria estar; a coluna Ano mostra o plano para o ano inteiro.",
-    "netPlannedToDate": "Planejado até agora: {{value}}"
+    "netPlannedToDate": "Planejado até agora: {{value}}",
+    "seeTransactions": "{{category}}, {{month}}: ver transações"
   },
   "cdiYield": {
     "title": "Rendimento CDI",

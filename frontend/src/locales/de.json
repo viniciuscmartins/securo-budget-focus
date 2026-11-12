@@ -1520,7 +1520,8 @@
     "uncategorized": "Uncategorized",
     "netAccumulated": "Accumulated balance",
     "netAccumulatedHint": "The balance added up since January. Under it, where the plan says you should be; the Year column shows the plan for the whole year.",
-    "netPlannedToDate": "Planned to date: {{value}}"
+    "netPlannedToDate": "Planned to date: {{value}}",
+    "seeTransactions": "{{category}}, {{month}}: see transactions"
   },
   "cdiYield": {
     "title": "CDI-Ertrag",
