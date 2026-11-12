@@ -2132,6 +2132,8 @@ export interface MonthOutlookCardBill {
   total: number
   paid: number
   source: 'bank' | 'computed'
+  /** Past its due date and still unpaid. */
+  overdue?: boolean
 }
 
 export interface MonthOutlook {

@@ -1368,7 +1368,11 @@
     "sidebarCashGroup": "Saldo em contas",
     "sidebarCardsGroup": "Cartões de crédito",
     "sidebarBillDue": "Fatura vence a {{date}}",
-    "sidebarNoDueDate": "Sem data de vencimento"
+    "sidebarNoDueDate": "Sem data de vencimento",
+    "sidebarNoOpenBill": "Sem fatura a pagar",
+    "sidebarCardsSubtotalHint": "Soma das próximas faturas",
+    "sidebarBillOverdue": "Vencida a {{date}}",
+    "sidebarCardTotal": "Total {{total}}"
   },
   "loans": {
     "title": "Contrato do empréstimo",

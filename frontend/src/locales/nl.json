@@ -1366,7 +1366,11 @@
     "sidebarCashGroup": "Account balances",
     "sidebarCardsGroup": "Credit cards",
     "sidebarBillDue": "Bill due {{date}}",
-    "sidebarNoDueDate": "No due date set"
+    "sidebarNoDueDate": "No due date set",
+    "sidebarNoOpenBill": "No bill to pay",
+    "sidebarCardsSubtotalHint": "Sum of the next bills",
+    "sidebarBillOverdue": "Overdue since {{date}}",
+    "sidebarCardTotal": "Total {{total}}"
   },
   "loans": {
     "title": "Leningcontract",

@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_async_session
 from app.core.workspace_context import WorkspaceContext, current_workspace
-from app.schemas.month_outlook import CashAccountRead, MonthOutlookRead
+from app.schemas.month_outlook import CardBillRead, CashAccountRead, MonthOutlookRead
 from app.services import month_outlook_service as svc
 
 router = APIRouter(prefix="/api/month-outlook", tags=["dashboard"])
@@ -37,3 +37,13 @@ async def get_month_outlook(
         for aid, name, balance in outlook.cash_accounts
     ]
     return data
+
+
+@router.get("/card-bills", response_model=list[CardBillRead])
+async def get_next_card_bills(
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Each credit card's next bill with something still to pay (for the sidebar)."""
+    bills = await svc.get_next_card_bills(session, ctx.workspace.id, ctx.user_id)
+    return [asdict(b) for b in bills]

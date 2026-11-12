@@ -182,6 +182,14 @@ No migration.
 
 The sidebar's account list keeps the total in its header and splits the accounts in two groups, each with a subtotal: account balances first (checking, savings, investments), then credit cards ordered by the next bill, each showing its due date ("No due date set" when the card has no due day). The list always shows every account; the old "show more" cut at three is gone. New component `frontend/src/components/sidebar-account-groups.tsx`; `app-layout.tsx` only renders it.
 
+## PR #20: Sidebar cards show the bill to pay, over the card total
+
+Each credit card in the sidebar now leads with its next bill still to pay, with the card's total under it and the due date under its name. The cards' subtotal adds up those bills. A bill past its due date and still unpaid comes first, in red ("Vencida em …"), for up to 25 days. A card with nothing to pay shows its total and "Sem fatura a pagar".
+
+- New route `GET /api/month-outlook/card-bills` (read-only, `reports:read` like the rest of `/api/month-outlook`), built on the month outlook's card-bill logic: the bank's bill when there is one, otherwise the card's charges plus recurring charges still to come, minus payments. `month_outlook_service.get_next_card_bills` and `_overdue_card_bills`; `CardBill` and `CardBillRead` gain `overdue`.
+- API contract baseline: 2 new entries (fork total 39).
+- The sidebar fetches it under the `['accounts', 'card-bills']` query key, so it refreshes whenever the account list does.
+
 ## Conventions
 
 - **Agent instructions:** `CLAUDE.md` (repository root) is fork-only. It asks Claude to suggest an effort level before each task, sets the code-quality process and OWASP checklist, and repeats the standing rules below.

@@ -117,6 +117,7 @@ import type {
   CdiYieldMode,
   CdiYieldSettings,
   MonthOutlook,
+  MonthOutlookCardBill,
   RecurringFromTransactionInput,
   RecurringAmountMode,
 } from '@/types'
@@ -563,6 +564,13 @@ export const monthOutlook = {
     }))
     out.cash_accounts = (data.cash_accounts ?? []).map((a: Record<string, unknown>) => ({ ...a, balance: Number(a.balance) }))
     return out as unknown as MonthOutlook
+  },
+  /** Each credit card's next bill with something still to pay. */
+  cardBills: async (): Promise<MonthOutlookCardBill[]> => {
+    const { data } = await api.get('/month-outlook/card-bills')
+    return (data ?? []).map((b: Record<string, unknown>) => ({
+      ...b, amount: Number(b.amount), total: Number(b.total), paid: Number(b.paid),
+    })) as MonthOutlookCardBill[]
   },
 }
 
