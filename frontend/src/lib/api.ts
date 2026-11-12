@@ -1479,8 +1479,18 @@ export const budgets = {
       ? data.net_planned_by_month.map(num)
       : months(data.income_planned_by_month).map((v: number, i: number) => v - num(data.planned_by_month[i]))
     const total = (values: number[]) => values.reduce((a, b) => a + b, 0)
+    // An older backend has no moved money: the account balance is the balance.
+    const moved: number[] = months(data.moved_by_month)
+    const cashNet: number[] = Array.isArray(data.cash_net_by_month)
+      ? data.cash_net_by_month.map(num)
+      : netActual.map((v, i) => v - moved[i])
     return {
       ...data,
+      moved_rows: (data.moved_rows ?? []).map(row),
+      moved_by_month: moved,
+      moved_total: total(moved),
+      cash_net_by_month: cashNet,
+      cash_net_total: total(cashNet),
       net_actual_by_month: netActual,
       net_planned_by_month: netPlanned,
       net_actual_total: total(netActual),

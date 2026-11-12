@@ -621,3 +621,70 @@ async def test_the_balance_is_real_money_in_minus_out_against_the_plan(
     # Planned: no recurring income, a 500 budget in January.
     assert plan.net_planned_by_month[0] == Decimal("-500")
     assert plan.net_planned_total == Decimal("-500")
+
+
+async def _transfer_category(session, test_user, test_workspace, name):
+    from app.models.category import Category
+
+    category = Category(id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+                        name=name, treat_as_transfer=True)
+    session.add(category)
+    await session.commit()
+    return category
+
+
+@pytest.mark.asyncio
+async def test_money_moved_to_investments_shows_and_the_account_balance_matches(
+    session, test_user, test_workspace, test_categories, account
+):
+    """Investing is not spending, but the money did leave the accounts: it gets
+    its own row, and the account balance takes it out."""
+    food, _, salary = test_categories
+    invest = await _transfer_category(session, test_user, test_workspace, "Investimentos")
+    await _row(session, test_user, account, salary, date(2024, 6, 1), "10000", kind="credit")
+    await _row(session, test_user, account, food, date(2024, 6, 5), "1000")
+    await _row(session, test_user, account, invest, date(2024, 6, 10), "6000")
+    await _row(session, test_user, account, invest, date(2024, 6, 20), "500", kind="credit")
+    await _row(session, test_user, account, invest, date(2024, 7, 2), "200", kind="credit")
+
+    plan = await get_year_plan(session, test_workspace.id, test_user.id, 2024)
+
+    [moved] = plan.moved_rows
+    assert moved.category_id == invest.id
+    assert moved.cells[5].actual == Decimal("5500")    # 6000 put in, 500 taken out
+    assert moved.cells[6].actual == Decimal("-200")    # money came back from investments
+    assert plan.moved_by_month[5] == Decimal("5500")
+    assert plan.moved_total == Decimal("5300")
+    # Saved: income minus spending. In the accounts: also minus what moved out.
+    assert plan.net_actual_by_month[5] == Decimal("9000")
+    assert plan.cash_net_by_month[5] == Decimal("3500")
+    assert plan.cash_net_by_month[6] == Decimal("200")
+    assert invest.id not in {r.category_id for r in plan.rows + plan.income_rows}
+
+
+@pytest.mark.asyncio
+async def test_a_transfer_between_two_tracked_accounts_does_not_count_as_moved(
+    session, test_user, test_workspace, account
+):
+    from app.models.account import Account
+
+    moves = await _transfer_category(session, test_user, test_workspace, "Transferências")
+    savings = Account(id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+                      name="Savings", type="savings", balance=Decimal("0"), currency="BRL")
+    session.add(savings)
+    await session.commit()
+    pair = uuid.uuid4()
+    for acc, kind in ((account, "debit"), (savings, "credit")):
+        session.add(Transaction(
+            id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id, account_id=acc.id,
+            category_id=moves.id, description="PIX", amount=Decimal("700"), date=date(2024, 3, 3),
+            type=kind, source="manual", transfer_pair_id=pair, created_at=datetime.now(timezone.utc),
+        ))
+    # Sent to a bank that is not in Securo: the money did leave.
+    await _row(session, test_user, account, moves, date(2024, 3, 9), "300")
+    await session.commit()
+
+    plan = await get_year_plan(session, test_workspace.id, test_user.id, 2024)
+
+    assert plan.moved_by_month[2] == Decimal("300")
+    assert plan.cash_net_by_month[2] == Decimal("-300")

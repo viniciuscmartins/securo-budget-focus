@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { CalendarDays, Sparkles } from 'lucide-react'
+import { CalendarDays, ChevronDown, Sparkles } from 'lucide-react'
 import { budgets as budgetsApi } from '@/lib/api'
 import { extractApiError } from '@/lib/api-errors'
 import {
@@ -68,7 +68,96 @@ const TOOLTIP_STYLE = {
   fontSize: 12,
 }
 
-function SectionCard({ children }: { children: React.ReactNode }) {
+/** A table's title, hint and the button that hides its category rows. */
+function SectionHeader({
+  title,
+  hint,
+  collapsed,
+  onToggle,
+}: {
+  title: string
+  hint?: string
+  collapsed?: boolean
+  onToggle?: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 pt-4 sm:px-5">
+      <div className="flex items-center gap-2">
+        {onToggle && (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? t('budgetPlan.showCategories') : t('budgetPlan.hideCategories')}
+            title={collapsed ? t('budgetPlan.showCategories') : t('budgetPlan.hideCategories')}
+            className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ChevronDown size={14} className={collapsed ? '-rotate-90 transition-transform' : 'transition-transform'} />
+          </button>
+        )}
+        <p className="text-sm font-semibold text-foreground">{title}</p>
+      </div>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  )
+}
+
+/** The month headers shared by every table. */
+function MonthHeaderRow({ monthNames, first }: { monthNames: string[]; first: string }) {
+  const { t } = useTranslation()
+  return (
+    <tr className="border-b border-border">
+      <th className="sticky left-0 z-10 bg-card py-3 pl-4 pr-2 text-left font-medium text-muted-foreground sm:pl-5">
+        {first}
+      </th>
+      {MONTH_NUMBERS.map((m) => (
+        <th key={m} className="px-1 py-3 text-center font-medium capitalize text-muted-foreground">
+          {monthNames[m - 1]}
+        </th>
+      ))}
+      <th className="px-2 py-3 pr-4 text-center font-medium text-muted-foreground sm:pr-5">
+        {t('budgetPlan.yearColumn')}
+      </th>
+    </tr>
+  )
+}
+
+/** Which tables show only their totals; remembered in this browser. */
+type Collapsed = { income: boolean; spending: boolean; moved: boolean }
+const COLLAPSED_KEY = 'budgetPlan.collapsed'
+
+function useCollapsed(): [Collapsed, (next: Collapsed) => void] {
+  const [collapsed, setCollapsed] = useState<Collapsed>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? 'null')
+      if (saved && typeof saved === 'object') {
+        return { income: !!saved.income, spending: !!saved.spending, moved: !!saved.moved }
+      }
+    } catch {
+      // No storage (private window): start expanded.
+    }
+    return { income: false, spending: false, moved: false }
+  })
+  const update = (next: Collapsed) => {
+    setCollapsed(next)
+    try {
+      localStorage.setItem(COLLAPSED_KEY, JSON.stringify(next))
+    } catch {
+      // Not remembered, still applied.
+    }
+  }
+  return [collapsed, update]
+}
+
+function SectionCard({ children, label }: { children: React.ReactNode; label?: string }) {
+  if (label) {
+    return (
+      <section aria-label={label} className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        {children}
+      </section>
+    )
+  }
   return <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">{children}</div>
 }
 
@@ -232,6 +321,8 @@ export default function BudgetPlanPage() {
   const [year, setYear] = useState(today.getFullYear())
   const [view, setView] = useState<View>('grid')
   const [metric, setMetric] = useState<Metric>('both')
+  const [collapsed, setCollapsed] = useCollapsed()
+  const onlyTotals = collapsed.income && collapsed.spending && collapsed.moved
   const [month, setMonth] = useState(today.getMonth() + 1)
   const [suggestOpen, setSuggestOpen] = useState(false)
   const [saveFailures, setSaveFailures] = useState(0)
@@ -356,7 +447,7 @@ export default function BudgetPlanPage() {
   }
 
   const left = plan.planned_total - plan.actual_total
-  const net = plan.net_actual_total
+  const net = plan.cash_net_total
   const netPlannedToDate = plan.net_planned_by_month.reduce(
     (sum, value, i) => (isFutureMonth(year, i + 1) ? sum : sum + value),
     0,
@@ -434,13 +525,28 @@ export default function BudgetPlanPage() {
         </Tabs>
 
         {view === 'grid' ? (
-          <Tabs value={metric} onValueChange={(v) => setMetric(v as Metric)}>
-            <TabsList>
-              <TabsTrigger value="both">{t('budgetPlan.metricBoth')}</TabsTrigger>
-              <TabsTrigger value="variance">{t('budgetPlan.difference')}</TabsTrigger>
-              <TabsTrigger value="planned">{t('budgetPlan.planned')}</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={onlyTotals ? 'default' : 'outline'}
+              className="h-8"
+              aria-pressed={onlyTotals}
+              onClick={() => {
+                const all = !onlyTotals
+                setCollapsed({ income: all, spending: all, moved: all })
+              }}
+            >
+              {t('budgetPlan.onlyTotals')}
+            </Button>
+            <Tabs value={metric} onValueChange={(v) => setMetric(v as Metric)}>
+              <TabsList>
+                <TabsTrigger value="both">{t('budgetPlan.metricBoth')}</TabsTrigger>
+                <TabsTrigger value="variance">{t('budgetPlan.difference')}</TabsTrigger>
+                <TabsTrigger value="planned">{t('budgetPlan.planned')}</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         ) : (
           <select
             aria-label={t('budgetPlan.month')}
@@ -457,22 +563,41 @@ export default function BudgetPlanPage() {
         )}
       </div>
 
-      {view === 'grid' && (
-        <IncomeSection plan={plan} year={year} monthNames={monthNames} fmt={fmt} />
-      )}
-
       {view === 'grid' ? (
-        <GridView
-          plan={plan}
-          year={year}
-          metric={metric}
-          canWrite={canWrite}
-          monthNames={monthNames}
-          fmt={fmt}
-          noBudget={noBudget}
-          onSave={(categoryId, m, amount) => saveCell.mutate({ categoryId, month: m, amount })}
-          resetKey={saveFailures}
-        />
+        <>
+          <IncomeSection
+            plan={plan}
+            year={year}
+            monthNames={monthNames}
+            fmt={fmt}
+            collapsed={collapsed.income}
+            onToggle={() => setCollapsed({ ...collapsed, income: !collapsed.income })}
+          />
+          <GridView
+            plan={plan}
+            year={year}
+            metric={metric}
+            canWrite={canWrite}
+            monthNames={monthNames}
+            fmt={fmt}
+            noBudget={noBudget}
+            onSave={(categoryId, m, amount) => saveCell.mutate({ categoryId, month: m, amount })}
+            resetKey={saveFailures}
+            collapsed={collapsed.spending}
+            onToggle={() => setCollapsed({ ...collapsed, spending: !collapsed.spending })}
+          />
+          {plan.moved_rows.length > 0 && (
+            <MovedSection
+              plan={plan}
+              year={year}
+              monthNames={monthNames}
+              fmt={fmt}
+              collapsed={collapsed.moved}
+              onToggle={() => setCollapsed({ ...collapsed, moved: !collapsed.moved })}
+            />
+          )}
+          <SummarySection plan={plan} year={year} monthNames={monthNames} fmt={fmt} noBudget={noBudget} />
+        </>
       ) : (
         <MonthView plan={plan} year={year} month={month} fmt={fmt} noBudget={noBudget} />
       )}
@@ -492,9 +617,23 @@ interface GridViewProps {
   noBudget: string
   onSave: (categoryId: string, month: number, amount: number | null) => void
   resetKey: number
+  collapsed?: boolean
+  onToggle?: () => void
 }
 
-function GridView({ plan, year, metric, canWrite, monthNames, fmt, noBudget, onSave, resetKey }: GridViewProps) {
+function GridView({
+  plan,
+  year,
+  metric,
+  canWrite,
+  monthNames,
+  fmt,
+  noBudget,
+  onSave,
+  resetKey,
+  collapsed,
+  onToggle,
+}: GridViewProps) {
   const { t } = useTranslation()
   const editing = metric === 'planned' && canWrite
   const futures = MONTH_NUMBERS.map((m) => isFutureMonth(year, m))
@@ -542,26 +681,15 @@ function GridView({ plan, year, metric, canWrite, monthNames, fmt, noBudget, onS
     actual: plan.actual_by_month[i],
   }))
   const uncategorized = uncategorizedRow(plan, t('budgetPlan.uncategorized'))
-  const displayRows = uncategorized ? [...plan.rows, uncategorized] : plan.rows
+  const displayRows = collapsed ? [] : uncategorized ? [...plan.rows, uncategorized] : plan.rows
 
   return (
-    <SectionCard>
+    <SectionCard label={t('budgetPlan.spending')}>
+      <SectionHeader title={t('budgetPlan.spending')} collapsed={collapsed} onToggle={onToggle} />
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-border">
-              <th className="sticky left-0 z-10 bg-card py-3 pl-4 pr-2 text-left font-medium text-muted-foreground sm:pl-5">
-                {t('budgets.category')}
-              </th>
-              {MONTH_NUMBERS.map((m) => (
-                <th key={m} className="px-1 py-3 text-center font-medium capitalize text-muted-foreground">
-                  {monthNames[m - 1]}
-                </th>
-              ))}
-              <th className="px-2 py-3 pr-4 text-center font-medium text-muted-foreground sm:pr-5">
-                {t('budgetPlan.yearColumn')}
-              </th>
-            </tr>
+            <MonthHeaderRow monthNames={monthNames} first={t('budgets.category')} />
           </thead>
           <tbody>
             {displayRows.map((row) => (
@@ -609,7 +737,7 @@ function GridView({ plan, year, metric, canWrite, monthNames, fmt, noBudget, onS
           </tfoot>
         </table>
       </div>
-      {editing && (
+      {editing && !collapsed && (
         <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground sm:px-5">
           {t('budgetPlan.clearHint')}
         </p>
@@ -623,6 +751,8 @@ interface IncomeSectionProps {
   year: number
   monthNames: string[]
   fmt: (n: number) => string
+  collapsed?: boolean
+  onToggle?: () => void
 }
 
 /** What came in against what was expected, coloured the other way round from spending. */
@@ -670,11 +800,8 @@ function NetCell({ cell, future, fmt }: { cell: Cell; future: boolean; fmt: (n: 
   )
 }
 
-/**
- * Income per category and month (planned from recurring income items), and
- * the net: income received minus everything spent, uncategorized included.
- */
-function IncomeSection({ plan, year, monthNames, fmt }: IncomeSectionProps) {
+/** Income per category and month (planned from recurring income items). */
+function IncomeSection({ plan, year, monthNames, fmt, collapsed, onToggle }: IncomeSectionProps) {
   const { t } = useTranslation()
   const futures = MONTH_NUMBERS.map((m) => isFutureMonth(year, m))
   const plannedToDate = (cells: Cell[]) => cells.reduce((sum, c, i) => (futures[i] ? sum : sum + (c.planned ?? 0)), 0)
@@ -682,26 +809,11 @@ function IncomeSection({ plan, year, monthNames, fmt }: IncomeSectionProps) {
     planned: plan.income_planned_by_month[i] > 0 ? plan.income_planned_by_month[i] : null,
     actual: plan.income_actual_by_month[i],
   }))
-  // The balance of each month against the plan (planned income minus
-  // budgets), and the same accumulated through the year.
-  const hasNetPlan = plan.income_planned_total > 0 || plan.planned_total > 0
-  const nets: Cell[] = MONTH_NUMBERS.map((_, i) => ({
-    actual: plan.net_actual_by_month[i],
-    // A month with nothing planned has no plan to compare against.
-    planned: plan.income_planned_by_month[i] > 0 || plan.planned_by_month[i] > 0 ? plan.net_planned_by_month[i] : null,
-  }))
-  const accumulated: Cell[] = nets.map((_, i) => {
-    const soFar = nets.slice(0, i + 1)
-    return {
-      actual: soFar.reduce((sum, c, j) => (futures[j] ? sum : sum + c.actual), 0),
-      planned: soFar.some((c) => c.planned != null) ? soFar.reduce((sum, c) => sum + (c.planned ?? 0), 0) : null,
-    }
-  })
-  const netPlannedToDate = hasNetPlan ? plannedToDate(nets) : null
   const td = 'px-1 py-2 text-center tabular-nums'
   const first = 'sticky left-0 z-[1] py-2 pl-4 pr-2 sm:pl-5'
   const uncategorized = uncategorizedRow(plan, t('budgetPlan.uncategorized'), 'income')
-  const rows = uncategorized ? [...plan.income_rows, uncategorized] : plan.income_rows
+  const allRows = uncategorized ? [...plan.income_rows, uncategorized] : plan.income_rows
+  const rows = collapsed ? [] : allRows
   const linkFor = (row: BudgetYearRow, month: number | null): CellLink => ({
     href: transactionsHref(year, month, row.category_id, 'income'),
     label: t('budgetPlan.seeTransactions', {
@@ -711,30 +823,20 @@ function IncomeSection({ plan, year, monthNames, fmt }: IncomeSectionProps) {
   })
 
   return (
-    <SectionCard>
-      <div className="flex items-baseline justify-between gap-3 px-4 pt-4 sm:px-5">
-        <p className="text-sm font-semibold text-foreground">{t('budgetPlan.income')}</p>
-        <p className="text-xs text-muted-foreground">{t('budgetPlan.incomeHint')}</p>
-      </div>
+    <SectionCard label={t('budgetPlan.income')}>
+      <SectionHeader
+        title={t('budgetPlan.income')}
+        hint={collapsed ? undefined : t('budgetPlan.incomeHint')}
+        collapsed={collapsed}
+        onToggle={onToggle}
+      />
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-border">
-              <th className="sticky left-0 z-10 bg-card py-3 pl-4 pr-2 text-left font-medium text-muted-foreground sm:pl-5">
-                {t('budgets.category')}
-              </th>
-              {MONTH_NUMBERS.map((m) => (
-                <th key={m} className="px-1 py-3 text-center font-medium capitalize text-muted-foreground">
-                  {monthNames[m - 1]}
-                </th>
-              ))}
-              <th className="px-2 py-3 pr-4 text-center font-medium text-muted-foreground sm:pr-5">
-                {t('budgetPlan.yearColumn')}
-              </th>
-            </tr>
+            <MonthHeaderRow monthNames={monthNames} first={t('budgets.category')} />
           </thead>
           <tbody>
-            {rows.length === 0 && (
+            {allRows.length === 0 && (
               <tr className="border-b border-border">
                 <td colSpan={14} className="px-4 py-4 text-center text-muted-foreground sm:px-5">
                   {t('budgetPlan.noIncome')}
@@ -781,8 +883,195 @@ function IncomeSection({ plan, year, monthNames, fmt }: IncomeSectionProps) {
                 />
               </td>
             </tr>
-            <tr className="border-t border-border font-semibold">
-              <td className={`${first} bg-card text-sm text-foreground`} title={t('budgetPlan.netHint')}>
+          </tfoot>
+        </table>
+      </div>
+    </SectionCard>
+  )
+}
+
+/** An amount with no plan behind it: plain, a dash when nothing moved. */
+function PlainCell({ value, future, fmt, link }: { value: number; future: boolean; fmt: (n: number) => string; link?: CellLink }) {
+  if (future || value === 0) return <Dash />
+  return (
+    <ActualAmount link={link} className={`font-medium ${value < 0 ? UNDER : 'text-foreground'}`}>
+      {fmt(value)}
+    </ActualAmount>
+  )
+}
+
+/**
+ * Money that left the accounts without being spending: put into investments
+ * or sent to a bank Securo does not track. Negative when more came back.
+ */
+function MovedSection({ plan, year, monthNames, fmt, collapsed, onToggle }: IncomeSectionProps) {
+  const { t } = useTranslation()
+  const futures = MONTH_NUMBERS.map((m) => isFutureMonth(year, m))
+  const td = 'px-1 py-2 text-center tabular-nums'
+  const first = 'sticky left-0 z-[1] py-2 pl-4 pr-2 sm:pl-5'
+  const linkFor = (row: BudgetYearRow, month: number | null): CellLink => ({
+    href: transactionsHref(year, month, row.category_id, 'spending'),
+    label: t('budgetPlan.seeTransactions', {
+      category: row.category_name,
+      month: month == null ? t('budgetPlan.yearColumn') : monthNames[month - 1],
+    }),
+  })
+  return (
+    <SectionCard label={t('budgetPlan.moved')}>
+      <SectionHeader
+        title={t('budgetPlan.moved')}
+        hint={collapsed ? undefined : t('budgetPlan.movedHint')}
+        collapsed={collapsed}
+        onToggle={onToggle}
+      />
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <MonthHeaderRow monthNames={monthNames} first={t('budgets.category')} />
+          </thead>
+          <tbody>
+            {!collapsed &&
+              plan.moved_rows.map((row) => (
+                <tr key={row.category_id} className="border-b border-border hover:bg-muted/50">
+                  <td className={`${first} bg-card`}>
+                    <span className="flex min-w-[9rem] items-center gap-2 text-sm font-medium text-foreground">
+                      <CategoryIcon icon={row.category_icon} color={row.category_color} size="sm" />
+                      <span className="truncate">{row.category_name}</span>
+                    </span>
+                  </td>
+                  {row.cells.map((cell, i) => (
+                    <td key={cell.month} className={td}>
+                      <PlainCell value={cell.actual} future={futures[i]} fmt={fmt} link={linkFor(row, cell.month)} />
+                    </td>
+                  ))}
+                  <td className="px-2 py-2 pr-4 text-center font-semibold tabular-nums sm:pr-5">
+                    <PlainCell value={row.actual_total} future={false} fmt={fmt} link={linkFor(row, null)} />
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+          <tfoot>
+            <tr className="bg-muted font-semibold">
+              <td className={`${first} bg-muted text-sm text-foreground`}>{t('budgetPlan.total')}</td>
+              {plan.moved_by_month.map((value, i) => (
+                <td key={i} className={td}>
+                  <PlainCell value={value} future={futures[i]} fmt={fmt} />
+                </td>
+              ))}
+              <td className="px-2 py-2 pr-4 text-center tabular-nums sm:pr-5">
+                <PlainCell value={plan.moved_total} future={false} fmt={fmt} />
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </SectionCard>
+  )
+}
+
+/**
+ * The quick glance: what came in, what went out, what moved to investments
+ * or other banks, and what that left in the accounts, month by month and
+ * added up through the year, each against the plan.
+ */
+function SummarySection({
+  plan,
+  year,
+  monthNames,
+  fmt,
+  noBudget,
+}: {
+  plan: BudgetYearPlan
+  year: number
+  monthNames: string[]
+  fmt: (n: number) => string
+  noBudget: string
+}) {
+  const { t } = useTranslation()
+  const futures = MONTH_NUMBERS.map((m) => isFutureMonth(year, m))
+  const plannedToDate = (cells: Cell[]) => cells.reduce((sum, c, i) => (futures[i] ? sum : sum + (c.planned ?? 0)), 0)
+  const td = 'px-1 py-2 text-center tabular-nums'
+  const first = 'sticky left-0 z-[1] bg-card py-2 pl-4 pr-2 text-sm text-foreground sm:pl-5'
+  const income: Cell[] = MONTH_NUMBERS.map((_, i) => ({
+    planned: plan.income_planned_by_month[i] > 0 ? plan.income_planned_by_month[i] : null,
+    actual: plan.income_actual_by_month[i],
+  }))
+  const spending: Cell[] = MONTH_NUMBERS.map((_, i) => ({
+    planned: plan.planned_by_month[i] > 0 ? plan.planned_by_month[i] : null,
+    actual: plan.actual_by_month[i],
+  }))
+  // The balance in the accounts against the plan (planned income minus
+  // budgets), and the same accumulated through the year.
+  const hasNetPlan = plan.income_planned_total > 0 || plan.planned_total > 0
+  const nets: Cell[] = MONTH_NUMBERS.map((_, i) => ({
+    actual: plan.cash_net_by_month[i],
+    // A month with nothing planned has no plan to compare against.
+    planned: plan.income_planned_by_month[i] > 0 || plan.planned_by_month[i] > 0 ? plan.net_planned_by_month[i] : null,
+  }))
+  const accumulated: Cell[] = nets.map((_, i) => {
+    const soFar = nets.slice(0, i + 1)
+    return {
+      actual: soFar.reduce((sum, c, j) => (futures[j] ? sum : sum + c.actual), 0),
+      planned: soFar.some((c) => c.planned != null) ? soFar.reduce((sum, c) => sum + (c.planned ?? 0), 0) : null,
+    }
+  })
+  const spendingToDate = plannedToDate(spending)
+  return (
+    <SectionCard label={t('budgetPlan.summary')}>
+      <SectionHeader title={t('budgetPlan.summary')} hint={t('budgetPlan.summaryHint')} />
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <MonthHeaderRow monthNames={monthNames} first="" />
+          </thead>
+          <tbody>
+            <tr className="border-b border-border">
+              <td className={first}>{t('budgetPlan.income')}</td>
+              {income.map((cell, i) => (
+                <td key={i} className={td}>
+                  <IncomeCell cell={cell} future={futures[i]} fmt={fmt} />
+                </td>
+              ))}
+              <td className="px-2 py-2 pr-4 text-center font-semibold tabular-nums sm:pr-5">
+                <IncomeCell
+                  cell={{ planned: plannedToDate(income) || null, actual: plan.income_actual_total }}
+                  future={false}
+                  fmt={fmt}
+                />
+              </td>
+            </tr>
+            <tr className="border-b border-border">
+              <td className={first}>{t('budgetPlan.spending')}</td>
+              {spending.map((cell, i) => (
+                <td key={i} className={td}>
+                  <ActualVsPlan cell={cell} future={futures[i]} fmt={fmt} noBudget={noBudget} />
+                </td>
+              ))}
+              <td className="px-2 py-2 pr-4 text-center font-semibold tabular-nums sm:pr-5">
+                <ActualVsPlan
+                  cell={{ planned: plan.planned_total || null, actual: plan.actual_total }}
+                  future={false}
+                  fmt={fmt}
+                  noBudget={noBudget}
+                  compareTo={spendingToDate}
+                />
+              </td>
+            </tr>
+            <tr className="border-b border-border">
+              <td className={first} title={t('budgetPlan.movedHint')}>{t('budgetPlan.summaryMoved')}</td>
+              {plan.moved_by_month.map((value, i) => (
+                <td key={i} className={td}>
+                  <PlainCell value={value} future={futures[i]} fmt={fmt} />
+                </td>
+              ))}
+              <td className="px-2 py-2 pr-4 text-center font-semibold tabular-nums sm:pr-5">
+                <PlainCell value={plan.moved_total} future={false} fmt={fmt} />
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-border bg-muted font-semibold">
+              <td className={`${first} bg-muted`} title={t('budgetPlan.netHint')}>
                 {t('budgetPlan.net')}
               </td>
               {nets.map((cell, i) => (
@@ -791,11 +1080,15 @@ function IncomeSection({ plan, year, monthNames, fmt }: IncomeSectionProps) {
                 </td>
               ))}
               <td className="px-2 py-2 pr-4 text-center tabular-nums sm:pr-5">
-                <NetCell cell={{ actual: plan.net_actual_total, planned: netPlannedToDate }} future={false} fmt={fmt} />
+                <NetCell
+                  cell={{ actual: plan.cash_net_total, planned: hasNetPlan ? plannedToDate(nets) : null }}
+                  future={false}
+                  fmt={fmt}
+                />
               </td>
             </tr>
             <tr className="border-t border-border font-semibold">
-              <td className={`${first} bg-card text-sm text-foreground`} title={t('budgetPlan.netAccumulatedHint')}>
+              <td className={first} title={t('budgetPlan.netAccumulatedHint')}>
                 {t('budgetPlan.netAccumulated')}
               </td>
               {accumulated.map((cell, i) => (
@@ -805,7 +1098,7 @@ function IncomeSection({ plan, year, monthNames, fmt }: IncomeSectionProps) {
               ))}
               <td className="px-2 py-2 pr-4 text-center tabular-nums sm:pr-5">
                 <NetCell
-                  cell={{ actual: plan.net_actual_total, planned: hasNetPlan ? plan.net_planned_total : null }}
+                  cell={{ actual: plan.cash_net_total, planned: hasNetPlan ? plan.net_planned_total : null }}
                   future={false}
                   fmt={fmt}
                 />
