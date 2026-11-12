@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
-import { sidebarAccounts, sumAccountsTotal } from '@/lib/account-utils'
+import { sidebarAccounts } from '@/lib/account-utils'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { SidebarAccountGroups } from '@/components/sidebar-account-groups'
+import { sidebarGroupTotals } from '@/lib/sidebar-account-totals'
 import { useTranslation } from 'react-i18next'
 import { useDisplayLocale } from '@/hooks/use-display-locale'
 import { useQuery } from '@tanstack/react-query'
@@ -204,7 +205,9 @@ export function AppLayout() {
   const visibleAccounts = activeAccountIds
     ? allAccounts.filter((a) => activeAccountIds.includes(a.id))
     : allAccounts
-  const totalBalance = sumAccountsTotal(visibleAccounts)
+  // The header adds up the two groups below it: money in the accounts minus
+  // the cards' next bills (each card's full debt shows on its own row).
+  const totalBalance = sidebarGroupTotals(visibleAccounts, cardBills).total
   const versionA11yLabel = t('app.versionAriaLabel', { version: APP_VERSION })
 
   return (

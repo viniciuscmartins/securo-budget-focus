@@ -569,6 +569,49 @@ NEXT_BILL_WINDOW_DAYS = 45
 OVERDUE_LOOKBACK_DAYS = 25
 
 
+async def _owed_on_card(
+    session: AsyncSession, card: Account, today: date, to_primary: _Converter
+) -> Decimal:
+    """What the card owes today: charges minus credits (payments, refunds) so far."""
+    rows = (
+        await session.execute(
+            select(Transaction.type, Transaction.amount, Transaction.currency).where(
+                Transaction.account_id == card.id,
+                Transaction.is_ignored == False,  # noqa: E712
+                Transaction.date <= today,
+            )
+        )
+    ).all()
+    owed = ZERO
+    for kind, amount, currency in rows:
+        value = await to_primary(Decimal(str(amount)), currency)
+        owed += value if kind == "debit" else -value
+    return owed
+
+
+async def _charged_after(
+    session: AsyncSession, card: Account, due: date, today: date, to_primary: _Converter
+) -> Decimal:
+    """Charges made so far that land on bills due after `due`."""
+    rows = (
+        await session.execute(
+            select(Transaction.amount, Transaction.currency)
+            .outerjoin(Category, Transaction.category_id == Category.id)
+            .where(
+                Transaction.account_id == card.id,
+                Transaction.type == "debit",
+                Transaction.effective_date > due,
+                Transaction.date <= today,
+                _counts_on_bill(),
+            )
+        )
+    ).all()
+    total = ZERO
+    for amount, currency in rows:
+        total += await to_primary(Decimal(str(amount)), currency)
+    return total
+
+
 async def _overdue_card_bills(
     session: AsyncSession, cards: list[Account], today: date, to_primary: _Converter
 ) -> list[CardBill]:
@@ -576,11 +619,17 @@ async def _overdue_card_bills(
 
     The bank's own bill when there is one, otherwise the card's charges on it.
     Payments count from shortly before the due date up to today, so a bill
-    paid late is settled.
+    paid late is settled. A payment is not always recorded as a transfer (a
+    bank-synced card often gets it as a plain credit), so the card's own debt
+    has the last word: a past bill is unpaid only for the part of today's debt
+    that charges on later bills don't explain.
     """
     start = today - timedelta(days=OVERDUE_LOOKBACK_DAYS)
     bills: list[CardBill] = []
     for card in cards:
+        owed = await _owed_on_card(session, card, today, to_primary)
+        if owed <= 0:
+            continue
         totals: dict[date, tuple[Decimal, Literal["bank", "computed"]]] = {}
         rows = (
             await session.execute(
@@ -615,15 +664,17 @@ async def _overdue_card_bills(
                 continue
             # A late payment still settles the bill: count up to today.
             paid = await _paid_toward(session, card, due, today, to_primary, until=today)
-            if total - paid > 0:
+            later = await _charged_after(session, card, due, today, to_primary)
+            unpaid = min(total - paid, owed - later)
+            if unpaid > 0:
                 bills.append(
                     CardBill(
                         account_id=card.id,
                         account_name=_name(card),
                         due_date=due,
-                        amount=total - paid,
+                        amount=unpaid,
                         total=total,
-                        paid=paid,
+                        paid=total - unpaid,
                         source=source,
                         overdue=True,
                     )

@@ -513,3 +513,42 @@ async def test_a_late_payment_settles_the_overdue_bill(
     [bill] = await svc.get_next_card_bills(session, test_workspace.id, test_user.id)
 
     assert (bill.due_date, bill.amount, bill.overdue) == (date(2026, 12, 10), D("50"), False)
+
+
+@pytest.mark.asyncio
+async def test_a_payment_not_marked_as_transfer_still_settles_the_overdue_bill(
+    session, test_user, test_workspace, household, monkeypatch
+):
+    """A bank-synced card often gets the payment as a plain credit."""
+    _, _, card = household
+    later = date(2026, 11, 12)
+    for target in (
+        "app.services.month_outlook_service.app_today",
+        "app.services.dashboard_service.app_today",
+    ):
+        monkeypatch.setattr(target, lambda: later)
+    await _tx(session, test_user, card, "800", date(2026, 11, 11), kind="credit",
+              description="PAGAMENTO RECEBIDO")
+
+    bills = await svc.get_next_card_bills(session, test_workspace.id, test_user.id)
+
+    assert all(not b.overdue for b in bills)
+
+
+@pytest.mark.asyncio
+async def test_a_partly_paid_overdue_bill_shows_what_is_still_owed(
+    session, test_user, test_workspace, household, monkeypatch
+):
+    _, _, card = household
+    later = date(2026, 11, 12)
+    for target in (
+        "app.services.month_outlook_service.app_today",
+        "app.services.dashboard_service.app_today",
+    ):
+        monkeypatch.setattr(target, lambda: later)
+    await _tx(session, test_user, card, "500", date(2026, 11, 11), kind="credit",
+              description="PAGAMENTO PARCIAL")
+
+    [bill] = await svc.get_next_card_bills(session, test_workspace.id, test_user.id)
+
+    assert (bill.due_date, bill.amount, bill.overdue) == (date(2026, 11, 10), D("300"), True)

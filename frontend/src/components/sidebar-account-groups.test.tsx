@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { screen, within } from '@testing-library/react'
 
 import { SidebarAccountGroups } from '@/components/sidebar-account-groups'
+import { sidebarGroupTotals } from '@/lib/sidebar-account-totals'
 import { renderWithProviders } from '@/test/utils'
 import type { Account } from '@/types'
 
@@ -107,5 +108,18 @@ describe('SidebarAccountGroups with the next bills', () => {
     const cards = screen.getByRole('region', { name: 'Credit cards' })
     const line = within(cards).getByText('Overdue since Nov 10')
     expect(line.className).toContain('text-rose-400')
+  })
+})
+
+describe('sidebarGroupTotals', () => {
+  it('adds the account balances and the cards next bills, so the header matches the groups', () => {
+    const bills = [
+      { account_id: 'Master', account_name: 'Master', due_date: '2026-12-05', amount: 900, total: 900, paid: 0, source: 'bank' as const },
+    ]
+    expect(sidebarGroupTotals(accounts, bills)).toEqual({ cash: 8180, cards: -900, total: 7280 })
+  })
+
+  it('uses the card totals until the bills load', () => {
+    expect(sidebarGroupTotals(accounts, undefined)).toEqual({ cash: 8180, cards: -1710, total: 6470 })
   })
 })
