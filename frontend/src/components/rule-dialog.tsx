@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { getAccountName, sortAccountsByDisplayName } from '@/lib/account-utils'
 import { isInvalidDescriptionAction, parseRulePriority, previewableActions } from '@/lib/rule-form-utils'
-import { rules as rulesApi } from '@/lib/api'
+import { recurring as recurringApi, rules as rulesApi } from '@/lib/api'
 import { formatSignedAmount } from '@/lib/format'
 import { useDisplayLocale, useDateLocale } from '@/hooks/use-display-locale'
 import { usePrivacyMode } from '@/hooks/use-privacy-mode'
@@ -432,7 +432,7 @@ export interface RuleDialogInitialData {
 
 export function RuleDialog({
   open, onClose, rule, categories, categoryGroups, currentCategories = [], accounts, payees, onSave, loading, initialData,
-  recurringItems = [],
+  recurringItems: recurringItemsProp,
 }: {
   open: boolean
   onClose: () => void
@@ -445,10 +445,18 @@ export function RuleDialog({
   onSave: (data: Partial<Rule>) => void
   loading: boolean
   initialData?: RuleDialogInitialData
-  /** Targets of the "Link to recurring" action. */
+  /** Targets of the "Link to recurring" action. When left out (the dialog
+   * opened from a transaction, the dashboard or the transactions page) the
+   * dialog loads them itself, under the same query key as the Rules page. */
   recurringItems?: { id: string; description: string; is_active?: boolean }[]
 }) {
   const { t } = useTranslation()
+  const { data: loadedRecurring } = useQuery({
+    queryKey: ['recurring'],
+    queryFn: () => recurringApi.list(),
+    enabled: open && recurringItemsProp === undefined,
+  })
+  const recurringItems = recurringItemsProp ?? loadedRecurring ?? []
   const sortedAccounts = useMemo(() => sortAccountsByDisplayName(accounts), [accounts])
   // "Mark as transfer with account" only targets manual, open accounts: a synced one gets
   // its own copy of the movement from the bank, so a counterpart would count

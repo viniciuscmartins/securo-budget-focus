@@ -8,6 +8,7 @@ vi.mock('@/lib/api', () => ({
   rules: {
     preview: vi.fn(async () => ({ matched: 0, will_change: 0, will_apply: true, sample: [], offset: 0 })),
   },
+  recurring: { list: async () => [] },
   categories: { list: async () => [] },
   categoryGroups: { list: async () => [] },
   timezones: { list: async () => ({ default: 'UTC', available: [] }) },
