@@ -182,7 +182,7 @@ No migration.
 
 The sidebar's account list keeps the total in its header and splits the accounts in two groups, each with a subtotal: account balances first (checking, savings, investments), then credit cards ordered by the next bill, each showing its due date ("No due date set" when the card has no due day). The list always shows every account; the old "show more" cut at three is gone. New component `frontend/src/components/sidebar-account-groups.tsx`; `app-layout.tsx` only renders it.
 
-## PR #19: Sidebar cards show the bill to pay, over the card total
+## PR #20: Sidebar cards show the bill to pay, over the card total
 
 Each credit card in the sidebar now leads with its next bill still to pay, with the card's total under it and the due date under its name. The cards' subtotal adds up those bills. A bill past its due date and still unpaid comes first, in red ("Vencida em …"), for up to 25 days. A card with nothing to pay shows its total and "Sem fatura a pagar".
 
