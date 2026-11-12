@@ -1011,6 +1011,14 @@ export interface BudgetYearPlan {
   net_planned_by_month: number[]
   net_actual_total: number
   net_planned_total: number
+  /** Money moved through transfer-like categories (investments, transfers to
+   * banks Securo does not track): debits minus credits, not spending. */
+  moved_rows: BudgetYearRow[]
+  moved_by_month: number[]
+  moved_total: number
+  /** What changed in the accounts: the balance minus what moved. */
+  cash_net_by_month: number[]
+  cash_net_total: number
   /** Money received with no category (already included in income_actual_by_month). */
   uncategorized_income_by_month: number[]
   uncategorized_income_total: number

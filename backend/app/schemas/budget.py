@@ -158,6 +158,14 @@ class BudgetYearPlan(BaseModel):
     net_planned_by_month: list[Decimal] = Field(default_factory=lambda: [Decimal("0")] * 12)
     net_actual_total: Decimal = Decimal("0")
     net_planned_total: Decimal = Decimal("0")
+    # Money moved through transfer-like categories (investments, transfers to
+    # banks Securo does not track), not counted as spending: debits minus
+    # credits. The account balance is the balance minus what moved.
+    moved_rows: list[BudgetYearRow] = Field(default_factory=list)
+    moved_by_month: list[Decimal] = Field(default_factory=lambda: [Decimal("0")] * 12)
+    moved_total: Decimal = Decimal("0")
+    cash_net_by_month: list[Decimal] = Field(default_factory=lambda: [Decimal("0")] * 12)
+    cash_net_total: Decimal = Decimal("0")
     # Money received with no category (included in income_actual_by_month).
     uncategorized_income_by_month: list[Decimal] = Field(default_factory=lambda: [Decimal("0")] * 12)
     uncategorized_income_total: Decimal = Decimal("0")

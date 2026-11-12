@@ -12,7 +12,7 @@ from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Literal, Optional
 
-from sqlalchemy import select
+from sqlalchemy import case, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -187,9 +187,19 @@ async def get_year_plan(
                     refund_surplus[i] -= value
     net_actual = [income_actual[i] - actual_by_month[i] + refund_surplus[i] for i in range(12)]
     net_planned = [income_planned[i] - planned_by_month[i] for i in range(12)]
+    # Money that left (or came back to) the accounts without being spending:
+    # investments and transfers to banks Securo does not track.
+    moved_rows = await _moved_rows(session, workspace_id, year)
+    moved = [sum((r.cells[i].actual for r in moved_rows), ZERO) for i in range(12)]
+    cash_net = [net_actual[i] - moved[i] for i in range(12)]
     return BudgetYearPlan(
         year=year,
         rows=rows_out,
+        moved_rows=moved_rows,
+        moved_by_month=moved,
+        moved_total=sum(moved, ZERO),
+        cash_net_by_month=cash_net,
+        cash_net_total=sum(cash_net, ZERO),
         net_actual_by_month=net_actual,
         net_planned_by_month=net_planned,
         net_actual_total=sum(net_actual, ZERO),
@@ -274,6 +284,96 @@ async def _monthly_net_by_category(
             continue
         out.setdefault(uuid.UUID(str(cat_id)), [ZERO] * 12)[int(m) - 1] += signed
     return out
+
+
+async def _moved_rows(
+    session: AsyncSession, workspace_id: uuid.UUID, year: int
+) -> list[BudgetYearRow]:
+    """Money moved through transfer-like categories, per category and month.
+
+    Debits minus credits of the rows the plan otherwise leaves out because
+    their category is a transfer (Investimentos, Transferências): money put
+    into investments, sent to a bank Securo does not track, or coming back
+    from them. A transfer paired with a row in another of your accounts is
+    left out, since the money stayed in your accounts; so are ignored rows
+    and ignored categories. Same dates as the rest of the plan.
+    """
+    from sqlalchemy import and_, extract, func
+
+    from app.models.category_group import CategoryGroup
+    from app.models.transaction import Transaction
+    from app.services._query_filters import (
+        line_category_id,
+        line_primary_or_amount,
+        reporting_date_col,
+        with_category_lines,
+    )
+    from app.services.admin_service import get_credit_card_accounting_mode
+
+    report_date = reporting_date_col(await get_credit_card_accounting_mode(session))
+    month = extract("month", report_date)
+    signed = func.sum(
+        case(
+            (Transaction.type == "debit", func.abs(line_primary_or_amount())),
+            else_=-func.abs(line_primary_or_amount()),
+        )
+    )
+    result = await session.execute(
+        with_category_lines(
+            select(line_category_id(), month, signed).select_from(Transaction)
+        )
+        .join(
+            Category,
+            and_(
+                Category.id == line_category_id(),
+                Category.treat_as_transfer.is_(True),
+                Category.is_ignored.is_(False),
+            ),
+        )
+        .where(
+            Transaction.workspace_id == workspace_id,
+            report_date >= date(year, 1, 1),
+            report_date < date(year + 1, 1, 1),
+            report_date <= app_today(),
+            Transaction.status == "posted",
+            Transaction.source != "opening_balance",
+            Transaction.transfer_pair_id.is_(None),
+            Transaction.is_ignored.is_(False),
+        )
+        .group_by(line_category_id(), month)
+    )
+    by_category: dict[uuid.UUID, list[Decimal]] = {}
+    for cat_id, m, total in result.all():
+        by_category.setdefault(uuid.UUID(str(cat_id)), [ZERO] * 12)[int(m) - 1] += Decimal(str(total or 0))
+    if not by_category:
+        return []
+    cats = (
+        await session.execute(
+            select(Category, CategoryGroup)
+            .outerjoin(CategoryGroup, Category.group_id == CategoryGroup.id)
+            .where(Category.id.in_(by_category))
+        )
+    ).all()
+    rows = []
+    for category, group in cats:
+        actual = by_category[category.id]
+        if not any(actual):
+            continue
+        rows.append(
+            BudgetYearRow(
+                category_id=category.id,
+                category_name=category.name,
+                category_icon=category.icon,
+                category_color=category.color,
+                group_id=group.id if group else None,
+                group_name=group.name if group else None,
+                cells=[BudgetYearCell(month=i + 1, planned=None, actual=actual[i]) for i in range(12)],
+                planned_total=ZERO,
+                actual_total=sum(actual, ZERO),
+            )
+        )
+    rows.sort(key=lambda r: r.actual_total, reverse=True)
+    return rows
 
 
 async def _own_share_of_uncategorized(

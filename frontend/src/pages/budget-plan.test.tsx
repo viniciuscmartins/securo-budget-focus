@@ -38,6 +38,11 @@ function plan(): BudgetYearPlan {
     net_planned_by_month: Array(12).fill(-500),
     net_actual_total: -5030,
     net_planned_total: -6000,
+    moved_rows: [],
+    moved_by_month: Array(12).fill(0),
+    moved_total: 0,
+    cash_net_by_month: spent.map((v) => -v),
+    cash_net_total: -5030,
     rows: [
       {
         category_id: 'food',
@@ -279,6 +284,8 @@ describe('BudgetPlanPage', () => {
       net_planned_by_month: Array(12).fill(4500),
       net_actual_total: 44470,
       net_planned_total: 54000,
+      cash_net_by_month: salaryActual.map((v, i) => v - base.actual_by_month[i]),
+      cash_net_total: 44470,
       income_rows: [{
         category_id: 'salary', category_name: 'Salary', category_icon: 'x', category_color: '#16A34A',
         group_id: null, group_name: null,
@@ -300,7 +307,7 @@ describe('BudgetPlanPage', () => {
     expect(card).toHaveTextContent('$44,470')
     expect(card).toHaveTextContent('Planned to date: $54,000')
     // Each month: the real balance over the planned one (5,000 - 500).
-    const balance = screen.getByText('Balance').closest('tr')!
+    const balance = screen.getByText('Balance in accounts').closest('tr')!
     expect(within(balance).getAllByText('$4,600')[0].className).toContain('text-emerald-600')
     expect(within(balance).getAllByText('$4,500').length).toBeGreaterThan(0)
     // December had no salary: money went out.
@@ -310,6 +317,50 @@ describe('BudgetPlanPage', () => {
     expect(within(running).getAllByText('$4,600')[0].className).toContain('text-emerald-600')
     expect(within(running).getAllByText('$44,470')[0].className).toContain('text-amber-600')
     expect(within(running).getAllByText('$54,000').length).toBeGreaterThan(0)
+  })
+
+  it('shows money moved to investments and the balance left in the accounts', async () => {
+    const base = plan()
+    const moved = Array(12).fill(0)
+    moved[5] = 3000
+    api.yearPlan.mockResolvedValue({
+      ...base,
+      moved_rows: [{
+        category_id: 'invest', category_name: 'Investimentos', category_icon: 'x', category_color: '#0EA5E9',
+        group_id: null, group_name: null, cells: cells(Array(12).fill(null), moved),
+        planned_total: 0, actual_total: 3000,
+      }],
+      moved_by_month: moved,
+      moved_total: 3000,
+      cash_net_by_month: base.net_actual_by_month.map((v, i) => v - moved[i]),
+      cash_net_total: base.net_actual_total - 3000,
+    })
+    await renderPage()
+    expect(screen.getByText('Investments and transfers')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Investimentos, Jun: see transactions' })).toHaveTextContent('$3,000')
+    // The summary: what went to investments, and what is left in the accounts.
+    const movedRow = screen.getByText('Invested / transferred').closest('tr')!
+    expect(movedRow).toHaveTextContent('$3,000')
+    const balance = screen.getByText('Balance in accounts').closest('tr')!
+    expect(balance).toHaveTextContent('-$3,400')  // June: -400 spent, 3,000 invested
+    expect(screen.getByText('Balance so far').parentElement!).toHaveTextContent('-$8,030')
+  })
+
+  it('collapses the tables to their totals', async () => {
+    const { user } = await renderPage()
+    expect(screen.getByText('Food')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Only totals' }))
+    expect(screen.queryByText('Food')).toBeNull()
+    expect(screen.getAllByText('Total').length).toBeGreaterThan(1)
+    expect(screen.getByText('Balance in accounts')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Only totals' }))
+    expect(screen.getByText('Food')).toBeInTheDocument()
+    // One table on its own.
+    const spending = screen.getByRole('region', { name: 'Spending' })
+    await user.click(within(spending).getByRole('button', { name: 'Hide categories' }))
+    expect(screen.queryByText('Food')).toBeNull()
+    await user.click(within(spending).getByRole('button', { name: 'Show categories' }))
+    expect(screen.getByText('Food')).toBeInTheDocument()
   })
 
   it('links each actual to that month\'s transactions for the category', async () => {
@@ -381,6 +432,11 @@ describe('BudgetPlanPage', () => {
       net_planned_by_month: Array(12).fill(0),
       net_actual_total: 0,
       net_planned_total: 0,
+      moved_rows: [],
+      moved_by_month: Array(12).fill(0),
+      moved_total: 0,
+      cash_net_by_month: Array(12).fill(0),
+      cash_net_total: 0,
       uncategorized_by_month: Array(12).fill(0),
       uncategorized_total: 0,
       income_rows: [],

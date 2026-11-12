@@ -203,6 +203,12 @@ The rule dialog only listed recurring items when the Rules page passed them in. 
 
 In the annual plan, each actual amount (spending grid, income section, single-month view, and the Year column) is a link to the Transactions page filtered to that category, that month (or the year) and posted transactions; the "Uncategorized" rows open the uncategorized expenses or income. The list filters by the same reporting date the plan uses, so card purchases show in their bill month in both. Frontend only (`transactionsHref` and `ActualAmount` in `budget-plan.tsx`).
 
+## PR #24: Annual plan shows money moved to investments, a summary block and totals-only view
+
+- New "Investimentos e transferências" table: per transfer-like category (`treat_as_transfer`), debits minus credits of rows that are not paired with another tracked account (`_moved_rows`): money put into investments or sent to banks Securo does not track; negative when more came back. Paired transfers between tracked accounts are left out.
+- New "Resumo" block at the bottom: Receitas, Gastos, Investido / transferido, Saldo em conta (`cash_net_by_month` = balance minus moved, so it matches what changed in the accounts) and Saldo acumulado. The balance rows moved here from the income table; the "Saldo até agora" card uses the account balance too.
+- Each table collapses to its Total row; "Só totais" collapses all at once. The choice is remembered in the browser.
+
 ## Conventions
 
 - **Agent instructions:** `CLAUDE.md` (repository root) is fork-only. It asks Claude to suggest an effort level before each task, sets the code-quality process and OWASP checklist, and repeats the standing rules below.
