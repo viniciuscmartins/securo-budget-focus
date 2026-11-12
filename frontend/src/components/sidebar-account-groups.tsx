@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import { getAccountName, sidebarAccountBalance, sortAccountsByAbsoluteBalance } from '@/lib/account-utils'
+import { cardAmountOf } from '@/lib/sidebar-account-totals'
 import { formatCurrency } from '@/lib/format'
 import type { Account, MonthOutlookCardBill } from '@/types'
 
@@ -34,10 +35,7 @@ export function SidebarAccountGroups({ accounts, cardBills, currency, locale, ma
   const { t } = useTranslation()
   const amount = (a: Account) => sidebarAccountBalance(a).amount
   const billFor = new Map((cardBills ?? []).map((b) => [b.account_id, b]))
-  const cardAmount = (a: Account) => {
-    const bill = billFor.get(a.id)
-    return bill ? -bill.amount : cardBills ? 0 : amount(a)
-  }
+  const cardAmount = (a: Account) => cardAmountOf(a, cardBills)
   const dueDate = (a: Account) => billFor.get(a.id)?.due_date ?? a.next_due_date
   const cards = accounts.filter((a) => a.type === 'credit_card')
   const cash = accounts.filter((a) => a.type !== 'credit_card')

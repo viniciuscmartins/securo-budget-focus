@@ -190,6 +190,11 @@ Each credit card in the sidebar now leads with its next bill still to pay, with 
 - API contract baseline: 2 new entries (fork total 39).
 - The sidebar fetches it under the `['accounts', 'card-bills']` query key, so it refreshes whenever the account list does.
 
+## PR #21: Sidebar header adds up its groups; overdue bills checked against the card's debt
+
+- The sidebar header is now account balances plus the cards' next bills, so it matches the two groups below it (`frontend/src/lib/sidebar-account-totals.ts`). Each card's full debt still shows on its row as "Total".
+- A past bill counts as overdue only for the part of the card's debt today that later charges don't explain (`_owed_on_card`, `_charged_after`). A payment recorded as a plain credit (common on bank-synced cards) now settles the bill, and a partial payment leaves only the rest overdue.
+
 ## Conventions
 
 - **Agent instructions:** `CLAUDE.md` (repository root) is fork-only. It asks Claude to suggest an effort level before each task, sets the code-quality process and OWASP checklist, and repeats the standing rules below.
