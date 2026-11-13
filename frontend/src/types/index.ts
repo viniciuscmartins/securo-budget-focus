@@ -1016,6 +1016,10 @@ export interface BudgetYearPlan {
   moved_rows: BudgetYearRow[]
   moved_by_month: number[]
   moved_total: number
+  /** What the accounts held (balances minus card and loan debt) when the year
+   * started, and at each month end; null for months ahead. */
+  start_money: number
+  month_end_money: (number | null)[]
   /** What changed in the accounts: the balance minus what moved. */
   cash_net_by_month: number[]
   cash_net_total: number

@@ -43,6 +43,8 @@ function plan(): BudgetYearPlan {
     moved_total: 0,
     cash_net_by_month: spent.map((v) => -v),
     cash_net_total: -5030,
+    start_money: 0,
+    month_end_money: Array(12).fill(null),
     rows: [
       {
         category_id: 'food',
@@ -312,11 +314,33 @@ describe('BudgetPlanPage', () => {
     expect(within(balance).getAllByText('$4,500').length).toBeGreaterThan(0)
     // December had no salary: money went out.
     expect(within(balance).getAllByText('-$400').at(-1)!.className).toContain('text-rose')
-    // Added up through the year, against where the plan should be.
-    const running = screen.getByText('Accumulated balance').closest('tr')!
-    expect(within(running).getAllByText('$4,600')[0].className).toContain('text-emerald-600')
-    expect(within(running).getAllByText('$44,470')[0].className).toContain('text-amber-600')
-    expect(within(running).getAllByText('$54,000').length).toBeGreaterThan(0)
+  })
+
+  it('shows the money the accounts really held at each month end, against the plan', async () => {
+    const base = plan()
+    const held: (number | null)[] = Array(12).fill(null)
+    held[0] = 1800 // January: started with 1,000, plan says 1,000 + 500 = 1,500
+    held[1] = 1200 // February: plan says 2,000, below it
+    api.yearPlan.mockResolvedValue({
+      ...base,
+      net_planned_by_month: Array(12).fill(500),
+      net_planned_total: 6000,
+      income_planned_by_month: Array(12).fill(1000),
+      income_planned_total: 12000,
+      start_money: 1000,
+      month_end_money: held,
+    })
+    await renderPage()
+    const row = screen.getByText('Money at month end').closest('tr')!
+    expect(within(row).getAllByText('$1,800')[0].className).toContain('text-emerald-600')
+    expect(within(row).getByText('$1,500')).toBeInTheDocument()
+    expect(within(row).getAllByText('$1,200')[0].className).toContain('text-amber-600')
+    expect(within(row).getAllByText('$2,000').length).toBeGreaterThan(0)
+    // The year column: the latest month end against the plan for the whole year.
+    // December's planned value and the year's planned end are both 1,000 + 12 × 500.
+    expect(within(row).getAllByText('$7,000')).toHaveLength(2)
+    expect(within(row).getAllByText('$1,200').at(-1)!.className).toContain('text-amber-600')
+    expect(screen.queryByText('Accumulated balance')).toBeNull()
   })
 
   it('shows money moved to investments and the balance left in the accounts', async () => {
@@ -437,6 +461,8 @@ describe('BudgetPlanPage', () => {
       moved_total: 0,
       cash_net_by_month: Array(12).fill(0),
       cash_net_total: 0,
+      start_money: 0,
+      month_end_money: Array(12).fill(null),
       uncategorized_by_month: Array(12).fill(0),
       uncategorized_total: 0,
       income_rows: [],

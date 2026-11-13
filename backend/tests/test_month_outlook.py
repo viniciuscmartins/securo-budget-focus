@@ -552,3 +552,43 @@ async def test_a_partly_paid_overdue_bill_shows_what_is_still_owed(
     [bill] = await svc.get_next_card_bills(session, test_workspace.id, test_user.id)
 
     assert (bill.due_date, bill.amount, bill.overdue) == (date(2026, 11, 10), D("300"), True)
+
+
+@pytest.mark.asyncio
+async def test_charges_dated_a_few_days_off_the_banks_bill_are_that_bill(
+    session, test_user, test_workspace, household
+):
+    """When the card's due day in Securo differs from the bank's, charges get a
+    due date a day or two off the bank's bill. They are the same bill, which the
+    bank's total already includes: one bill, not two."""
+    _, _, card = household
+    session.add(
+        CreditCardBill(
+            user_id=test_user.id, workspace_id=test_workspace.id, account_id=card.id,
+            external_id="b1", due_date=date(2026, 11, 10), total_amount=D("950"), currency="BRL",
+        )
+    )
+    stray = await _tx(session, test_user, card, "120", date(2026, 10, 25), description="Stray")
+    stray.effective_date = date(2026, 11, 12)
+    await session.commit()
+
+    out = await svc.get_outlook(session, test_workspace.id, test_user.id)
+
+    [bill] = out.card_bill_details
+    assert (bill.due_date, bill.amount, bill.source) == (date(2026, 11, 10), D("950"), "bank")
+    assert out.card_bills == D("950")
+
+
+@pytest.mark.asyncio
+async def test_without_a_bank_bill_charges_a_few_days_apart_are_one_bill(
+    session, test_user, test_workspace, household
+):
+    _, _, card = household
+    stray = await _tx(session, test_user, card, "20", date(2026, 10, 25), description="MELIMAIS")
+    stray.effective_date = date(2026, 11, 11)
+    await session.commit()
+
+    out = await svc.get_outlook(session, test_workspace.id, test_user.id)
+
+    [bill] = out.card_bill_details
+    assert (bill.due_date, bill.amount, bill.source) == (date(2026, 11, 10), D("820"), "computed")

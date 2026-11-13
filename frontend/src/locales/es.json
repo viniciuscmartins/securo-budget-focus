@@ -1521,8 +1521,6 @@
     "net": "Balance in accounts",
     "netHint": "Money in minus money out, investments and transfers included: what changed in your accounts. Under it, the planned balance (planned income minus budgets).",
     "uncategorized": "Uncategorized",
-    "netAccumulated": "Accumulated balance",
-    "netAccumulatedHint": "The balance added up since January. Under it, where the plan says you should be; the Year column shows the plan for the whole year.",
     "netPlannedToDate": "Planned to date: {{value}}",
     "seeTransactions": "{{category}}, {{month}}: see transactions",
     "spending": "Spending",
@@ -1533,7 +1531,9 @@
     "summaryMoved": "Invested / transferred",
     "onlyTotals": "Only totals",
     "hideCategories": "Hide categories",
-    "showCategories": "Show categories"
+    "showCategories": "Show categories",
+    "monthEnd": "Money at month end",
+    "monthEndHint": "What your accounts really held on the last day of each month (today for this month): balances minus card debt, as in the sidebar. Under it, where the plan puts you: the money at the start of the year plus the planned balances. The Year column compares now with the plan for the year's end."
   },
   "cdiYield": {
     "title": "Rendimiento CDI",

@@ -158,6 +158,10 @@ class BudgetYearPlan(BaseModel):
     net_planned_by_month: list[Decimal] = Field(default_factory=lambda: [Decimal("0")] * 12)
     net_actual_total: Decimal = Decimal("0")
     net_planned_total: Decimal = Decimal("0")
+    # What the accounts held (balances minus card and loan debt) when the year
+    # started and at the end of each month; None for months ahead.
+    start_money: Decimal = Decimal("0")
+    month_end_money: list[Optional[Decimal]] = Field(default_factory=lambda: [None] * 12)
     # Money moved through transfer-like categories (investments, transfers to
     # banks Securo does not track), not counted as spending: debits minus
     # credits. The account balance is the balance minus what moved.

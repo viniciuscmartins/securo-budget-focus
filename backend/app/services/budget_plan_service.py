@@ -8,7 +8,7 @@ on the Budgets page.
 
 import statistics
 import uuid
-from datetime import date
+from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Literal, Optional
 
@@ -192,7 +192,10 @@ async def get_year_plan(
     moved_rows = await _moved_rows(session, workspace_id, year)
     moved = [sum((r.cells[i].actual for r in moved_rows), ZERO) for i in range(12)]
     cash_net = [net_actual[i] - moved[i] for i in range(12)]
+    start_money, month_end_money = await _money_at_month_ends(session, workspace_id, user_id, year)
     return BudgetYearPlan(
+        start_money=start_money,
+        month_end_money=month_end_money,
         year=year,
         rows=rows_out,
         moved_rows=moved_rows,
@@ -286,6 +289,38 @@ async def _monthly_net_by_category(
     return out
 
 
+async def _money_at_month_ends(
+    session: AsyncSession, workspace_id: uuid.UUID, user_id: uuid.UUID, year: int
+) -> tuple[Decimal, list[Optional[Decimal]]]:
+    """What the accounts held on the last day of the previous year and of each
+    month (today for the current month, None for months ahead): balances minus
+    card and loan debt, the accounts part of the net-worth report (no assets)."""
+    from app.core.config import get_settings
+    from app.models.user import User
+    from app.services.report_service import _get_open_accounts, _net_worth_at
+
+    user = await session.get(User, user_id)
+    primary = user.primary_currency if user else get_settings().default_currency
+    accounts = await _get_open_accounts(session, workspace_id, None)
+    today = app_today()
+
+    async def money_at(cutoff: date) -> Decimal:
+        point = await _net_worth_at(session, workspace_id, cutoff, primary, accounts=accounts)
+        held = point.breakdowns["accounts"] - point.breakdowns["liabilities"]
+        return Decimal(str(held)).quantize(Decimal("0.01"))
+
+    start = await money_at(date(year - 1, 12, 31))
+    month_ends: list[Optional[Decimal]] = []
+    for month in range(1, 13):
+        first = date(year, month, 1)
+        if first > today:
+            month_ends.append(None)
+            continue
+        last = (date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)) - timedelta(days=1)
+        month_ends.append(await money_at(min(last, today)))
+    return start, month_ends
+
+
 async def _moved_rows(
     session: AsyncSession, workspace_id: uuid.UUID, year: int
 ) -> list[BudgetYearRow]:
@@ -295,8 +330,8 @@ async def _moved_rows(
     their category is a transfer (Investimentos, Transferências): money put
     into investments, sent to a bank Securo does not track, or coming back
     from them. A transfer paired with a row in another of your accounts is
-    left out, since the money stayed in your accounts; so are ignored rows
-    and ignored categories. Same dates as the rest of the plan.
+    left out, since the money stayed in your accounts; so are ignored rows,
+    rows excluded from reports and ignored categories. Same dates as the rest of the plan.
     """
     from sqlalchemy import and_, extract, func
 
@@ -339,6 +374,8 @@ async def _moved_rows(
             Transaction.source != "opening_balance",
             Transaction.transfer_pair_id.is_(None),
             Transaction.is_ignored.is_(False),
+            # "Exclude from reports": kept in the balance, out of every report.
+            Transaction.exclude_from_pnl.is_(False),
         )
         .group_by(line_category_id(), month)
     )

@@ -688,3 +688,42 @@ async def test_a_transfer_between_two_tracked_accounts_does_not_count_as_moved(
 
     assert plan.moved_by_month[2] == Decimal("300")
     assert plan.cash_net_by_month[2] == Decimal("-300")
+
+
+@pytest.mark.asyncio
+async def test_money_at_month_end_is_what_the_accounts_held(
+    session, test_user, test_workspace, test_categories, account
+):
+    """The real balances on the last day of each month (minus card debt), and
+    what they were when the year started, so the plan can show where you
+    should be."""
+    food, _, salary = test_categories
+    await _row(session, test_user, account, salary, date(2023, 12, 20), "500", kind="credit")
+    await _row(session, test_user, account, salary, date(2024, 1, 5), "1000", kind="credit")
+    await _row(session, test_user, account, food, date(2024, 2, 10), "300")
+
+    plan = await get_year_plan(session, test_workspace.id, test_user.id, 2024)
+
+    assert plan.start_money == Decimal("500")
+    assert plan.month_end_money[0] == Decimal("1500")
+    assert plan.month_end_money[1] == Decimal("1200")
+    assert plan.month_end_money[11] == Decimal("1200")
+
+
+@pytest.mark.asyncio
+async def test_a_move_excluded_from_reports_is_not_moved_money(
+    session, test_user, test_workspace, account
+):
+    moves = await _transfer_category(session, test_user, test_workspace, "Transferências")
+    session.add(Transaction(
+        id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id, account_id=account.id,
+        category_id=moves.id, description="Dinheiro reservado Buffer", amount=Decimal("4000"),
+        date=date(2024, 5, 5), type="debit", source="sync", exclude_from_pnl=True,
+        created_at=datetime.now(timezone.utc),
+    ))
+    await session.commit()
+
+    plan = await get_year_plan(session, test_workspace.id, test_user.id, 2024)
+
+    assert plan.moved_rows == []
+    assert plan.moved_total == Decimal("0")

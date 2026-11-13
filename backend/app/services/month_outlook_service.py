@@ -360,6 +360,17 @@ def _counts_on_bill():
     )
 
 
+# How far a computed due date can be from the bank's bill and still be that
+# same bill (a card's cycle is a month; a due-day mismatch is a few days).
+SAME_BILL_DAYS = 10
+
+
+def _nearest_bank_bill(due: date, bank_bills: dict) -> Optional[date]:
+    """The bank's bill due within SAME_BILL_DAYS of `due`, if any."""
+    near = [d for d in bank_bills if abs((d - due).days) <= SAME_BILL_DAYS]
+    return min(near, key=lambda d: abs((d - due).days)) if near else None
+
+
 async def _card_bills(
     session: AsyncSession,
     workspace_id: uuid.UUID,
@@ -426,6 +437,32 @@ async def _card_bills(
                     else -charge["amount_primary"]
                 )
                 projected[due] = projected.get(due, ZERO) + signed
+        # The bank's bill is the bill. Charges whose due date was worked out
+        # from the card's settings land a day or two off it when the due day in
+        # Securo differs from the bank's: they are that same bill. The charges
+        # already made are in the bank's total; the recurring ones still to come
+        # are added to it.
+        for due in list(computed) + list(projected):
+            bank_due = _nearest_bank_bill(due, bank_bills)
+            if bank_due is None or bank_due == due:
+                continue
+            computed.pop(due, None)
+            if due in projected:
+                projected[bank_due] = projected.get(bank_due, ZERO) + projected.pop(due)
+        if not bank_bills:
+            # Without the bank's bill, a card still has one bill a month:
+            # groups a few days apart (charges dated by different settings)
+            # are joined on the earliest of them.
+            for due in sorted(set(computed) | set(projected)):
+                anchor = min(
+                    (d for d in set(computed) | set(projected) if 0 < (due - d).days <= SAME_BILL_DAYS),
+                    default=None,
+                )
+                if anchor is None:
+                    continue
+                for group in (computed, projected):
+                    if due in group:
+                        group[anchor] = group.get(anchor, ZERO) + group.pop(due)
         due_dates.update(computed)
         due_dates.update(projected)
 
