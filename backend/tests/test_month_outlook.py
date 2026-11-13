@@ -592,3 +592,40 @@ async def test_without_a_bank_bill_charges_a_few_days_apart_are_one_bill(
 
     [bill] = out.card_bill_details
     assert (bill.due_date, bill.amount, bill.source) == (date(2026, 11, 10), D("820"), "computed")
+
+
+@pytest.mark.asyncio
+async def test_a_pending_salary_linked_to_its_recurring_item_is_still_expected(
+    session, test_user, test_workspace
+):
+    """A bank lists the salary as pending before it lands. Linked to its
+    recurring item, the item no longer projects it; the pending row must take
+    its place, or the salary disappears from the month."""
+    from app.models.bank_connection import BankConnection
+
+    conn = BankConnection(
+        id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+        provider="pluggy", external_id="item-1", institution_name="Bank",
+    )
+    session.add(conn)
+    await session.commit()
+    checking = await _account(session, test_user, "Checking", "checking", connection_id=conn.id)
+    await _tx(session, test_user, checking, "1000", date(2026, 11, 1), kind="credit")
+    salary = await _recurring(
+        session, test_user, test_workspace, checking, "Salary", "5000", "credit", date(2026, 12, 6)
+    )
+    paid = await _tx(session, test_user, checking, "5000", date(2026, 11, 6), kind="credit",
+                     description="Salary REMUNERACAO", recurring_transaction_id=salary.id)
+    paid.status = "pending"
+    # An unlinked pending row of a connected account is still taken as already
+    # in the bank's balance, as before.
+    hold = await _tx(session, test_user, checking, "70", date(2026, 11, 5), description="Card hold")
+    hold.status = "pending"
+    await session.commit()
+
+    out = await svc.get_outlook(session, test_workspace.id, test_user.id)
+
+    pending = [(e.description, e.amount) for e in out.events if e.kind == "pending"]
+    assert pending == [("Salary REMUNERACAO", D("5000"))]
+    # A connected account's balance is the bank's; the salary comes on top.
+    assert out.end_balance == out.cash_now + D("5000")

@@ -331,6 +331,10 @@ async def _pending_events(
             and tx.status == "pending"
             and tx.date <= today
             and tx.source != "recurring"
+            # A pending payment linked to a recurring item stands in for that
+            # item's occurrence, which the link took off the projection: a
+            # salary the bank lists as pending before it lands is still to come.
+            and tx.recurring_transaction_id is None
         ):
             continue  # already in the bank's balance
         amount = await to_primary(Decimal(str(tx.amount)), tx.currency)
