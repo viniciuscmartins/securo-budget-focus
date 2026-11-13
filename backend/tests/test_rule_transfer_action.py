@@ -348,3 +348,43 @@ async def test_manual_entries_are_never_treated_as_bank_duplicates(
         await session.commit()
 
     assert len(await _counterparts(session, cofrinho.id)) == 2
+
+
+@pytest.mark.asyncio
+async def test_removing_a_rule_pack_keeps_fork_rules(session, test_user, test_workspace, cofrinho):
+    """Removing a pack (now through the plugin sync) never deletes a pack rule
+    extended with a fork action, nor a rule the fork created itself."""
+    from app.services.category_service import create_default_categories
+    from app.services.rule_packs import install_rule_pack, plan_rule_pack_removal, remove_rule_pack
+
+    workspace_id, user_id, account_id = test_workspace.id, test_user.id, cofrinho.id
+    await create_default_categories(session, user_id, lang="pt-BR")
+    installed = (await install_rule_pack(session, workspace_id, user_id, "BR")).rules
+    extended = installed[0]
+    extended.actions = [*extended.actions, {"op": "transfer_to_account", "value": str(account_id)}]
+    made_recurring = Rule(
+        user_id=user_id, workspace_id=workspace_id, name="Recurring: Internet", conditions_op="and",
+        conditions=[{"field": "description", "op": "contains", "value": "INTERNET"}],
+        actions=[{"op": "link_recurring", "value": str(uuid.uuid4())}], priority=0,
+    )
+    session.add(made_recurring)
+    await session.flush()
+    extended_id, recurring_rule_id = extended.id, made_recurring.id
+    await session.commit()
+
+    plan = await plan_rule_pack_removal(session, workspace_id, "BR")
+    assert plan is not None
+    assert extended_id in {r.id for r in plan.keep}
+    await remove_rule_pack(session, workspace_id, user_id, "BR", plan.token)
+
+    left = {
+        r.id: r
+        for r in (
+            await session.execute(
+                select(Rule).where(Rule.workspace_id == workspace_id).execution_options(populate_existing=True)
+            )
+        ).scalars()
+    }
+    assert set(left) == {extended_id, recurring_rule_id}
+    assert left[extended_id].source is None
+    assert any(a["op"] == "transfer_to_account" for a in left[extended_id].actions)
