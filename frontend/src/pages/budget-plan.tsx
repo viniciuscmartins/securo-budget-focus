@@ -1008,13 +1008,15 @@ function SummarySection({
     // A month with nothing planned has no plan to compare against.
     planned: plan.income_planned_by_month[i] > 0 || plan.planned_by_month[i] > 0 ? plan.net_planned_by_month[i] : null,
   }))
-  const accumulated: Cell[] = nets.map((_, i) => {
-    const soFar = nets.slice(0, i + 1)
-    return {
-      actual: soFar.reduce((sum, c, j) => (futures[j] ? sum : sum + c.actual), 0),
-      planned: soFar.some((c) => c.planned != null) ? soFar.reduce((sum, c) => sum + (c.planned ?? 0), 0) : null,
-    }
-  })
+  // What the accounts really held at each month end, against where the plan
+  // puts them: the money at the start of the year plus the planned balances.
+  const plannedEnd = (i: number) =>
+    hasNetPlan ? plan.start_money + plan.net_planned_by_month.slice(0, i + 1).reduce((a, b) => a + b, 0) : null
+  const monthEnds = MONTH_NUMBERS.map((_, i) => ({
+    cell: { actual: plan.month_end_money[i] ?? 0, planned: plannedEnd(i) },
+    ahead: plan.month_end_money[i] == null,
+  }))
+  const latest = [...plan.month_end_money].reverse().find((v): v is number => v != null)
   const spendingToDate = plannedToDate(spending)
   return (
     <SectionCard label={t('budgetPlan.summary')}>
@@ -1088,18 +1090,18 @@ function SummarySection({
               </td>
             </tr>
             <tr className="border-t border-border font-semibold">
-              <td className={first} title={t('budgetPlan.netAccumulatedHint')}>
-                {t('budgetPlan.netAccumulated')}
+              <td className={first} title={t('budgetPlan.monthEndHint')}>
+                {t('budgetPlan.monthEnd')}
               </td>
-              {accumulated.map((cell, i) => (
+              {monthEnds.map(({ cell, ahead }, i) => (
                 <td key={i} className={td}>
-                  <NetCell cell={cell} future={futures[i]} fmt={fmt} />
+                  <NetCell cell={cell} future={ahead} fmt={fmt} />
                 </td>
               ))}
               <td className="px-2 py-2 pr-4 text-center tabular-nums sm:pr-5">
                 <NetCell
-                  cell={{ actual: plan.cash_net_total, planned: hasNetPlan ? plan.net_planned_total : null }}
-                  future={false}
+                  cell={{ actual: latest ?? 0, planned: hasNetPlan ? plan.start_money + plan.net_planned_total : null }}
+                  future={latest == null}
                   fmt={fmt}
                 />
               </td>

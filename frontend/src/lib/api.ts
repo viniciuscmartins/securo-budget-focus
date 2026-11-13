@@ -1487,6 +1487,10 @@ export const budgets = {
     return {
       ...data,
       moved_rows: (data.moved_rows ?? []).map(row),
+      start_money: num(data.start_money ?? 0),
+      month_end_money: Array.isArray(data.month_end_money)
+        ? data.month_end_money.map(numOrNull)
+        : Array(12).fill(null),
       moved_by_month: moved,
       moved_total: total(moved),
       cash_net_by_month: cashNet,

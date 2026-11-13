@@ -552,3 +552,80 @@ async def test_a_partly_paid_overdue_bill_shows_what_is_still_owed(
     [bill] = await svc.get_next_card_bills(session, test_workspace.id, test_user.id)
 
     assert (bill.due_date, bill.amount, bill.overdue) == (date(2026, 11, 10), D("300"), True)
+
+
+@pytest.mark.asyncio
+async def test_charges_dated_a_few_days_off_the_banks_bill_are_that_bill(
+    session, test_user, test_workspace, household
+):
+    """When the card's due day in Securo differs from the bank's, charges get a
+    due date a day or two off the bank's bill. They are the same bill, which the
+    bank's total already includes: one bill, not two."""
+    _, _, card = household
+    session.add(
+        CreditCardBill(
+            user_id=test_user.id, workspace_id=test_workspace.id, account_id=card.id,
+            external_id="b1", due_date=date(2026, 11, 10), total_amount=D("950"), currency="BRL",
+        )
+    )
+    stray = await _tx(session, test_user, card, "120", date(2026, 10, 25), description="Stray")
+    stray.effective_date = date(2026, 11, 12)
+    await session.commit()
+
+    out = await svc.get_outlook(session, test_workspace.id, test_user.id)
+
+    [bill] = out.card_bill_details
+    assert (bill.due_date, bill.amount, bill.source) == (date(2026, 11, 10), D("950"), "bank")
+    assert out.card_bills == D("950")
+
+
+@pytest.mark.asyncio
+async def test_without_a_bank_bill_charges_a_few_days_apart_are_one_bill(
+    session, test_user, test_workspace, household
+):
+    _, _, card = household
+    stray = await _tx(session, test_user, card, "20", date(2026, 10, 25), description="MELIMAIS")
+    stray.effective_date = date(2026, 11, 11)
+    await session.commit()
+
+    out = await svc.get_outlook(session, test_workspace.id, test_user.id)
+
+    [bill] = out.card_bill_details
+    assert (bill.due_date, bill.amount, bill.source) == (date(2026, 11, 10), D("820"), "computed")
+
+
+@pytest.mark.asyncio
+async def test_a_pending_salary_linked_to_its_recurring_item_is_still_expected(
+    session, test_user, test_workspace
+):
+    """A bank lists the salary as pending before it lands. Linked to its
+    recurring item, the item no longer projects it; the pending row must take
+    its place, or the salary disappears from the month."""
+    from app.models.bank_connection import BankConnection
+
+    conn = BankConnection(
+        id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+        provider="pluggy", external_id="item-1", institution_name="Bank",
+    )
+    session.add(conn)
+    await session.commit()
+    checking = await _account(session, test_user, "Checking", "checking", connection_id=conn.id)
+    await _tx(session, test_user, checking, "1000", date(2026, 11, 1), kind="credit")
+    salary = await _recurring(
+        session, test_user, test_workspace, checking, "Salary", "5000", "credit", date(2026, 12, 6)
+    )
+    paid = await _tx(session, test_user, checking, "5000", date(2026, 11, 6), kind="credit",
+                     description="Salary REMUNERACAO", recurring_transaction_id=salary.id)
+    paid.status = "pending"
+    # An unlinked pending row of a connected account is still taken as already
+    # in the bank's balance, as before.
+    hold = await _tx(session, test_user, checking, "70", date(2026, 11, 5), description="Card hold")
+    hold.status = "pending"
+    await session.commit()
+
+    out = await svc.get_outlook(session, test_workspace.id, test_user.id)
+
+    pending = [(e.description, e.amount) for e in out.events if e.kind == "pending"]
+    assert pending == [("Salary REMUNERACAO", D("5000"))]
+    # A connected account's balance is the bank's; the salary comes on top.
+    assert out.end_balance == out.cash_now + D("5000")

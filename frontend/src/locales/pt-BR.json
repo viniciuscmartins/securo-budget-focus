@@ -1521,8 +1521,6 @@
     "net": "Saldo em conta",
     "netHint": "Entradas menos saídas, incluindo investimentos e transferências: o que mudou nas suas contas. Abaixo, o saldo planejado (receitas planejadas menos orçamentos).",
     "uncategorized": "Sem categoria",
-    "netAccumulated": "Saldo acumulado",
-    "netAccumulatedHint": "O saldo somado desde janeiro. Abaixo, onde o plano diz que você deveria estar; a coluna Ano mostra o plano para o ano inteiro.",
     "netPlannedToDate": "Planejado até agora: {{value}}",
     "seeTransactions": "{{category}}, {{month}}: ver transações",
     "spending": "Gastos",
@@ -1533,7 +1531,9 @@
     "summaryMoved": "Investido / transferido",
     "onlyTotals": "Só totais",
     "hideCategories": "Ocultar categorias",
-    "showCategories": "Mostrar categorias"
+    "showCategories": "Mostrar categorias",
+    "monthEnd": "Dinheiro no fim do mês",
+    "monthEndHint": "O que as suas contas realmente tinham no último dia de cada mês (hoje, no mês atual): saldos menos a dívida dos cartões, como na barra lateral. Abaixo, onde o plano coloca você: o dinheiro no início do ano mais os saldos planejados. A coluna Ano compara o agora com o plano para o fim do ano."
   },
   "cdiYield": {
     "title": "Rendimento CDI",
