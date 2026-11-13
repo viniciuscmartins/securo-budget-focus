@@ -769,3 +769,172 @@ async def test_make_recurring_from_a_split_payment_keeps_the_split(
         home.id: (Decimal("80.00"), Decimal("720.00")),
         food.id: (Decimal("20.00"), Decimal("180.00")),
     }
+
+
+# ---------------------------------------------------------------------------
+# undoing a wrong link: unlink steps back, the next date can be set back
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def nov_13(monkeypatch):
+    monkeypatch.setattr(
+        "app.services.recurring_link_service.app_today", lambda: date(2026, 11, 13)
+    )
+
+
+async def _linked_salary(session, user, workspace, account, day=date(2026, 11, 13)):
+    """A day-30 salary that a payment on the 13th was linked to by mistake,
+    which moved the item from Nov 30 to Dec 30."""
+    rec = await _recurring(
+        session, user, workspace, account,
+        amount="7769", next_occurrence=date(2026, 12, 30), kind="credit",
+    )
+    tx = await _tx(
+        session, user, account, "REMUNERACAO/SALARIO", "10580.40", day,
+        kind="credit", recurring_transaction_id=rec.id,
+    )
+    return rec, tx
+
+
+@pytest.mark.asyncio
+async def test_unlinking_the_payment_that_moved_the_item_moves_it_back(
+    session, test_user, test_workspace, checking, nov_13
+):
+    from app.services import transaction_service
+
+    rec, tx = await _linked_salary(session, test_user, test_workspace, checking)
+
+    await transaction_service.unlink_recurring_transaction(session, tx.id, test_workspace.id)
+
+    await session.refresh(rec)
+    assert rec.next_occurrence == date(2026, 11, 30)
+
+
+@pytest.mark.asyncio
+async def test_unlinking_keeps_the_date_when_another_payment_covers_that_occurrence(
+    session, test_user, test_workspace, checking, nov_13
+):
+    from app.services import transaction_service
+
+    rec, tx = await _linked_salary(session, test_user, test_workspace, checking)
+    await _tx(
+        session, test_user, checking, "SALARIO", "7769", date(2026, 11, 28),
+        kind="credit", recurring_transaction_id=rec.id,
+    )
+
+    await transaction_service.unlink_recurring_transaction(session, tx.id, test_workspace.id)
+
+    await session.refresh(rec)
+    assert rec.next_occurrence == date(2026, 12, 30)
+
+
+@pytest.mark.asyncio
+async def test_unlinking_an_old_payment_does_not_reopen_its_month(
+    session, test_user, test_workspace, checking, nov_13
+):
+    """An October payment did not move the item to December: no step back."""
+    from app.services import transaction_service
+
+    rec, tx = await _linked_salary(
+        session, test_user, test_workspace, checking, day=date(2026, 10, 30)
+    )
+
+    await transaction_service.unlink_recurring_transaction(session, tx.id, test_workspace.id)
+
+    await session.refresh(rec)
+    assert rec.next_occurrence == date(2026, 12, 30)
+
+
+@pytest.mark.asyncio
+async def test_the_next_date_can_be_set_back_one_period(
+    session, test_user, test_workspace, checking
+):
+    from app.schemas.recurring_transaction import RecurringTransactionUpdate
+    from app.services import recurring_transaction_service
+
+    rec = await _recurring(
+        session, test_user, test_workspace, checking,
+        next_occurrence=date(2026, 12, 30), kind="credit",
+    )
+
+    updated = await recurring_transaction_service.update_recurring_transaction(
+        session, rec.id, test_workspace.id,
+        RecurringTransactionUpdate(next_occurrence=date(2026, 11, 30)),
+    )
+
+    assert updated is not None
+    assert updated.next_occurrence == date(2026, 11, 30)
+
+
+@pytest.mark.asyncio
+async def test_the_next_date_goes_back_one_period_at_most(
+    session, test_user, test_workspace, checking
+):
+    from app.schemas.recurring_transaction import RecurringTransactionUpdate
+    from app.services import recurring_transaction_service
+
+    rec = await _recurring(
+        session, test_user, test_workspace, checking,
+        next_occurrence=date(2026, 12, 30), kind="credit",
+    )
+
+    with pytest.raises(ValueError, match="one period"):
+        await recurring_transaction_service.update_recurring_transaction(
+            session, rec.id, test_workspace.id,
+            RecurringTransactionUpdate(next_occurrence=date(2026, 10, 30)),
+        )
+
+
+@pytest.mark.asyncio
+async def test_the_next_date_cannot_go_back_to_an_occurrence_already_paid(
+    session, test_user, test_workspace, checking
+):
+    from app.schemas.recurring_transaction import RecurringTransactionUpdate
+    from app.services import recurring_transaction_service
+
+    rec = await _recurring(
+        session, test_user, test_workspace, checking,
+        next_occurrence=date(2026, 12, 30), kind="credit",
+    )
+    await _tx(
+        session, test_user, checking, "SALARIO", "7769", date(2026, 11, 30),
+        kind="credit", recurring_transaction_id=rec.id,
+    )
+
+    with pytest.raises(ValueError, match="already"):
+        await recurring_transaction_service.update_recurring_transaction(
+            session, rec.id, test_workspace.id,
+            RecurringTransactionUpdate(next_occurrence=date(2026, 11, 30)),
+        )
+
+
+@pytest.mark.asyncio
+async def test_api_sets_the_next_date_back_and_rejects_too_far(
+    client, auth_headers, session, test_user, test_workspace
+):
+    acc = (await session.execute(select(Account).where(Account.user_id == test_user.id))).scalars().first()
+    if acc is None:
+        acc = Account(
+            id=uuid.uuid4(), user_id=test_user.id, name="Checking", type="checking",
+            balance=Decimal("0"), currency="BRL",
+        )
+        session.add(acc)
+        await session.commit()
+    rec = await _recurring(
+        session, test_user, test_workspace, acc,
+        next_occurrence=date(2026, 12, 30), kind="credit",
+    )
+
+    ok = await client.patch(
+        f"/api/recurring-transactions/{rec.id}",
+        json={"next_occurrence": "2026-11-30"}, headers=auth_headers,
+    )
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["next_occurrence"] == "2026-11-30"
+
+    bad = await client.patch(
+        f"/api/recurring-transactions/{rec.id}",
+        json={"next_occurrence": "2026-09-30"}, headers=auth_headers,
+    )
+    assert bad.status_code == 400

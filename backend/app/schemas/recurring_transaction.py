@@ -48,6 +48,9 @@ class RecurringTransactionUpdate(BaseModel):
     is_active: Optional[bool] = None
     auto_generate: Optional[bool] = None
     category_lines: Optional[TransactionCategoryLinesInput] = None
+    # Fork: set the next date by hand (back one period at most), to undo a
+    # payment linked by mistake.
+    next_occurrence: Optional[_Date] = None
 
 
 class RecurringTransactionRead(BaseModel):

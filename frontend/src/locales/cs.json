@@ -1738,6 +1738,8 @@
     "category": "Kategorie",
     "account": "Účet",
     "nextOccurrence": "Nejbližší",
+    "nextDate": "Next date",
+    "nextDateHelp": "The next payment expected. It can go back one period, to undo a payment linked by mistake.",
     "status": "Stav",
     "actions": "Akce",
     "active": "Aktivní",

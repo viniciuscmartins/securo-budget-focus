@@ -1648,6 +1648,8 @@
     "category": "Catégorie",
     "account": "Compte",
     "nextOccurrence": "Prochaine",
+    "nextDate": "Next date",
+    "nextDateHelp": "The next payment expected. It can go back one period, to undo a payment linked by mistake.",
     "status": "Statut",
     "actions": "Actions",
     "active": "Active",

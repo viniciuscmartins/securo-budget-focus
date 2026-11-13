@@ -1645,6 +1645,8 @@
     "category": "Kategorie",
     "account": "Konto",
     "nextOccurrence": "Nächste",
+    "nextDate": "Next date",
+    "nextDateHelp": "The next payment expected. It can go back one period, to undo a payment linked by mistake.",
     "status": "Status",
     "actions": "Aktionen",
     "active": "Aktiv",

@@ -1648,6 +1648,8 @@
     "category": "Categoria",
     "account": "Conta",
     "nextOccurrence": "Próxima",
+    "nextDate": "Próxima data",
+    "nextDateHelp": "O próximo pagamento esperado. Pode recuar um período, para desfazer um pagamento associado por engano.",
     "status": "Estado",
     "actions": "Ações",
     "active": "Ativo",

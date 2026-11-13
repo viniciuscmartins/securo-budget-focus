@@ -216,6 +216,12 @@ In the annual plan, each actual amount (spending grid, income section, single-mo
 - Month outlook (and the sidebar card bills): charges whose due date was computed from the card's settings, within 10 days of the bank's bill, belong to that bill (posted charges are already in the bank's total; recurring charges still to come are added to it). Without a bank bill, groups a few days apart are joined on the earliest. Fixes a card showing two or three bills in one month when the due day in Securo differs from the bank's.
 - Month outlook: a pending payment on a bank-connected account dated today or earlier was assumed to be in the bank's balance. That stays true, except for a pending payment linked to a recurring item: the link takes the occurrence off the projection, so the pending row now counts as still to come (a salary the bank lists as pending before it lands).
 
+## PR #26: Undo a recurring link made by mistake
+
+- Linking a payment moves its recurring item past the occurrence it stands for, and upstream's unlink left the item where it was, while the edit form never moves the next date back. A wrong link (a mid-month salary linked to the day-30 one) hid that month's occurrence from the outlook with no way back.
+- Unlink now steps the item back one period when that payment is what moved it: dated within one period before the occurrence, no other linked payment covering it, and not an old month (`recurring_link_service.step_back_after_unlink`).
+- The recurring edit form has a "Next date" field (`next_occurrence` on the update schema). It can go back one period at most and not to an occurrence a linked payment already covers (`check_next_occurrence`); later dates are always allowed. A refused date shows the server's reason.
+
 ## Conventions
 
 - **Agent instructions:** `CLAUDE.md` (repository root) is fork-only. It asks Claude to suggest an effort level before each task, sets the code-quality process and OWASP checklist, and repeats the standing rules below.

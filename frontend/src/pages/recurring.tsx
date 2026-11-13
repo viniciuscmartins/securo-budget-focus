@@ -137,7 +137,8 @@ function RecurringTab() {
       setEditing(null)
       toast.success(t('recurring.updated'))
     },
-    onError: () => toast.error(t('common.error')),
+    // The server says why a next date is refused (too far back, already paid).
+    onError: (err: unknown) => toast.error(extractApiError(err, t('common.error'))),
   })
 
   const deleteMutation = useMutation({
@@ -324,7 +325,7 @@ function RecurringTab() {
   )
 }
 
-function RecurringForm({
+export function RecurringForm({
   recurring,
   categories,
   categoryGroups,
@@ -367,6 +368,9 @@ function RecurringForm({
   const [dayOfMonth, setDayOfMonth] = useState(recurring?.day_of_month?.toString() ?? '')
   const [startDate, setStartDate] = useState(recurring?.start_date ?? localDateString())
   const [endDate, setEndDate] = useState(recurring?.end_date ?? '')
+  // Fork: the next date can be set back one period, to undo a payment linked
+  // by mistake. Sent only when changed.
+  const [nextDate, setNextDate] = useState(recurring?.next_occurrence ?? '')
   const [categoryId, setCategoryId] = useState(recurring?.category_id ?? '')
   const [accountId, setAccountId] = useState(recurring?.account_id ?? '')
   const [isActive, setIsActive] = useState(recurring?.is_active ?? true)
@@ -414,6 +418,9 @@ function RecurringForm({
           day_of_month: dayOfMonth ? parseInt(dayOfMonth) : null,
           start_date: startDate,
           end_date: endDate || null,
+          ...(recurring && nextDate && nextDate !== recurring.next_occurrence
+            ? { next_occurrence: nextDate }
+            : {}),
           category_id: lineRows ? null : categoryId || null,
           account_id: accountId || null,
           is_active: isActive,
@@ -506,6 +513,13 @@ function RecurringForm({
           <DatePickerInput value={endDate} onChange={setEndDate} placeholder={t('recurring.endDate')} className="w-full justify-start" />
         </div>
       </div>
+      {recurring && (
+        <div className="space-y-2">
+          <Label>{t('recurring.nextDate')}</Label>
+          <DatePickerInput value={nextDate} onChange={setNextDate} placeholder={t('recurring.nextDate')} className="w-full justify-start" />
+          <p className="text-xs text-muted-foreground">{t('recurring.nextDateHelp')}</p>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between min-h-5">

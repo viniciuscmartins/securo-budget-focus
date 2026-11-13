@@ -1648,6 +1648,8 @@
     "category": "Categoria",
     "account": "Conto",
     "nextOccurrence": "Prossima",
+    "nextDate": "Next date",
+    "nextDateHelp": "The next payment expected. It can go back one period, to undo a payment linked by mistake.",
     "status": "Stato",
     "actions": "Azioni",
     "active": "Attiva",

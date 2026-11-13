@@ -1644,6 +1644,8 @@
     "category": "श्रेणी",
     "account": "खाता",
     "nextOccurrence": "अगला",
+    "nextDate": "Next date",
+    "nextDateHelp": "The next payment expected. It can go back one period, to undo a payment linked by mistake.",
     "status": "स्थिति",
     "actions": "कार्रवाइयाँ",
     "active": "सक्रिय",

@@ -2463,14 +2463,21 @@ async def unlink_recurring_transaction(
 ) -> Optional[Transaction]:
     """Clear a transaction's link to a recurring bill (issue #116).
 
-    The escape hatch for a wrong auto-link: only the FK is cleared, the
-    transaction row is otherwise untouched, and the bill is left as-is (its
-    next_occurrence already moved on). Returns the transaction, or None if not
-    found / not currently linked."""
+    The escape hatch for a wrong auto-link: only the FK is cleared and the
+    transaction row is otherwise untouched. Fork: when this payment is what
+    moved the bill's next_occurrence on, the bill steps back to that
+    occurrence (recurring_link_service.step_back_after_unlink). Returns the
+    transaction, or None if not found / not currently linked."""
+    from app.models.recurring_transaction import RecurringTransaction
+    from app.services.recurring_link_service import step_back_after_unlink
+
     transaction = await get_transaction(session, transaction_id, workspace_id)
     if not transaction or transaction.recurring_transaction_id is None:
         return None
+    recurring = await session.get(RecurringTransaction, transaction.recurring_transaction_id)
     transaction.recurring_transaction_id = None
+    if recurring is not None and recurring.workspace_id == workspace_id:
+        await step_back_after_unlink(session, recurring, transaction)
     await session.commit()
     await session.refresh(transaction)
     return transaction

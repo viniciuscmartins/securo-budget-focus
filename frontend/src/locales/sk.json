@@ -1722,6 +1722,8 @@
     "category": "Kategória",
     "account": "Účet",
     "nextOccurrence": "Najbližšie",
+    "nextDate": "Next date",
+    "nextDateHelp": "The next payment expected. It can go back one period, to undo a payment linked by mistake.",
     "status": "Stav",
     "actions": "Akcie",
     "active": "Aktívna",

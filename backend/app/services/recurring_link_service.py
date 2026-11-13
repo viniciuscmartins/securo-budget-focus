@@ -33,6 +33,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.app_clock import app_today
 from app.models.account import Account
 from app.models.app_settings import AppSetting
 from app.models.recurring_transaction import RecurringTransaction
@@ -334,6 +335,90 @@ async def link(
     ):
         recurring_match_service.advance_past(recurring, transaction.date)
     await session.flush()
+    return True
+
+
+def previous_occurrence(recurring: RecurringTransaction) -> Optional[date]:
+    """The occurrence before `next_occurrence` on the item's schedule, or None
+    when the next one is the first."""
+    from app.services.recurring_transaction_service import _advance_date
+
+    intended_day = recurring.day_of_month or recurring.start_date.day
+    previous: Optional[date] = None
+    current = recurring.start_date
+    guard = 0
+    while current < recurring.next_occurrence and guard < 5000:
+        previous = current
+        current = _advance_date(current, recurring.frequency, intended_day=intended_day)
+        guard += 1
+    return previous
+
+
+async def _covered(
+    session: AsyncSession,
+    recurring: RecurringTransaction,
+    occurrence: date,
+    except_id: Optional[uuid.UUID] = None,
+) -> bool:
+    """Whether a transaction linked to the item already stands for `occurrence`
+    (a payment, or the placeholder generated for it)."""
+    half = half_period(recurring.frequency)
+    statement = select(Transaction.id).where(
+        Transaction.recurring_transaction_id == recurring.id,
+        Transaction.is_ignored == False,  # noqa: E712
+        Transaction.date >= occurrence - half,
+        Transaction.date <= occurrence + half,
+    )
+    if except_id is not None:
+        statement = statement.where(Transaction.id != except_id)
+    return (await session.execute(statement.limit(1))).first() is not None
+
+
+async def check_next_occurrence(
+    session: AsyncSession, recurring: RecurringTransaction, new_next: date
+) -> None:
+    """Validate a next date typed by the user. Raises ValueError.
+
+    It may go back one period at most (to undo a link that moved the item by
+    mistake), and not to an occurrence a linked payment already covers, so a
+    month is never generated twice. Later dates are always allowed.
+    """
+    if new_next >= recurring.next_occurrence:
+        return
+    floor = previous_occurrence(recurring) or recurring.start_date
+    if new_next < floor:
+        raise ValueError(
+            f"The next date can go back one period at most, to {floor.isoformat()}"
+        )
+    if await _covered(session, recurring, new_next):
+        raise ValueError("A payment linked to this item already covers that date")
+
+
+async def step_back_after_unlink(
+    session: AsyncSession, recurring: RecurringTransaction, transaction: Transaction
+) -> bool:
+    """Undo the move a link made, after `transaction` was unlinked. Does not commit.
+
+    Linking a payment moves the item past the occurrence it stands for. When
+    that payment is unlinked, the item goes back to that occurrence if:
+    the payment is dated within one period before it (so it is the one that
+    moved the item, not an old payment linked to history), no other linked
+    payment covers it, and it is not an old month (no earlier than half a
+    period before today).
+    """
+    if not recurring.is_active:
+        return False
+    previous = previous_occurrence(recurring)
+    if previous is None:
+        return False
+    half = half_period(recurring.frequency)
+    if previous < app_today() - half:
+        return False
+    if not (previous - 2 * half <= transaction.date < recurring.next_occurrence):
+        return False
+    if await _covered(session, recurring, previous, except_id=transaction.id):
+        return False
+    recurring.next_occurrence = previous
     return True
 
 

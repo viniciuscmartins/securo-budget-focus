@@ -1644,6 +1644,8 @@
     "category": "カテゴリ",
     "account": "口座",
     "nextOccurrence": "次回",
+    "nextDate": "Next date",
+    "nextDateHelp": "The next payment expected. It can go back one period, to undo a payment linked by mistake.",
     "status": "ステータス",
     "actions": "操作",
     "active": "有効",

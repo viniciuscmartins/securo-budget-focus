@@ -1663,6 +1663,8 @@
     "category": "Категорія",
     "account": "Рахунок",
     "nextOccurrence": "Наступна",
+    "nextDate": "Next date",
+    "nextDateHelp": "The next payment expected. It can go back one period, to undo a payment linked by mistake.",
     "status": "Статус",
     "actions": "Дії",
     "active": "Активна",

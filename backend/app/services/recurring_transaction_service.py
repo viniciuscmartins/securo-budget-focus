@@ -114,6 +114,14 @@ async def update_recurring_transaction(
     # replaces them, an empty list undoes the split.
     lines_payload = data.category_lines if "category_lines" in update_data else None
     update_data.pop("category_lines", None)
+    # Fork: a next date typed by the user, checked before anything changes.
+    new_next = update_data.pop("next_occurrence", None)
+    if new_next is not None and new_next != recurring.next_occurrence:
+        from app.services.recurring_link_service import check_next_occurrence
+
+        await check_next_occurrence(session, recurring, new_next)
+    else:
+        new_next = None
     splitting = lines_payload is not None and bool(lines_payload.lines)
     unsplitting = lines_payload is not None and not lines_payload.lines
     if splitting and update_data.get("category_id") is not None:
@@ -170,6 +178,8 @@ async def update_recurring_transaction(
             intended_day=recurring.day_of_month or recurring.start_date.day,
             floor=previous_next_occurrence,
         )
+    if new_next is not None:
+        recurring.next_occurrence = new_next
 
     await session.commit()
     await session.refresh(recurring, ["category_lines"])
