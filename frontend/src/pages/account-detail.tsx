@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, ArrowLeftRight, CalendarClock, ChevronLeft, ChevronRight, Clock, EyeClosed, HelpCircle, Paperclip, Pencil, Plus, X } from 'lucide-react'
 import { MobileTransactionRow } from '@/components/mobile-transaction-row'
 import { transactionDescription } from '@/lib/transaction-description'
+import { ReportingDateBadge } from '@/components/reporting-date-badge'
 import { CategoryIcon } from '@/components/category-icon'
 import { CategorySplitBadge, TransactionCategoryIcon } from '@/components/category-lines-display'
 import { isSplitByCategory, projectedSplitSource } from '@/lib/category-lines'
@@ -771,6 +772,7 @@ export default function AccountDetailPage() {
       installment_purchase_date: null,
       bill_id: null,
       effective_bill_date: null,
+      reporting_date_override: null,
       recurring_transaction_id: p.recurring_id,
       splits: [],
       is_ignored: false,
@@ -884,7 +886,9 @@ export default function AccountDetailPage() {
   }, [ledgerItems, ledger.hasNextPage, projectedRows, isCreditCard, summary, usePrimary, displayCurrency, openingBalance, ccRunningTotal])
 
   const totalBalance = (usePrimary ? summary?.current_balance_primary : undefined) ?? summary?.current_balance ?? 0
-  const projectedBalance = displayRows.length > 0 ? displayRows[0].runningBalance : openingBalance
+  const projectedBalance = isCreditCard
+    ? (displayRows[0]?.runningBalance ?? openingBalance)
+    : (chartData.at(-1)?.balance ?? openingBalance)
 
   const actualIncome = (usePrimary ? summary?.monthly_income_primary : undefined) ?? summary?.monthly_income ?? 0
   const actualExpenses = (usePrimary ? summary?.monthly_expenses_primary : undefined) ?? summary?.monthly_expenses ?? 0
@@ -1660,6 +1664,7 @@ export default function AccountDetailPage() {
                       canWrite={canWrite}
                       highlighted={false}
                       locale={locale}
+                      dateLocale={dateLocale}
                       userCurrency={userCurrency}
                       onSelect={() => {}}
                       showPayee
@@ -1709,6 +1714,7 @@ export default function AccountDetailPage() {
                       >
                         <td className="px-3 sm:px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                           {formatDateStr(tx.date, dateLocale)}
+                          <div><ReportingDateBadge tx={tx} locale={dateLocale} /></div>
                         </td>
                         <td className="px-3 sm:px-4 py-3 w-full max-w-0">
                           <div className="flex items-center gap-1.5 min-w-0">

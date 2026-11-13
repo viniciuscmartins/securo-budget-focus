@@ -253,12 +253,12 @@ async def test_rule_validation_rejects_a_recurring_item_of_another_workspace(
     session, test_user, test_workspace, checking
 ):
     with pytest.raises(ValueError, match="Recurring item not found"):
-        await rule_service._validate_rule_definition(
+        await rule_service.validate_rule_definition(
             session, test_workspace.id, [], [{"op": "link_recurring", "value": str(uuid.uuid4())}]
         )
     rec = await _recurring(session, test_user, test_workspace, checking)
     with pytest.raises(ValueError, match="only one recurring"):
-        await rule_service._validate_rule_definition(
+        await rule_service.validate_rule_definition(
             session,
             test_workspace.id,
             [],
@@ -674,7 +674,7 @@ async def test_deleting_a_recurring_item_unlinks_its_rules_and_setting(
     assert untouched.is_active
     assert await session.get(AppSetting, svc.setting_key(rec.id)) is None
     # The rule that kept an action saves again (a missing item is refused).
-    await rule_service._validate_rule_definition(
+    await rule_service.validate_rule_definition(
         session, test_workspace.id, mixed.conditions, mixed.actions
     )
 

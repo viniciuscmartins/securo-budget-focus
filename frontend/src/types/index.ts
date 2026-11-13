@@ -6,6 +6,8 @@ export interface User {
   is_verified: boolean
   is_2fa_enabled: boolean
   preferences: UserPreferences
+  /** The theme picked from the library; null is Securo's own look. */
+  theme?: string | null
 }
 
 export interface AdminUser {
@@ -321,6 +323,9 @@ export interface Transaction {
   // available, cycle math otherwise). Setting it forces the tx into the
   // bill whose due_date matches.
   effective_bill_date: string | null
+  // Optional period-attribution override. The bank-provided `date` remains
+  // unchanged; null restores automatic cash/accrual bucketing.
+  reporting_date_override: string | null
   // The recurring bill this transaction fulfills, if any (issue #116).
   recurring_transaction_id?: string | null
   splits: TransactionSplit[]
@@ -639,6 +644,113 @@ export interface RulePackRemoval {
   keep: { id: string; name: string }[]
   /** Identifies this plan; removal is refused if the plan changed since. */
   token: string
+}
+
+/** Text per locale; always has `en`. */
+export type LocalizedText = Record<string, string>
+
+export type PluginAction = 'install' | 'update' | 'remove'
+export type PluginItemKind = 'category_groups' | 'categories' | 'rules'
+
+export interface InstalledPlugin {
+  plugin_id: string
+  name: LocalizedText
+  version: string
+  commit: string
+  installed_at: string
+}
+
+export interface PluginCatalogEntry {
+  id: string
+  owner: string
+  repository: string
+  release: string
+  commit: string
+  name: LocalizedText
+  description: LocalizedText
+  version: string
+  license: string
+  min_securo_version: string
+  /** How many items of each kind the plugin brings, by contribution kind. */
+  contributes: Record<string, number>
+  locales: string[]
+  /** The repository's GitHub topics. */
+  topics: string[]
+  stars: number
+  /** Stars gained in the last 7 days. */
+  stars_7d: number
+  added_at: string | null
+  updated_at: string | null
+  revoked: boolean
+  revoked_reason: string | null
+  /** This Securo is at least min_securo_version. */
+  compatible: boolean
+  /** This Securo can apply everything the plugin contributes. */
+  supported: boolean
+  installed_version: string | null
+  update_available: boolean
+}
+
+/** An item a plugin points at: one of its own, or a built-in default. */
+export interface PluginRef {
+  key: string
+  name: LocalizedText
+  default: boolean
+}
+
+export interface PluginContents {
+  category_groups: { key: string; name: LocalizedText; icon: string; color: string }[]
+  categories: {
+    key: string
+    name: LocalizedText
+    icon: string
+    color: string
+    group: PluginRef | null
+    treat_as_transfer: boolean
+  }[]
+  rules: {
+    key: string
+    name: string
+    priority: number
+    conditions_op: 'and' | 'or'
+    conditions: RuleConditionNode[]
+    actions: { op: string; value?: string | boolean | null; category: PluginRef | null }[]
+  }[]
+}
+
+/** One plugin opened from the catalog. */
+export interface PluginDetail {
+  plugin: PluginCatalogEntry
+  /** Markdown, from the catalog's verified copy. */
+  readme: string | null
+  /** Null when this Securo can't read what the plugin contains. */
+  contents: PluginContents | null
+}
+
+export interface PluginItem {
+  kind: PluginItemKind
+  key: string
+  name: string
+}
+
+/** What installing, updating or removing a plugin does, item by item. */
+export interface PluginPlan {
+  action: PluginAction
+  plugin_id: string
+  version: string | null
+  commit: string | null
+  token: string
+  create: PluginItem[]
+  update: PluginItem[]
+  delete: PluginItem[]
+  /** Edited by the user: left as they are. */
+  keep: PluginItem[]
+  /** No longer the plugin's (edited, or still in use): handed over to the user. */
+  release: PluginItem[]
+  /** Already in the workspace by name: left alone. */
+  existing: PluginItem[]
+  unresolved: PluginItem[]
+  default_categories: string[]
 }
 
 export interface RuleExportPayload {
@@ -1350,6 +1462,33 @@ export interface ReportResponse {
   meta: ReportMeta
   composition: ReportCompositionItem[]
   category_trend: CategoryTrendItem[]
+}
+
+// Income & expense statement: signed net amounts (credits positive, debits
+// negative) per category group, aligned with `CategoryStatementResponse.months`.
+export interface CategoryStatementRow {
+  key: string
+  kind: 'group' | 'category' | 'uncategorized'
+  label: string | null
+  icon: string | null
+  color: string | null
+  category_ids: string[]
+  txn_type: 'credit' | 'debit' | null
+  values: number[]
+  children: CategoryStatementRow[]
+}
+
+export interface CategoryStatementSection {
+  totals: number[]
+  rows: CategoryStatementRow[]
+}
+
+export interface CategoryStatementResponse {
+  currency: string
+  /** "YYYY-MM", newest first. */
+  months: string[]
+  income: CategoryStatementSection
+  expenses: CategoryStatementSection
 }
 
 // --- Invoices -------------------------------------------------------------
