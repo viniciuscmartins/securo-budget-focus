@@ -1,5 +1,6 @@
 import { sidebarAccountBalance } from '@/lib/account-utils'
-import type { Account, MonthOutlookCardBill } from '@/types'
+import type { Account } from '@/types'
+import type { MonthOutlookCardBill } from '@/fork/types'
 
 /** A card's amount in the sidebar: its next bill to pay, or its total until the bills load. */
 export function cardAmountOf(account: Account, cardBills: MonthOutlookCardBill[] | undefined): number {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { BudgetSuggestionRow } from '@/types'
+import type { BudgetSuggestionRow } from '@/fork/types'
 import {
   buildApplyCells,
   cellKey,

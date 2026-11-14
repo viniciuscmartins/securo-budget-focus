@@ -13,8 +13,8 @@ const api = vi.hoisted(() => ({
   setAmountMode: vi.fn(),
 }))
 
+vi.mock('@/fork/api', () => ({ recurringLinks: api }))
 vi.mock('@/lib/api', () => ({
-  recurringLinks: api,
   rules: {
     preview: vi.fn(async () => ({ matched: 0, will_change: 0, will_apply: true, sample: [], offset: 0 })),
   },

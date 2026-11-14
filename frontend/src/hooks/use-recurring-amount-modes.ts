@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { recurringLinks } from '@/lib/api'
+import { recurringLinks } from '@/fork/api'
 
 /** Ids of the recurring items whose amount follows the average of their payments. */
 export function useRecurringAmountModes(enabled = true) {

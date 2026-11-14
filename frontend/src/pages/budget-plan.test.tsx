@@ -3,14 +3,14 @@ import { screen, waitFor, within } from '@testing-library/react'
 
 import BudgetPlanPage from '@/pages/budget-plan'
 import { renderWithProviders } from '@/test/utils'
-import type { BudgetYearPlan, BudgetYearSuggestion } from '@/types'
+import type { BudgetYearPlan, BudgetYearSuggestion } from '@/fork/types'
 
 const api = vi.hoisted(() => ({
   yearPlan: vi.fn(),
   yearSuggestion: vi.fn(),
   applyYearPlan: vi.fn(),
 }))
-vi.mock('@/lib/api', () => ({ budgets: api }))
+vi.mock('@/fork/api', () => ({ budgetPlan: api }))
 vi.mock('@/contexts/auth-context', () => ({
   useAuth: () => ({ user: { preferences: { currency_display: 'USD' } } }),
 }))

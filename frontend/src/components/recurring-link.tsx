@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Repeat } from 'lucide-react'
 
-import { recurringLinks } from '@/lib/api'
+import { recurringLinks } from '@/fork/api'
 import { extractApiError } from '@/lib/api-errors'
 import { invalidateFinancialQueries } from '@/lib/invalidate-queries'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useRecurringAmountModes } from '@/hooks/use-recurring-amount-modes'
 import { suggestedMatch } from '@/lib/recurring-link-utils'
-import type { RecurringFromTransactionInput, RecurringTransaction, Transaction } from '@/types'
+import type { RecurringTransaction, Transaction } from '@/types'
+import type { RecurringFromTransactionInput } from '@/fork/types'
 
 const SELECT_CLASS =
   'h-9 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary'

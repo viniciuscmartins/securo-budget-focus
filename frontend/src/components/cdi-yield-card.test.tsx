@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CdiYieldCard } from '@/components/cdi-yield-card'
 import { renderWithProviders, t } from '@/test/utils'
-import type { CdiYieldSettings } from '@/types'
+import type { CdiYieldSettings } from '@/fork/types'
 
 const api = vi.hoisted(() => ({
   get: vi.fn(),
@@ -12,8 +12,8 @@ const api = vi.hoisted(() => ({
   remove: vi.fn(),
 }))
 
+vi.mock('@/fork/api', () => ({ cdiYield: api }))
 vi.mock('@/lib/api', () => ({
-  cdiYield: api,
   timezones: { list: async () => ({ default: 'UTC', available: [] }) },
 }))
 vi.mock('@/hooks/use-display-locale', () => ({

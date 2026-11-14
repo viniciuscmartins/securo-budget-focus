@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { getAccountName, sidebarAccountBalance, sortAccountsByAbsoluteBalance } from '@/lib/account-utils'
 import { cardAmountOf } from '@/lib/sidebar-account-totals'
 import { formatCurrency } from '@/lib/format'
-import type { Account, MonthOutlookCardBill } from '@/types'
+import type { Account } from '@/types'
+import type { MonthOutlookCardBill } from '@/fork/types'
 
 interface Props {
   accounts: Account[]

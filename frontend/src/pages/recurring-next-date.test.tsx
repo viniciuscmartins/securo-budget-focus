@@ -7,6 +7,8 @@ vi.mock('@/contexts/auth-context', () => ({ useAuth: () => ({ user: null }) }))
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
   currencies: { list: vi.fn().mockResolvedValue([]) },
+}))
+vi.mock('@/fork/api', () => ({
   recurringLinks: { amountModes: vi.fn().mockResolvedValue([]) },
 }))
 // A plain input stands in for the calendar popover, named by its placeholder.

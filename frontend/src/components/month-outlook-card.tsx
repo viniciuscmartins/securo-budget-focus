@@ -3,11 +3,11 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { AlertTriangle, CheckCircle2, ChevronDown } from 'lucide-react'
 
-import { monthOutlook } from '@/lib/api'
+import { monthOutlook } from '@/fork/api'
 import { formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { MonthOutlook } from '@/types'
+import type { MonthOutlook } from '@/fork/types'
 
 function shortDate(iso: string, locale: string) {
   return new Date(`${iso}T00:00:00`).toLocaleDateString(locale, { day: '2-digit', month: 'short' })
