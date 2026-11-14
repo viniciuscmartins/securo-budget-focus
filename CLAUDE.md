@@ -43,6 +43,7 @@ Start every reply to a task with `**Effort: <low|medium|high> recommended** (why
 - Existing translations (never replace with English). Upstream entries in `baseline.json`.
 - `CLAUDE.md` and `docs/fork/` are fork-only: keep them in every sync (upstream `.gitignore` lists `CLAUDE.md`).
 - Don't run `ruff format` on the whole tree, only on fork files.
+- Sync report: `scripts/fork/sync-report.sh` (upstream changes in fork-touched files, migrations, deploy files). Refactor plan: `docs/fork/REFACTOR-PLAN.md`.
 
 ## Standing rules (short)
 - Commit as `viniciuscmartins` <139562176+viniciuscmartins@users.noreply.github.com>. No personal data or session links anywhere.
