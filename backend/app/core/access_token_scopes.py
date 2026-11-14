@@ -40,6 +40,7 @@ _ROUTE_RESOURCES: dict[str, tuple[str, ...]] = {
     "assets": ("/api/assets", "/api/asset-groups"),
     # Fork: the dashboard's month outlook card.
     "reports": ("/api/reports", "/api/dashboard", "/api/month-outlook"),
+    "invoices": ("/api/invoices", "/api/invoice-schedules"),
 }
 
 # Resources whose routes only ever read: a `:write` scope is meaningless.

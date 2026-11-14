@@ -70,6 +70,7 @@ import type {
   RulePack,
   RulePackRemoval,
   InstalledPlugin,
+  PluginConnection,
   PluginAction,
   PluginCatalogEntry,
   PluginPlan,
@@ -2076,7 +2077,7 @@ export const info = {
   },
 }
 
-// Data plugins -- only reachable when info.features.plugins === true.
+// Plugins -- only reachable when info.features.plugins === true.
 export const plugins = {
   /** Installed in this workspace; reads the database only, never the catalog. */
   installed: async (): Promise<InstalledPlugin[]> => {
@@ -2104,6 +2105,36 @@ export const plugins = {
       commit: plan.commit,
       token: plan.token,
     })
+    return data
+  },
+  /** Connections made through plugins with code in this workspace. */
+  connections: async (): Promise<PluginConnection[]> => {
+    const { data } = await api.get('/plugins/connections')
+    return data
+  },
+  /** Sign-in integrations answer with the link to send the browser to. */
+  connect: async (body: {
+    plugin_id: string
+    integration: string
+    name: string
+    values: Record<string, string>
+  }): Promise<{ connection: PluginConnection; authorize_url: string | null }> => {
+    const { data } = await api.post('/plugins/connections', body)
+    return data
+  },
+  authorize: async (connectionId: string): Promise<{ authorize_url: string; redirect_uri: string }> => {
+    const { data } = await api.post(`/plugins/connections/${connectionId}/authorize`)
+    return data
+  },
+  sync: async (connectionId: string): Promise<PluginConnection> => {
+    const { data } = await api.post(`/plugins/connections/${connectionId}/sync`)
+    return data
+  },
+  disconnect: async (connectionId: string): Promise<void> => {
+    await api.delete(`/plugins/connections/${connectionId}`)
+  },
+  oauthCallback: async (code: string, state: string): Promise<PluginConnection> => {
+    const { data } = await api.post('/plugins/oauth/callback', { code, state })
     return data
   },
 }
