@@ -177,6 +177,34 @@ async def test_ignored_by_any_rule_is_not_transferred(
 
 
 @pytest.mark.asyncio
+async def test_a_row_split_across_categories_is_not_transferred(
+    session, test_user, test_workspace, test_account, cofrinho
+):
+    # Upstream's "create counterpart" refuses a split row: a transfer leaves
+    # income and expenses as a whole row, which a split row cannot do. The
+    # rule skips it quietly, like an ignored or already paired row.
+    await _rule(session, test_workspace, test_user, cofrinho.id)
+    split = await _tx(
+        session, test_user, test_account, "Dinheiro reservado Buffer", "10", has_category_lines=True
+    )
+
+    await rule_service.apply_rules_to_transaction(session, test_user.id, split)
+    await session.commit()
+
+    assert await _counterparts(session, cofrinho.id) == []
+    await session.refresh(split)
+    assert split.transfer_pair_id is None
+
+
+def test_preview_does_not_count_a_split_row_as_transferred():
+    dest = uuid.uuid4()
+    row = Transaction(
+        account_id=uuid.uuid4(), type="debit", source="sync", is_ignored=False,
+        transfer_pair_id=None, has_category_lines=True,
+    )
+    assert not transfer_would_apply(row, dest)
+
+
 async def test_already_paired_or_same_account_is_skipped(
     session, test_user, test_workspace, test_account, cofrinho
 ):
@@ -241,6 +269,7 @@ async def test_preview_counts_rows_that_would_be_transferred(
 ):
     await _tx(session, test_user, test_account, "Dinheiro reservado Buffer", "4000")
     await _tx(session, test_user, test_account, "Dinheiro reservado Buffer", "7000", is_ignored=True)
+    await _tx(session, test_user, test_account, "Dinheiro reservado Buffer", "90", has_category_lines=True)
 
     preview = await rule_service.preview_rule(
         session,
@@ -249,8 +278,8 @@ async def test_preview_counts_rows_that_would_be_transferred(
         [{"field": "description", "op": "contains", "value": "buffer"}],
         [{"op": "transfer_to_account", "value": str(cofrinho.id)}],
     )
-    assert preview.matched == 2
-    assert preview.will_change == 1
+    assert preview.matched == 3
+    assert preview.will_change == 1  # neither the ignored nor the split row
     assert await _counterparts(session, cofrinho.id) == []  # a preview writes nothing
 
 

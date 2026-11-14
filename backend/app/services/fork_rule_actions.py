@@ -47,6 +47,7 @@ def transfer_would_apply(tx: "Transaction", to_account_id: uuid.UUID | None) -> 
     return (
         not getattr(tx, "is_ignored", False)
         and getattr(tx, "transfer_pair_id", None) is None
+        and not getattr(tx, "has_category_lines", False)
         and getattr(tx, "source", None) not in {"opening_balance", "transfer"}
         and getattr(tx, "account_id", None) != to_account_id
     )
@@ -192,8 +193,13 @@ class Targets:
 
 async def preview_check(
     session: AsyncSession, actions: list
-) -> Callable[["Transaction"], bool]:
-    """For a rule preview: whether the fork actions would change a row."""
+) -> Callable[["Transaction", "Transaction"], bool]:
+    """For a rule preview: whether the fork actions would change a row.
+
+    `draft` is the row after upstream's actions ran on it; `original` is the
+    row as loaded. Upstream's preview copy leaves out `has_category_lines`,
+    so the split check reads it from `original`, as upstream's preview does.
+    """
     transfer_to = transfer_target(actions)
     link_to = recurring_target(actions)
     link_type = None
@@ -202,8 +208,9 @@ async def preview_check(
 
         link_type = await recurring_type(session, link_to)
 
-    def would_change(draft: "Transaction") -> bool:
-        return transfer_would_apply(draft, transfer_to) or link_would_apply(
+    def would_change(draft: "Transaction", original: "Transaction") -> bool:
+        split = bool(getattr(original, "has_category_lines", False))
+        return (not split and transfer_would_apply(draft, transfer_to)) or link_would_apply(
             draft, link_to, link_type
         )
 

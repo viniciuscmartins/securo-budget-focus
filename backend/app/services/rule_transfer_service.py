@@ -110,6 +110,7 @@ async def transfer_by_rule(
     row must not fail a whole bank sync or rule run:
 
     - ignored, already paired, or an opening balance / auto-created transfer;
+    - split across categories;
     - already in the destination account;
     - destination missing, closed, or bank-synced (a synced account would
       soon get its own real copy of the movement, so a counterpart there
@@ -125,6 +126,10 @@ async def transfer_by_rule(
     if transaction.is_ignored or transaction.transfer_pair_id is not None:
         return False
     if transaction.source in {"opening_balance", "transfer"}:
+        return False
+    # Upstream's create_transfer_counterpart refuses a row split across
+    # categories (a transfer leaves income and expenses as a whole row).
+    if transaction.has_category_lines:
         return False
     if transaction.account_id == to_account_id:
         return False

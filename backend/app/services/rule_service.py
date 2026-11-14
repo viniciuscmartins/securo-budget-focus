@@ -882,7 +882,7 @@ async def preview_rule(
                 skip_description=_has_manual_description(tx),
                 assignable_category_ids=assignable_categories,
             )
-            will_change = _rule_effect_state(draft) != before or fork_would_change(draft)
+            will_change = _rule_effect_state(draft) != before or fork_would_change(draft, tx)
             if will_change:
                 changed += 1
         # `matched` has just counted this row, so `matched - 1` is its index
