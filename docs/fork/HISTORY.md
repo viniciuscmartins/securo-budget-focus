@@ -238,6 +238,10 @@ No behaviour change. `rule_engine.py` is identical to upstream's again; `transac
 - `services/rule_transfer_service.py`: `transfer_by_rule` and `_has_paired_twin`, plus a copy of the counterpart upstream's `create_transfer_counterpart` builds (without the commit). Upstream's function is back to upstream's code. `tests/test_rule_transfer_parity.py` builds a counterpart both ways (same currency, other currency, credit card; debit and credit) and fails if they differ, so an upstream change there gets copied.
 - `recurring_link_service.unlink_and_step_back`: what upstream's unlink calls to clear the link and step the recurring item back.
 
+## Rule transfer skips rows split across categories
+
+Upstream's "create counterpart" refuses a row split across categories (a transfer leaves income and expenses as a whole row, which a split row cannot do), but the rule action "Mark as transfer with account" paired them anyway. The rule now skips a split row quietly, like an ignored or already paired one, and the rule preview no longer counts it.
+
 ## Conventions
 
 - **Agent instructions:** `CLAUDE.md` (repository root, fork-only) holds the facts a session needs: stack, commands, where each fork feature lives, what not to touch. The effort-level reminder, code-quality process and OWASP checklist are in `docs/fork/CONTRIBUTING.md`.
