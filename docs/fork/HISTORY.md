@@ -224,7 +224,7 @@ In the annual plan, each actual amount (spending grid, income section, single-mo
 
 ## Conventions
 
-- **Agent instructions:** `CLAUDE.md` (repository root) is fork-only. It asks Claude to suggest an effort level before each task, sets the code-quality process and OWASP checklist, and repeats the standing rules below.
+- **Agent instructions:** `CLAUDE.md` (repository root, fork-only) holds the facts a session needs: stack, commands, where each fork feature lives, what not to touch. The effort-level reminder, code-quality process and OWASP checklist are in `docs/fork/CONTRIBUTING.md`.
 
 - **Versions** follow upstream. Fork releases are tagged `v<upstream version>-plan.<N>`.
 - **Translations:** new fork strings are written in English and Portuguese (pt-BR, pt-PT). Other locales carry the English text, because the locale tests require every key in every file.

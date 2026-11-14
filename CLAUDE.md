@@ -1,66 +1,51 @@
-# Working on this fork
+# Securo fork: facts for Claude sessions
 
-## Effort level: suggest it before every task
+Fork = upstream `securo-finance/securo` `main` + the fork features below. Rules, process and the OWASP
+checklist: `docs/fork/CONTRIBUTING.md` (read it before changing code). PR write-ups: `docs/fork/HISTORY.md`.
+Start every reply to a task with `**Effort: <low|medium|high> recommended** (why)`, per CONTRIBUTING.md.
 
-The owner switches Claude's effort level by hand and asked to be told which one fits.
-Before starting any task, begin the reply with one line:
+## Stack and commands
+- Backend `backend/`: Python ≥3.11, FastAPI, SQLAlchemy 2 (async), Alembic, Celery + Redis, uv. Prod DB PostgreSQL.
+- Frontend `frontend/`: React 19, TypeScript, Vite, TanStack Query, Tailwind 4, vitest. Run Docker via `docker-compose.yml`.
+- Backend checks: `cd backend && uv sync --frozen --extra dev && uv run ruff check app tests && uv run ty check . && uv run pytest -q -n 4 -W error`
+- Contract baseline: `UPDATE_API_CONTRACT=1 uv run pytest tests/api_contract -n 0 -q` (fork adds 39 entries).
+- Frontend checks: `cd frontend && npm ci && npm run typecheck && npx eslint <files> && npx vitest run <files>`
+- CI (`.github/workflows/ci.yml`) runs backend on PostgreSQL + frontend checks on every PR.
 
-> **Effort: <low | medium | high> recommended** (<a few words why>).
+## Upstream layout
+- `backend/app/{api,schemas,services,models,tasks,providers,core}`; routers registered in `app/main.py`,
+  beat jobs in `app/worker.py`, token scopes in `app/core/access_token_scopes.py` (deny by default).
+- `frontend/src/{pages,components,lib,hooks,types,locales}`; API client `lib/api.ts`, types `types/index.ts`, routes `App.tsx`.
 
-- **low:** routine chores. Checking CI, merging a green PR, writing release notes or the publish link, explaining a screenshot or log, small text or translation tweaks.
-- **medium (default):** anything that changes or reviews code, such as a feature, a fix, or a review of a PR.
-- **high:** a large upstream sync with conflicts in files the fork changed, a security review, or changes to money calculations across several services.
+## Fork features (all fork-only files unless marked "shared")
+1. Annual budget plan. `services/budget_plan_service.py`, `pages/budget-plan.tsx`, `components/budget-suggestion-dialog.tsx`,
+   `lib/budget-plan-utils.ts`. Shared: `api/budgets.py` (`/api/budgets/year-plan` GET, `/suggestion`, PUT),
+   `schemas/budget.py` (BudgetYear* block). Routes: `/budgets` = plan, `/budgets/monthly` = upstream page, `/budgets/plan` → `/budgets`.
+   Uses upstream `_query_filters`, `report_service._net_worth_at`; numbers must match the Budgets page.
+2. Rule action `transfer_to_account` ("Mark as transfer with account"). Shared: `services/rule_engine.py`, `rule_service.py`,
+   `transaction_service.py` (`transfer_by_rule`, `_counterpart_destination`), `components/rule-dialog.tsx`, `pages/rules.tsx`.
+3. CDI yield. `providers/cdi.py` (only host `api.bcb.gov.br`), `services/cdi_yield_service.py`, `api/cdi_yield.py`,
+   `tasks/cdi_yield_tasks.py`, `components/cdi-yield-card.tsx` (in `account-detail.tsx`).
+4. Recurring links (`link_recurring` rule action, Make recurring, average amount, unlink step-back).
+   `services/recurring_link_service.py`, `api/recurring_links.py`, `tasks/recurring_link_tasks.py`, `components/recurring-link.tsx`.
+   Shared: `rule_engine.py`, `rule_service.py`, `recurring_transaction_service.py`, `transaction_service.unlink_recurring_transaction`,
+   `pages/recurring.tsx`, `transaction-dialog.tsx`.
+5. Month outlook. `services/month_outlook_service.py`, `api/month_outlook.py` (`/api/month-outlook`, `/card-bills`),
+   `components/month-outlook-card.tsx` (in `dashboard.tsx`). Shared: `dashboard_service._get_recurring_projections`.
+6. Sidebar account groups. `components/sidebar-account-groups.tsx`, `lib/sidebar-account-totals.ts`; `app-layout.tsx` renders it.
+- Tests: `backend/tests/test_{budget_plan_*,cdi_yield,recurring_links,month_outlook,rule_transfer_action,fork_access_token_scopes}.py`, `*.test.tsx` next to each file.
+- DB: **no fork migrations or tables.** Settings in `app_settings` keys `cdi_yield:<account id>`, `recurring_amount:<recurring id>`.
+  Migrations in `backend/alembic/versions` are all upstream.
+- i18n: blocks `budgetPlan`, `cdiYield`, `recurringLink`, `monthOutlook`, plus `rules.transferToAccount*`, `recurring.nextDate*`, `accounts.sidebar*`.
 
-If the task needs a higher level than the one the conversation has been running on, stop after the
-line and wait for the owner to say "go". If a lower level would do, or the level is unchanged, add the
-line and carry on. The current level can't be read from inside the session, so phrase it as a
-suggestion ("switch if you're not on it").
+## Don't touch
+- Upstream auth, password rules, rate limits; upstream migrations; version numbers (`pyproject.toml`, `package.json`).
+- Existing translations (never replace with English). Upstream entries in `baseline.json`.
+- `CLAUDE.md` and `docs/fork/` are fork-only: keep them in every sync (upstream `.gitignore` lists `CLAUDE.md`).
+- Don't run `ruff format` on the whole tree, only on fork files.
+- Sync report: `scripts/fork/sync-report.sh` (upstream changes in fork-touched files, migrations, deploy files). Refactor plan: `docs/fork/REFACTOR-PLAN.md`.
 
-Scheduled runs with no one watching (such as the daily upstream sync) skip the reminder.
-
-## Code quality and security (OWASP)
-
-Every change follows these, in every session.
-
-**Process**
-- If the Superpowers plugin is available, use its skills: `test-driven-development` for features and
-  fixes, `systematic-debugging` for bugs, `verification-before-completion` before saying something works,
-  and `requesting-code-review` before opening a PR. Without it, follow the same steps by hand.
-- Write the failing test first for every fix, then make it pass. Run the repo's checks before pushing:
-  backend `ruff`, `ty` and `pytest -W error`, frontend typecheck, eslint and `vitest`.
-- Review your own diff before the PR, looking for bugs, edge cases, and consistency with upstream's
-  behaviour (for example, the Budgets page numbers).
-
-**Security checklist (OWASP Top 10 and API Top 10)**
-Check each item a change touches. If the Security Guidance or claude-security plugin is available, use it
-on the diff before opening the PR, and run a full claude-security scan before a release with many changes.
-- **Access control:** every query is scoped to the caller's workspace. Every new `/api` route is in
-  `backend/app/core/access_token_scopes.py` under the right scope, with a test. Write routes need write
-  permission (`require_write` or `require_module_write`). Never trust an id from the client without
-  checking that it belongs to the workspace.
-- **Injection:** SQLAlchemy expressions only, never SQL built from strings. All input goes through
-  Pydantic schemas with bounds (lengths, ranges, enums).
-- **XSS:** no `dangerouslySetInnerHTML`, no unescaped HTML from data, and no user text in URLs without
-  encoding.
-- **SSRF and outbound calls:** call only fixed, known hosts (such as `api.bcb.gov.br`) with timeouts.
-  Validate and sanity-check what comes back before storing it.
-- **Secrets:** never in code, tests, logs or commits. Use settings or env vars. Error messages and logs
-  must not leak tokens, passwords or personal data.
-- **Auth and sessions:** don't weaken rate limits, token checks or password rules. Upstream's auth code
-  is not changed by the fork.
-- **Dependencies:** add as few as possible, pin versions, and prefer what upstream already uses. Look at
-  Dependabot alerts that touch packages a change adds or upgrades.
-- **Data integrity:** money uses `Decimal`, never float. Changes that delete or rewrite user data must be
-  scoped, tested, and must not touch rows the user edited by hand.
-- **Logging and failures:** fail closed (deny when unsure), and log enough to debug without personal data.
-
-## Standing rules
-
-- Commit as `viniciuscmartins` with the noreply address `139562176+viniciuscmartins@users.noreply.github.com`.
-- No personal details (email, location, banks, home or network setup) and no chat or session links in
-  commits, PRs, release notes or files. If your attribution adds a session link, leave it out.
-- Versions follow upstream. Fork releases are tagged `v<upstream version>-plan.<N>` and the version
-  numbers in the repo are never bumped.
-- New strings go in English and Portuguese (pt-BR, pt-PT); other locales carry the English text.
-- Don't merge a PR or publish a release unless the owner asks.
-- Fork history and conventions: `docs/fork/HISTORY.md`.
+## Standing rules (short)
+- Commit as `viniciuscmartins` <139562176+viniciuscmartins@users.noreply.github.com>. No personal data or session links anywhere.
+- Releases: tag `v<upstream version>-plan.<N>`. Don't merge PRs or publish releases unless the owner asks.
+- New strings in English + pt-BR + pt-PT; other locales get English.
