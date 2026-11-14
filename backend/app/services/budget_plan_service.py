@@ -19,9 +19,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.app_clock import app_today
 from app.models.budget import Budget
 from app.models.category import Category
-from app.schemas.budget import (
+from app.schemas.budget import BudgetVsActual
+from app.schemas.budget_plan import (
     BudgetSuggestionRow,
-    BudgetVsActual,
     BudgetYearApply,
     BudgetYearApplyResult,
     BudgetYearCell,

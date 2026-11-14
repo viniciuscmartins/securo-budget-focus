@@ -10,7 +10,8 @@ from app.core.app_clock import app_today
 from app.models.account import Account
 from app.models.budget import Budget
 from app.models.transaction import Transaction
-from app.schemas.budget import BudgetCreate, BudgetPlanCellWrite, BudgetYearApply
+from app.schemas.budget import BudgetCreate
+from app.schemas.budget_plan import BudgetPlanCellWrite, BudgetYearApply
 from app.services.budget_plan_service import (
     PlanConflict,
     PlanError,

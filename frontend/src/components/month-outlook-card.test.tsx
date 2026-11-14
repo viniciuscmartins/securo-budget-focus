@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { MonthOutlookCard } from '@/components/month-outlook-card'
 import { renderWithProviders, t } from '@/test/utils'
-import type { MonthOutlook } from '@/types'
+import type { MonthOutlook } from '@/fork/types'
 
 const api = vi.hoisted(() => ({ get: vi.fn() }))
+vi.mock('@/fork/api', () => ({ monthOutlook: api }))
 vi.mock('@/lib/api', () => ({
-  monthOutlook: api,
   timezones: { list: async () => ({ default: 'UTC', available: [] }) },
 }))
 

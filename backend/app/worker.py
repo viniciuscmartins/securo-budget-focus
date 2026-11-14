@@ -61,19 +61,6 @@ celery_app.conf.beat_schedule = {
         # stamped with the 1:1 fallback (or left NULL) once real rates land.
         "schedule": 60 * 60 * 12,
     },
-    "post-cdi-yield": {
-        "task": "app.tasks.cdi_yield_tasks.post_cdi_yield",
-        # Every 6 hours: Banco Central publishes a day's CDI the next
-        # business day, at no fixed hour. Idempotent, so extra runs only
-        # pick it up sooner; one rate request per run covers all accounts.
-        "schedule": 60 * 60 * 6,
-    },
-    "refresh-recurring-amounts": {
-        "task": "app.tasks.recurring_link_tasks.refresh_recurring_amounts",
-        # Hourly: re-averages recurring items whose amount follows their
-        # payments, after a bank sync linked a new one. Cheap and idempotent.
-        "schedule": 60 * 60,
-    },
 }
 
 if feature_flag("PLUGINS_ENABLED"):
@@ -91,10 +78,13 @@ celery_app.conf.include = [
     "app.tasks.invoice_schedule_tasks",
     "app.tasks.asset_tasks",
     "app.tasks.fx_rate_tasks",
-    "app.tasks.cdi_yield_tasks",
-    "app.tasks.recurring_link_tasks",
     "app.tasks.plugin_tasks",
     # Optional agents module — registering the import is harmless when
     # AGENTS_ENABLED=false (the task just won't be dispatched).
     "app.agents.tasks.ingest",
 ]
+
+# Fork: its own tasks and beat entries (app/fork/beat.py).
+from app.fork.beat import extend_celery  # noqa: E402
+
+extend_celery(celery_app)

@@ -222,6 +222,15 @@ In the annual plan, each actual amount (spending grid, income section, single-mo
 - Unlink now steps the item back one period when that payment is what moved it: dated within one period before the occurrence, no other linked payment covering it, and not an old month (`recurring_link_service.step_back_after_unlink`).
 - The recurring edit form has a "Next date" field (`next_occurrence` on the update schema). It can go back one period at most and not to an occurrence a linked payment already covers (`check_next_occurrence`); later dates are always allowed. A refused date shows the server's reason.
 
+## Fork code moved out of upstream files (refactor phase 1)
+
+No behaviour change. The fork's changes to upstream files go from 47 files and 201 hunks to 27 files and 85 hunks, so upstream merges conflict less.
+- Strings: `frontend/src/fork/locales/<lang>.json` (all 18 languages, translations kept), added on top of upstream's bundle by `src/fork/i18n.ts` without overwriting a key. Upstream's `src/locales` files are identical to upstream's. `src/fork/locales/fork-locales.test.ts` runs upstream's locale checks on the fork files and checks that no fork key shadows an upstream one.
+- API clients and types: `frontend/src/fork/api.ts` (`budgetPlan`, `cdiYield`, `recurringLinks`, `monthOutlook`) and `src/fork/types.ts`.
+- Annual plan API: `backend/app/api/budget_plan.py` and `app/schemas/budget_plan.py`; same URLs.
+- Wiring: `backend/app/fork/` registers the fork's routers and Celery tasks; `main.py` and `worker.py` each call one function.
+- Contract baseline: the fork's 39 entries are in `tests/api_contract/baseline.fork.json`; `baseline.json` equals upstream's.
+
 ## Conventions
 
 - **Agent instructions:** `CLAUDE.md` (repository root, fork-only) holds the facts a session needs: stack, commands, where each fork feature lives, what not to touch. The effort-level reminder, code-quality process and OWASP checklist are in `docs/fork/CONTRIBUTING.md`.

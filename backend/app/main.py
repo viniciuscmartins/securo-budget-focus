@@ -7,9 +7,6 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.accounts import router as accounts_router
-from app.api.cdi_yield import router as cdi_yield_router
-from app.api.recurring_links import router as recurring_links_router
-from app.api.month_outlook import router as month_outlook_router
 from app.api.budgets import router as budgets_router
 from app.api.goals import router as goals_router
 from app.api.groups import router as groups_router
@@ -187,9 +184,10 @@ app.include_router(mortgage_payments_router)
 app.include_router(import_router)
 app.include_router(import_logs_router)
 app.include_router(accounts_router)
-app.include_router(cdi_yield_router)
-app.include_router(recurring_links_router)
-app.include_router(month_outlook_router)
+# Fork: its own routers (app/fork/__init__.py).
+from app.fork import include_fork_routers  # noqa: E402
+
+include_fork_routers(app)
 app.include_router(connections_router)
 app.include_router(recurring_router)
 app.include_router(forecast_router)

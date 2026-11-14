@@ -25,6 +25,7 @@ import pytest_asyncio
 from httpx import AsyncClient
 
 from app.core.config import get_settings
+from tests.api_contract import fork_baseline
 from tests.api_contract.world import build_world
 from tests.conftest import engine
 
@@ -43,8 +44,8 @@ def updating_baseline() -> bool:
 
 def load_baseline() -> dict[str, dict[str, int]]:
     if not BASELINE_PATH.exists():
-        return {}
-    return json.loads(BASELINE_PATH.read_text())
+        return fork_baseline.merge({})
+    return fork_baseline.merge(json.loads(BASELINE_PATH.read_text()))
 
 
 def record(variant: str, key: str, status: int, detail: str = "") -> None:
@@ -67,7 +68,7 @@ def pytest_sessionfinish(session, exitstatus):
     for variant, statuses in _recorded.items():
         merged.setdefault(variant, {}).update(statuses)
     ordered = {v: dict(sorted(s.items())) for v, s in sorted(merged.items())}
-    BASELINE_PATH.write_text(json.dumps(ordered, indent=1) + "\n")
+    fork_baseline.write(BASELINE_PATH, ordered)
 
 
 class WorldHeaders(NamedTuple):

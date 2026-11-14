@@ -1,6 +1,7 @@
 import i18n, { type BackendModule, type ResourceLanguage } from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
+import { addForkStrings } from '@/fork/i18n'
 
 import ptBR from '@/locales/pt-BR.json'
 import en from '@/locales/en.json'
@@ -53,6 +54,9 @@ export const i18nReady = i18n
       escapeValue: false,
     },
   })
+
+// Fork: its own strings, kept in src/fork/locales.
+addForkStrings(i18n)
 
 syncHtmlLang(i18n.language || 'en')
 i18n.on('languageChanged', syncHtmlLang)
