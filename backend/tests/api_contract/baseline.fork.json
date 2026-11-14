@@ -1,0 +1,51 @@
+{
+ "anon": {
+  "DELETE /api/accounts/{account_id}/cdi-yield": 401,
+  "GET /api/accounts/{account_id}/cdi-yield": 401,
+  "GET /api/budgets/year-plan": 401,
+  "GET /api/budgets/year-plan/suggestion": 401,
+  "GET /api/month-outlook": 401,
+  "GET /api/month-outlook/card-bills": 401,
+  "GET /api/recurring-links/amount-modes": 401,
+  "POST /api/accounts/{account_id}/cdi-yield/recalculate": 401,
+  "POST /api/recurring-links/from-transaction/{transaction_id}": 401,
+  "PUT /api/accounts/{account_id}/cdi-yield": 401,
+  "PUT /api/budgets/year-plan": 401,
+  "PUT /api/recurring-links/{recurring_id}/amount-mode": 401
+ },
+ "empty": {
+  "PUT /api/accounts/{account_id}/cdi-yield": 422,
+  "PUT /api/budgets/year-plan": 422,
+  "PUT /api/recurring-links/{recurring_id}/amount-mode": 422
+ },
+ "ok": {
+  "DELETE /api/accounts/{account_id}/cdi-yield": 204,
+  "GET /api/accounts/{account_id}/cdi-yield": 200,
+  "GET /api/budgets/year-plan": 200,
+  "GET /api/budgets/year-plan/suggestion": 200,
+  "GET /api/month-outlook": 200,
+  "GET /api/month-outlook/card-bills": 200,
+  "GET /api/recurring-links/amount-modes": 200,
+  "POST /api/accounts/{account_id}/cdi-yield/recalculate": 400,
+  "POST /api/recurring-links/from-transaction/{transaction_id}": 201,
+  "PUT /api/accounts/{account_id}/cdi-yield": 502,
+  "PUT /api/budgets/year-plan": 200,
+  "PUT /api/recurring-links/{recurring_id}/amount-mode": 200
+ },
+ "unknown_id": {
+  "DELETE /api/accounts/{account_id}/cdi-yield": 404,
+  "GET /api/accounts/{account_id}/cdi-yield": 404,
+  "POST /api/accounts/{account_id}/cdi-yield/recalculate": 404,
+  "POST /api/recurring-links/from-transaction/{transaction_id}": 404,
+  "PUT /api/accounts/{account_id}/cdi-yield": 404,
+  "PUT /api/recurring-links/{recurring_id}/amount-mode": 404
+ },
+ "viewer": {
+  "DELETE /api/accounts/{account_id}/cdi-yield": 403,
+  "POST /api/accounts/{account_id}/cdi-yield/recalculate": 403,
+  "POST /api/recurring-links/from-transaction/{transaction_id}": 403,
+  "PUT /api/accounts/{account_id}/cdi-yield": 403,
+  "PUT /api/budgets/year-plan": 403,
+  "PUT /api/recurring-links/{recurring_id}/amount-mode": 403
+ }
+}
