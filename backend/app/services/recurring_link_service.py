@@ -40,7 +40,7 @@ from app.models.recurring_transaction import RecurringTransaction
 from app.models.rule import Rule
 from app.models.transaction import Transaction
 from app.services import category_line_service, recurring_match_service
-from app.services.rule_engine import LINK_RECURRING_ACTION
+from app.services.fork_rule_actions import LINK_RECURRING_ACTION
 from app.services.fx_rate_service import stamp_primary_amount
 
 logger = logging.getLogger(__name__)
@@ -392,6 +392,22 @@ async def check_next_occurrence(
         )
     if await _covered(session, recurring, new_next):
         raise ValueError("A payment linked to this item already covers that date")
+
+
+async def unlink_and_step_back(
+    session: AsyncSession, workspace_id: uuid.UUID, transaction: Transaction
+) -> None:
+    """Clear `transaction`'s recurring link, stepping the item back when this
+    payment is what moved it on (see `step_back_after_unlink`). Does not commit.
+
+    Called by upstream's transaction_service.unlink_recurring_transaction in
+    place of clearing the foreign key itself; upstream's docstring there says
+    the bill is left as-is, which the fork changed on purpose (HISTORY.md #26).
+    """
+    recurring = await session.get(RecurringTransaction, transaction.recurring_transaction_id)
+    transaction.recurring_transaction_id = None
+    if recurring is not None and recurring.workspace_id == workspace_id:
+        await step_back_after_unlink(session, recurring, transaction)
 
 
 async def step_back_after_unlink(

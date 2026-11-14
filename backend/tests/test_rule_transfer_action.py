@@ -12,7 +12,7 @@ from app.models.account import Account
 from app.models.rule import Rule
 from app.models.transaction import Transaction
 from app.services import rule_service
-from app.services.rule_engine import transfer_target, transfer_would_apply
+from app.services.fork_rule_actions import transfer_target, transfer_would_apply
 
 
 @pytest.fixture
