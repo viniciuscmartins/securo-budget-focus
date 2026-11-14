@@ -8,7 +8,8 @@ Start every reply to a task with `**Effort: <low|medium|high> recommended** (why
 - Backend `backend/`: Python ≥3.11, FastAPI, SQLAlchemy 2 (async), Alembic, Celery + Redis, uv. Prod DB PostgreSQL.
 - Frontend `frontend/`: React 19, TypeScript, Vite, TanStack Query, Tailwind 4, vitest. Run Docker via `docker-compose.yml`.
 - Backend checks: `cd backend && uv sync --frozen --extra dev && uv run ruff check app tests && uv run ty check . && uv run pytest -q -n 4 -W error`
-- Contract baseline: `UPDATE_API_CONTRACT=1 uv run pytest tests/api_contract -n 0 -q` (fork adds 39 entries).
+- Contract baseline: `UPDATE_API_CONTRACT=1 uv run pytest tests/api_contract -n 0 -q` writes upstream's entries to `baseline.json`
+  and the fork's 39 to `baseline.fork.json` (split by `tests/api_contract/fork_baseline.py`).
 - Frontend checks: `cd frontend && npm ci && npm run typecheck && npx eslint <files> && npx vitest run <files>`
 - CI (`.github/workflows/ci.yml`) runs backend on PostgreSQL + frontend checks on every PR.
 
@@ -16,11 +17,13 @@ Start every reply to a task with `**Effort: <low|medium|high> recommended** (why
 - `backend/app/{api,schemas,services,models,tasks,providers,core}`; routers registered in `app/main.py`,
   beat jobs in `app/worker.py`, token scopes in `app/core/access_token_scopes.py` (deny by default).
 - `frontend/src/{pages,components,lib,hooks,types,locales}`; API client `lib/api.ts`, types `types/index.ts`, routes `App.tsx`.
+- Fork wiring: `backend/app/fork/` (`include_fork_routers` called in `main.py`, `extend_celery` in `worker.py`);
+  `frontend/src/fork/` (`api.ts` clients on upstream's `api`, `types.ts`, `i18n.ts`, `locales/`). Put new fork code there, not in upstream files.
 
 ## Fork features (all fork-only files unless marked "shared")
 1. Annual budget plan. `services/budget_plan_service.py`, `pages/budget-plan.tsx`, `components/budget-suggestion-dialog.tsx`,
-   `lib/budget-plan-utils.ts`. Shared: `api/budgets.py` (`/api/budgets/year-plan` GET, `/suggestion`, PUT),
-   `schemas/budget.py` (BudgetYear* block). Routes: `/budgets` = plan, `/budgets/monthly` = upstream page, `/budgets/plan` → `/budgets`.
+   `lib/budget-plan-utils.ts`, `api/budget_plan.py` (`/api/budgets/year-plan` GET, `/suggestion`, PUT),
+   `schemas/budget_plan.py`, client `budgetPlan` in `src/fork/api.ts`. Routes: `/budgets` = plan, `/budgets/monthly` = upstream page, `/budgets/plan` → `/budgets`.
    Uses upstream `_query_filters`, `report_service._net_worth_at`; numbers must match the Budgets page.
 2. Rule action `transfer_to_account` ("Mark as transfer with account"). Shared: `services/rule_engine.py`, `rule_service.py`,
    `transaction_service.py` (`transfer_by_rule`, `_counterpart_destination`), `components/rule-dialog.tsx`, `pages/rules.tsx`.
@@ -36,11 +39,12 @@ Start every reply to a task with `**Effort: <low|medium|high> recommended** (why
 - Tests: `backend/tests/test_{budget_plan_*,cdi_yield,recurring_links,month_outlook,rule_transfer_action,fork_access_token_scopes}.py`, `*.test.tsx` next to each file.
 - DB: **no fork migrations or tables.** Settings in `app_settings` keys `cdi_yield:<account id>`, `recurring_amount:<recurring id>`.
   Migrations in `backend/alembic/versions` are all upstream.
-- i18n: blocks `budgetPlan`, `cdiYield`, `recurringLink`, `monthOutlook`, plus `rules.transferToAccount*`, `recurring.nextDate*`, `accounts.sidebar*`.
+- i18n: fork strings only in `frontend/src/fork/locales/<lang>.json` (all 18 languages), merged by `src/fork/i18n.ts`;
+  never add them to `src/locales`. Blocks `budgetPlan`, `cdiYield`, `recurringLink`, `monthOutlook`, `rules.transferToAccount*`, `recurring.nextDate*`, `accounts.sidebar*`.
 
 ## Don't touch
 - Upstream auth, password rules, rate limits; upstream migrations; version numbers (`pyproject.toml`, `package.json`).
-- Existing translations (never replace with English). Upstream entries in `baseline.json`.
+- Existing translations (never replace with English). `src/locales/*.json` and `baseline.json` stay identical to upstream's.
 - `CLAUDE.md` and `docs/fork/` are fork-only: keep them in every sync (upstream `.gitignore` lists `CLAUDE.md`).
 - Don't run `ruff format` on the whole tree, only on fork files.
 - Sync report: `scripts/fork/sync-report.sh` (upstream changes in fork-touched files, migrations, deploy files). Refactor plan: `docs/fork/REFACTOR-PLAN.md`.
