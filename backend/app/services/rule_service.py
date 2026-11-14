@@ -7,7 +7,6 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
-from app.models.account import Account
 from app.models.rule import Rule
 from app.models.category import Category
 from app.models.payee import Payee
@@ -33,13 +32,8 @@ from app.services.rule_engine import (
     apply_rule_actions,
     compile_rule_regex,
     evaluate_conditions,
-    transfer_target,
-    transfer_would_apply,
-    TRANSFER_ACTION,
-    LINK_RECURRING_ACTION,
-    link_would_apply,
-    recurring_target,
 )
+from app.services import fork_rule_actions as fork_rules
 
 
 class DuplicateRuleError(Exception):
@@ -61,22 +55,8 @@ _ALLOWED_CONDITION_OPS = {
 }
 _ALLOWED_ACTION_OPS = {
     "set_category", "set_payee", "set_description", "append_notes", "ignore",
-    TRANSFER_ACTION, LINK_RECURRING_ACTION,
+    *fork_rules.FORK_ACTION_OPS,
 }
-
-
-async def transfer_by_rule(session: AsyncSession, transaction: Transaction, to_account_id: uuid.UUID) -> bool:
-    """Local import: transaction_service imports this module at load time."""
-    from app.services.transaction_service import transfer_by_rule as _transfer_by_rule
-
-    return await _transfer_by_rule(session, transaction, to_account_id)
-
-
-async def link_by_rule(session: AsyncSession, transaction: Transaction, recurring_id: uuid.UUID) -> bool:
-    """Local import: keeps the recurring link service out of this module's load."""
-    from app.services.recurring_link_service import link_by_rule as _link_by_rule
-
-    return await _link_by_rule(session, transaction, recurring_id)
 
 
 def _rule_item_value(item, key: str):
@@ -156,37 +136,9 @@ async def validate_rule_definition(
                 raise ValueError("Description cannot be blank")
             if len(value.strip()) > 500:
                 raise ValueError("Description cannot exceed 500 characters")
-        elif op == TRANSFER_ACTION:
-            # Only into a manual, open account of this workspace: a synced
-            # account gets its own real copy of the movement from the bank,
-            # so a counterpart there would count the money twice.
-            try:
-                account_id = uuid.UUID(str(value))
-            except (TypeError, ValueError):
-                raise ValueError("Account not found")
-            account = await session.get(Account, account_id)
-            if account is None or account.workspace_id != workspace_id:
-                raise ValueError("Account not found")
-            if account.connection_id is not None:
-                raise ValueError("Transfers by rule can only go to a manual account")
-            if account.is_closed:
-                raise ValueError("Account is closed")
-
-        elif op == LINK_RECURRING_ACTION:
-            try:
-                recurring_id = uuid.UUID(str(value))
-            except (TypeError, ValueError):
-                raise ValueError("Recurring item not found")
-            from app.models.recurring_transaction import RecurringTransaction
-
-            recurring = await session.get(RecurringTransaction, recurring_id)
-            if recurring is None or recurring.workspace_id != workspace_id:
-                raise ValueError("Recurring item not found")
-
-    if sum(1 for a in actions or [] if _rule_item_value(a, "op") == TRANSFER_ACTION) > 1:
-        raise ValueError("A rule can transfer to only one account")
-    if sum(1 for a in actions or [] if _rule_item_value(a, "op") == LINK_RECURRING_ACTION) > 1:
-        raise ValueError("A rule can link to only one recurring item")
+        elif op in fork_rules.FORK_ACTION_OPS:
+            await fork_rules.validate_action(session, workspace_id, op, value)
+    fork_rules.validate_counts(actions)
 
 
 # ─── Universal rules (work for any language/country) ───
@@ -676,7 +628,7 @@ _PREVIEW_COLUMNS = (
     Transaction.notes,
     Transaction.is_ignored,
     Transaction.has_category_lines,
-    Transaction.transfer_pair_id,
+    Transaction.transfer_pair_id,  # fork: transfer_to_account preview
 )
 
 
@@ -700,7 +652,7 @@ def _rule_preview(transaction: Transaction) -> Transaction:
         payee_id=transaction.payee_id,
         notes=transaction.notes,
         is_ignored=transaction.is_ignored,
-        transfer_pair_id=transaction.transfer_pair_id,
+        transfer_pair_id=transaction.transfer_pair_id,  # fork
     )
 
 
@@ -802,8 +754,7 @@ async def apply_rules_to_transaction(
         else None
     )
 
-    transfer_to: Optional[uuid.UUID] = None
-    link_to: Optional[uuid.UUID] = None
+    fork_targets = fork_rules.Targets()
     for rule in rules:
         conditions = rule.conditions or []
         actions = rule.actions or []
@@ -815,15 +766,9 @@ async def apply_rules_to_transaction(
                 assignable_category_ids=assignable_categories,
                 existing_payee_ids=existing_payees,
             )
-            # Highest-priority rule wins, like categories do.
-            transfer_to = transfer_to or transfer_target(actions)
-            link_to = link_to or recurring_target(actions)
-
-    # After every rule has run, so an `ignore` from any rule is respected.
-    if transfer_to is not None:
-        await transfer_by_rule(session, transaction, transfer_to)
-    if link_to is not None and getattr(transaction, "workspace_id", None) is not None:
-        await link_by_rule(session, transaction, link_to)
+            fork_targets.collect(actions)
+    # Fork: after every rule has run, so an `ignore` from any rule is respected.
+    await fork_targets.apply(session, transaction)
 
 
 def _rule_effect_state(tx: Transaction) -> tuple:
@@ -905,13 +850,7 @@ async def preview_rule(
     # The save path skips `set_category` at an unavailable target, so a preview that
     # did not would promise a move that saving never makes.
     assignable_categories = await get_assignable_category_ids(session, workspace_id)
-
-    link_to = recurring_target(action_dicts)
-    link_type = None
-    if link_to is not None:
-        from app.services.recurring_link_service import recurring_type
-
-        link_type = await recurring_type(session, link_to)
+    fork_would_change = await fork_rules.preview_check(session, action_dicts)
 
     matched = 0
     changed = 0
@@ -943,11 +882,7 @@ async def preview_rule(
                 skip_description=_has_manual_description(tx),
                 assignable_category_ids=assignable_categories,
             )
-            will_change = (
-                _rule_effect_state(draft) != before
-                or transfer_would_apply(draft, transfer_target(action_dicts))
-                or link_would_apply(draft, link_to, link_type)
-            )
+            will_change = _rule_effect_state(draft) != before or fork_would_change(draft)
             if will_change:
                 changed += 1
         # `matched` has just counted this row, so `matched - 1` is its index
@@ -1010,9 +945,8 @@ async def apply_single_rule(
     actions = rule.actions or []
 
     assignable_categories = await get_assignable_category_ids(session, workspace_id)
-    transfer_to = transfer_target(actions)
-    link_to = recurring_target(actions)
     existing_payees = await get_existing_rule_payee_ids(session, [rule])
+    fork_targets = fork_rules.Targets(actions)
     count = 0
     for tx in transactions:
         matches = evaluate_conditions(rule.conditions_op, conditions, tx)
@@ -1053,13 +987,8 @@ async def apply_single_rule(
             tx.notes,
             tx.is_ignored,
         )
-        transferred = False
-        if transfer_to is not None:
-            transferred = await transfer_by_rule(session, tx, transfer_to)
-        linked = False
-        if link_to is not None:
-            linked = await link_by_rule(session, tx, link_to)
-        if before != after or transferred or linked:
+        fork_changed = await fork_targets.apply(session, tx)
+        if before != after or fork_changed:
             count += 1
 
     await session.commit()
@@ -1104,8 +1033,7 @@ async def apply_all_rules(session: AsyncSession, workspace_id: uuid.UUID) -> int
         matched = False
         # A split row keeps its lines through a re-apply.
         category_set = tx.has_category_lines
-        transfer_to: Optional[uuid.UUID] = None
-        link_to: Optional[uuid.UUID] = None
+        fork_targets = fork_rules.Targets()
         for rule in rules:
             conditions = rule.conditions or []
             actions = rule.actions or []
@@ -1123,12 +1051,8 @@ async def apply_all_rules(session: AsyncSession, workspace_id: uuid.UUID) -> int
                     assignable_category_ids=assignable_categories,
                     existing_payee_ids=existing_payees,
                 )
-                transfer_to = transfer_to or transfer_target(actions)
-                link_to = link_to or recurring_target(actions)
-        if transfer_to is not None:
-            await transfer_by_rule(session, tx, transfer_to)
-        if link_to is not None:
-            await link_by_rule(session, tx, link_to)
+                fork_targets.collect(actions)
+        await fork_targets.apply(session, tx)
 
         after = (
             tx.category_id,

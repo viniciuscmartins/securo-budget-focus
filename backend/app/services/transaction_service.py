@@ -1416,6 +1416,8 @@ async def create_transfer_counterpart(
     anchor's date / description / notes with the opposite type, converting the
     amount when the destination account uses a different currency.
     """
+    from decimal import Decimal
+
     anchor = await get_transaction(session, transaction_id, workspace_id, for_update=True)
     if not anchor:
         raise ValueError("Transaction not found")
@@ -1426,25 +1428,6 @@ async def create_transfer_counterpart(
     await _ensure_not_mortgage_linked(session, workspace_id, anchor)
     _ensure_not_split_by_category(anchor)
 
-    to_account = await _counterpart_destination(session, workspace_id, to_account_id)
-    if not to_account:
-        raise ValueError("Destination account not found")
-
-    counterpart_tx = await _add_transfer_counterpart(session, workspace_id, user_id, anchor, to_account)
-
-    await session.commit()
-    await session.refresh(anchor, ["category"])
-    await session.refresh(counterpart_tx, ["category"])
-
-    debit_tx = anchor if anchor.type == "debit" else counterpart_tx
-    credit_tx = counterpart_tx if anchor.type == "debit" else anchor
-    return debit_tx, credit_tx
-
-
-async def _counterpart_destination(
-    session: AsyncSession, workspace_id: uuid.UUID, to_account_id: uuid.UUID
-) -> Optional[Account]:
-    """The destination account, if it belongs to this workspace."""
     to_result = await session.execute(
         select(Account)
         .outerjoin(BankConnection)
@@ -1456,20 +1439,9 @@ async def _counterpart_destination(
             ),
         )
     )
-    return to_result.scalar_one_or_none()
-
-
-async def _add_transfer_counterpart(
-    session: AsyncSession,
-    workspace_id: uuid.UUID,
-    user_id: uuid.UUID,
-    anchor: Transaction,
-    to_account: Account,
-) -> Transaction:
-    """Create the opposite-side transaction in `to_account` and pair it with
-    `anchor`. Flushes but does not commit, so callers inside a larger unit of
-    work (a bank sync, a rule run) keep control of the transaction."""
-    from decimal import Decimal
+    to_account = to_result.scalar_one_or_none()
+    if not to_account:
+        raise ValueError("Destination account not found")
 
     opposing_type = "credit" if anchor.type == "debit" else "debit"
 
@@ -1486,7 +1458,7 @@ async def _add_transfer_counterpart(
     counterpart_tx = Transaction(
         user_id=user_id,
         workspace_id=workspace_id,
-        account_id=to_account.id,
+        account_id=to_account_id,
         description=anchor.description,
         amount=counterpart_amount,
         currency=to_account.currency,
@@ -1512,92 +1484,14 @@ async def _add_transfer_counterpart(
             counterpart_tx.fx_rate_used = Decimal(str(anchor.amount_primary)) / Decimal(
                 str(counterpart_tx.amount)
             )
-    return counterpart_tx
 
+    await session.commit()
+    await session.refresh(anchor, ["category"])
+    await session.refresh(counterpart_tx, ["category"])
 
-async def transfer_by_rule(
-    session: AsyncSession,
-    transaction: Transaction,
-    to_account_id: uuid.UUID,
-) -> bool:
-    """Apply a rule's "transfer to account" action to one transaction.
-
-    Creates the counterpart in `to_account_id` the same way the "create
-    counterpart" button does, but quietly does nothing when the transaction
-    is not eligible, because a rule runs over many rows and one unsuitable
-    row must not fail a whole bank sync or rule run:
-
-    - ignored, already paired, or an opening balance / auto-created transfer;
-    - already in the destination account;
-    - destination missing, closed, or bank-synced (a synced account would
-      soon get its own real copy of the movement, so a counterpart there
-      would double count);
-    - linked to a mortgage payment;
-    - a likely duplicate from the bank feed (see `_has_paired_twin`).
-
-    Returns True when a counterpart was created. Flushes, never commits.
-    """
-    workspace_id = getattr(transaction, "workspace_id", None)
-    if workspace_id is None or transaction.id is None:
-        return False
-    if transaction.is_ignored or transaction.transfer_pair_id is not None:
-        return False
-    if transaction.source in {"opening_balance", "transfer"}:
-        return False
-    if transaction.account_id == to_account_id:
-        return False
-
-    to_account = await _counterpart_destination(session, workspace_id, to_account_id)
-    if to_account is None or to_account.connection_id is not None or to_account.is_closed:
-        return False
-    try:
-        await _ensure_not_mortgage_linked(session, workspace_id, transaction)
-    except ValueError:
-        return False
-    if await _has_paired_twin(session, transaction):
-        return False
-
-    await _add_transfer_counterpart(
-        session, workspace_id, transaction.user_id, transaction, to_account
-    )
-    return True
-
-
-async def _has_paired_twin(session: AsyncSession, transaction: Transaction) -> bool:
-    """Whether a synced row looks like the bank reporting a payment twice.
-
-    Some providers send the same payment again under another id. The sync's
-    phantom-duplicate cleanup removes the copy that is *not* paired as a
-    transfer when a paired twin sits next to it (same account, amount and
-    direction, within a day, near-identical description). Pairing the copy
-    here would hide it from that cleanup and put the money in the
-    destination account twice, so it is left unpaired: the cleanup removes
-    it if it was a duplicate, and a real second transfer of the same amount
-    on the same day can be paired by hand.
-    """
-    if transaction.source != "sync":
-        return False
-    from datetime import timedelta
-
-    from app.services.text_similarity import token_overlap
-
-    siblings = await session.execute(
-        select(Transaction).where(
-            Transaction.account_id == transaction.account_id,
-            Transaction.source == "sync",
-            Transaction.amount == transaction.amount,
-            Transaction.type == transaction.type,
-            Transaction.date >= transaction.date - timedelta(days=1),
-            Transaction.date <= transaction.date + timedelta(days=1),
-            Transaction.transfer_pair_id.is_not(None),
-            Transaction.id != transaction.id,
-        )
-    )
-    text = transaction.original_description or transaction.description
-    return any(
-        token_overlap(sibling.original_description or sibling.description, text) >= 0.9
-        for sibling in siblings.scalars()
-    )
+    debit_tx = anchor if anchor.type == "debit" else counterpart_tx
+    credit_tx = counterpart_tx if anchor.type == "debit" else anchor
+    return debit_tx, credit_tx
 
 
 async def _resync_bill_link_from_override(
@@ -2554,21 +2448,17 @@ async def unlink_recurring_transaction(
 ) -> Optional[Transaction]:
     """Clear a transaction's link to a recurring bill (issue #116).
 
-    The escape hatch for a wrong auto-link: only the FK is cleared and the
-    transaction row is otherwise untouched. Fork: when this payment is what
-    moved the bill's next_occurrence on, the bill steps back to that
-    occurrence (recurring_link_service.step_back_after_unlink). Returns the
-    transaction, or None if not found / not currently linked."""
-    from app.models.recurring_transaction import RecurringTransaction
-    from app.services.recurring_link_service import step_back_after_unlink
-
+    The escape hatch for a wrong auto-link: only the FK is cleared, the
+    transaction row is otherwise untouched, and the bill is left as-is (its
+    next_occurrence already moved on). Returns the transaction, or None if not
+    found / not currently linked."""
     transaction = await get_transaction(session, transaction_id, workspace_id)
     if not transaction or transaction.recurring_transaction_id is None:
         return None
-    recurring = await session.get(RecurringTransaction, transaction.recurring_transaction_id)
-    transaction.recurring_transaction_id = None
-    if recurring is not None and recurring.workspace_id == workspace_id:
-        await step_back_after_unlink(session, recurring, transaction)
+    # Fork: also steps the bill back when this payment moved it on.
+    from app.services.recurring_link_service import unlink_and_step_back
+
+    await unlink_and_step_back(session, workspace_id, transaction)
     await session.commit()
     await session.refresh(transaction)
     return transaction

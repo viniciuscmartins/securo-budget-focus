@@ -1,6 +1,6 @@
 # Plan: move fork changes out of upstream files
 
-Approved 2026-11-14. **Phase 1 done** (2026-11-14): 27 upstream files, 85 hunks, +560 lines. Phases 2 and 3 not started. Goal: fewer merge conflicts with upstream.
+Approved 2026-11-14. **Phase 1 done** (2026-11-14): 27 upstream files, 85 hunks, +560 lines. **Phase 2 done** (2026-11-14), see HISTORY.md. Phase 3 not started. Goal: fewer merge conflicts with upstream.
 Baseline at approval: the fork changed 47 upstream files in 201 hunks (+3,864 lines).
 Target: about 28 files and 45 to 50 hunks, most of them one-line hooks.
 Fork-only files stay where they are (upstream never touches them). Start after the open sync PR is merged.

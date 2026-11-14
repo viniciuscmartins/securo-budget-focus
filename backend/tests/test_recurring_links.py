@@ -20,7 +20,7 @@ from app.models.transaction import Transaction
 from app.services import recurring_link_service as svc
 from app.services import rule_service
 from app.services.recurring_link_service import AmountMode, LinkRuleSpec, average
-from app.services.rule_engine import link_would_apply, recurring_target
+from app.services.fork_rule_actions import link_would_apply, recurring_target
 
 
 @pytest.fixture
