@@ -231,6 +231,13 @@ No behaviour change. The fork's changes to upstream files go from 47 files and 2
 - Wiring: `backend/app/fork/` registers the fork's routers and Celery tasks; `main.py` and `worker.py` each call one function.
 - Contract baseline: the fork's 39 entries are in `tests/api_contract/baseline.fork.json`; `baseline.json` equals upstream's.
 
+## Fork rule actions out of upstream files (refactor phase 2)
+
+No behaviour change. `rule_engine.py` is identical to upstream's again; `transaction_service.py` keeps one 4-line hook; `rule_service.py` keeps one-line hooks (21 lines instead of 95).
+- `services/fork_rule_actions.py`: both fork actions (`transfer_to_account`, `link_recurring`): their validation, targets, preview check and `Targets`, which collects the matching rules' actions in priority order and applies them once after every rule has run.
+- `services/rule_transfer_service.py`: `transfer_by_rule` and `_has_paired_twin`, plus a copy of the counterpart upstream's `create_transfer_counterpart` builds (without the commit). Upstream's function is back to upstream's code. `tests/test_rule_transfer_parity.py` builds a counterpart both ways (same currency, other currency, credit card; debit and credit) and fails if they differ, so an upstream change there gets copied.
+- `recurring_link_service.unlink_and_step_back`: what upstream's unlink calls to clear the link and step the recurring item back.
+
 ## Conventions
 
 - **Agent instructions:** `CLAUDE.md` (repository root, fork-only) holds the facts a session needs: stack, commands, where each fork feature lives, what not to touch. The effort-level reminder, code-quality process and OWASP checklist are in `docs/fork/CONTRIBUTING.md`.

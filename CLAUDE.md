@@ -25,13 +25,15 @@ Start every reply to a task with `**Effort: <low|medium|high> recommended** (why
    `lib/budget-plan-utils.ts`, `api/budget_plan.py` (`/api/budgets/year-plan` GET, `/suggestion`, PUT),
    `schemas/budget_plan.py`, client `budgetPlan` in `src/fork/api.ts`. Routes: `/budgets` = plan, `/budgets/monthly` = upstream page, `/budgets/plan` → `/budgets`.
    Uses upstream `_query_filters`, `report_service._net_worth_at`; numbers must match the Budgets page.
-2. Rule action `transfer_to_account` ("Mark as transfer with account"). Shared: `services/rule_engine.py`, `rule_service.py`,
-   `transaction_service.py` (`transfer_by_rule`, `_counterpart_destination`), `components/rule-dialog.tsx`, `pages/rules.tsx`.
+2. Rule action `transfer_to_account` ("Mark as transfer with account"). `services/fork_rule_actions.py` (both fork actions:
+   validation, targets, preview, apply), `services/rule_transfer_service.py` (`transfer_by_rule`, its copy of upstream's
+   counterpart builder; `tests/test_rule_transfer_parity.py` fails if upstream's `create_transfer_counterpart` changes).
+   Shared: one-line hooks in `rule_service.py` (`fork_rules.*`), `components/rule-dialog.tsx`, `pages/rules.tsx`.
 3. CDI yield. `providers/cdi.py` (only host `api.bcb.gov.br`), `services/cdi_yield_service.py`, `api/cdi_yield.py`,
    `tasks/cdi_yield_tasks.py`, `components/cdi-yield-card.tsx` (in `account-detail.tsx`).
 4. Recurring links (`link_recurring` rule action, Make recurring, average amount, unlink step-back).
    `services/recurring_link_service.py`, `api/recurring_links.py`, `tasks/recurring_link_tasks.py`, `components/recurring-link.tsx`.
-   Shared: `rule_engine.py`, `rule_service.py`, `recurring_transaction_service.py`, `transaction_service.unlink_recurring_transaction`,
+   Shared: `rule_service.py` hooks, `recurring_transaction_service.py`, `transaction_service.unlink_recurring_transaction` (calls `unlink_and_step_back`),
    `pages/recurring.tsx`, `transaction-dialog.tsx`.
 5. Month outlook. `services/month_outlook_service.py`, `api/month_outlook.py` (`/api/month-outlook`, `/card-bills`),
    `components/month-outlook-card.tsx` (in `dashboard.tsx`). Shared: `dashboard_service._get_recurring_projections`.
