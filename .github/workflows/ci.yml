@@ -1,12 +1,16 @@
 name: CI
 
+# Fork: no push-to-main run (the PR already ran the same checks) and docs-only
+# changes skip CI, to stay within the free Actions minutes.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'CLAUDE.md'
+      - 'docs/**'
 
-# Only superseded PR runs are cancelled; every main push is validated.
+# Superseded PR runs are cancelled.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -15,6 +19,7 @@ jobs:
   backend-tests:
     name: Backend Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     # PostgreSQL starts on skipped PRs too; split setup if that cost dominates.
     services:
       postgres:
@@ -116,6 +121,7 @@ jobs:
   migration-chain:
     name: Migration Chain
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       # No `ref:` override, so on a pull request this is the merge with the
@@ -132,6 +138,7 @@ jobs:
   frontend-checks:
     name: Frontend Checks
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: frontend
@@ -177,6 +184,7 @@ jobs:
   helm-checks:
     name: Helm Checks
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with:
