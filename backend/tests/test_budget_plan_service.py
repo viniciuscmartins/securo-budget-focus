@@ -437,7 +437,7 @@ async def _row(session, test_user, account, category, on: date, amount: str, kin
         Transaction(
             id=uuid.uuid4(), user_id=test_user.id, account_id=account.id,
             category_id=category.id if category else None, description="x",
-            amount=Decimal(amount), date=on, type=kind, source="manual",
+            amount=Decimal(amount), currency=account.currency, date=on, type=kind, source="manual",
             created_at=datetime.now(timezone.utc),
         )
     )
