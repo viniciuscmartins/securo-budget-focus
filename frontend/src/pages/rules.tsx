@@ -1,3 +1,4 @@
+import { forwardArrow } from '@/lib/format'
 import { useRef, useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -75,27 +76,28 @@ function actionSummary(
   accountsList: { id: string; name: string; display_name?: string | null }[] = [],
   recurringList: { id: string; description: string }[] = [],
 ): string {
+  const arrow = forwardArrow()
   return actions.map(a => {
     if (a.op === 'set_category') {
       const cat = findCategoryReference(categories, a.value)
-      return cat ? `→ ${cat.name}` : `→ ${t('transactions.category')}`
+      return cat ? `${arrow} ${cat.name}` : `${arrow} ${t('transactions.category')}`
     }
     if (a.op === 'set_payee') {
       const p = payeesList.find(p => p.id === a.value)
-      return p ? `→ ${t('payees.payee')}: ${p.name}` : `→ ${t('payees.payee')}`
+      return p ? `${arrow} ${t('payees.payee')}: ${p.name}` : `${arrow} ${t('payees.payee')}`
     }
     if (a.op === 'set_description') {
-      return `→ ${t('rules.fieldDescription')}: ${a.value}`
+      return `${arrow} ${t('rules.fieldDescription')}: ${a.value}`
     }
-    if (a.op === 'append_notes') return `→ ${t('rules.fieldNotes')}: ${a.value}`
-    if (a.op === 'ignore') return `→ ${t('rules.ignoreAction')}`
+    if (a.op === 'append_notes') return `${arrow} ${t('rules.fieldNotes')}: ${a.value}`
+    if (a.op === 'ignore') return `${arrow} ${t('rules.ignoreAction')}`
     if (a.op === 'transfer_to_account') {
       const acc = accountsList.find(acc => acc.id === a.value)
-      return `→ ${t('rules.transferToAccount')}${acc ? `: ${getAccountName(acc)}` : ''}`
+      return `${arrow} ${t('rules.transferToAccount')}${acc ? `: ${getAccountName(acc)}` : ''}`
     }
     if (a.op === 'link_recurring') {
       const item = recurringList.find(r => r.id === a.value)
-      return `→ ${t('recurringLink.linkToRecurring')}${item ? `: ${item.description}` : ''}`
+      return `${arrow} ${t('recurringLink.linkToRecurring')}${item ? `: ${item.description}` : ''}`
     }
     return a.op
   }).join('  ') || t('rules.noActions')
@@ -933,7 +935,7 @@ function RemovePackDialog({ pack, onClose }: { pack: RulePack; onClose: () => vo
           </Button>
           {failed ? (
             <Button variant="outline" onClick={() => void refetch()} disabled={isFetching}>
-              <RefreshCw size={14} className="mr-1" />
+              <RefreshCw size={14} className="me-1" />
               {t('common.retry')}
             </Button>
           ) : (
@@ -942,7 +944,7 @@ function RemovePackDialog({ pack, onClose }: { pack: RulePack; onClose: () => vo
               onClick={() => plan && removeMutation.mutate(plan.token)}
               disabled={pending || !confirmable}
             >
-              <Trash2 size={14} className="mr-1" />
+              <Trash2 size={14} className="me-1" />
               {t('rules.removePackConfirm')}
             </Button>
           )}

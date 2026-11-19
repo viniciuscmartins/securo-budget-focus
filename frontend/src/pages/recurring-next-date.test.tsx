@@ -3,6 +3,11 @@ import { expect, it, vi } from 'vitest'
 import { renderWithProviders, t } from '@/test/utils'
 import type { RecurringTransaction } from '@/types'
 
+vi.mock('@/hooks/use-display-locale', () => ({
+  useDateLocale: () => 'en-GB',
+  useDisplayLocale: () => 'en-GB',
+  useDisplayLocaleSettled: () => true,
+}))
 vi.mock('@/contexts/auth-context', () => ({ useAuth: () => ({ user: null }) }))
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
