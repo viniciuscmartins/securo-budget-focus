@@ -198,6 +198,9 @@ function ConditionRow({
           onChange={(e) => onChange('value', e.target.value)}
           placeholder={condition.field === 'amount' ? '0.00' : condition.field === 'date' ? 'YYYY-MM-DD' : t('rules.valuePlaceholder')}
           type={condition.field === 'amount' ? 'number' : condition.field === 'date' ? 'date' : 'text'}
+          // The provider's label is not translated, so offer the exact values
+          // this workspace already received instead of making people type one.
+          list={condition.field === 'provider_category' ? 'provider-category-suggestions' : undefined}
         />
       )}
       <button
@@ -495,6 +498,20 @@ export function RuleDialog({
     () => flattenConditions(conditions).some(c => c.field === 'amount'),
     [conditions],
   )
+  const hasProviderCategoryCondition = useMemo(
+    () => flattenConditions(conditions).some(c => c.field === 'provider_category'),
+    [conditions],
+  )
+
+  // Suggestions for the provider_category condition: the provider's own
+  // labels, which are not translated with the app (#280). Only fetched when a
+  // condition actually uses the field.
+  const { data: providerCategories = [] } = useQuery({
+    queryKey: ['rules', 'provider-categories'],
+    queryFn: () => rulesApi.providerCategories(),
+    enabled: open && hasProviderCategoryCondition,
+    staleTime: 60_000,
+  })
 
   function updateCondition(i: number, field: keyof RuleCondition, val: string | number) {
     setConditions(prev => prev.map((node, idx) => (
@@ -684,6 +701,16 @@ export function RuleDialog({
               {hasBlankCondition && (
                 <p className="text-xs text-rose-500">{t('rules.blankConditionValue')}</p>
               )}
+              {hasProviderCategoryCondition && (
+                <p className="text-xs text-muted-foreground">
+                  {t('rules.providerCategoryHint')}
+                </p>
+              )}
+              <datalist id="provider-category-suggestions">
+                {providerCategories.map(value => (
+                  <option key={value} value={value}>{value}</option>
+                ))}
+              </datalist>
               <div className="flex flex-wrap items-center gap-4">
                 <button
                   type="button"

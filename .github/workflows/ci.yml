@@ -64,7 +64,8 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version: "0.12.17"
+          # renovate: datasource=pypi depName=uv
+          version: "0.13.0"
           enable-cache: true
           cache-dependency-glob: |
             backend/uv.lock
@@ -126,7 +127,8 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version: "0.12.17"
+          # renovate: datasource=pypi depName=uv
+          version: "0.13.0"
           enable-cache: true
           cache-dependency-glob: |
             backend/uv.lock
@@ -212,7 +214,8 @@ jobs:
         if: needs.backend-changes.outputs.run_backend != 'false'
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version: "0.12.17"
+          # renovate: datasource=pypi depName=uv
+          version: "0.13.0"
           enable-cache: true
           cache-dependency-glob: |
             backend/uv.lock
@@ -304,6 +307,21 @@ jobs:
 
       - name: Check the paths AGENTS.md and the ADRs cite
         run: python3 .github/ci/check_doc_paths.py
+
+  installer:
+    name: Installer Script
+    runs-on: ubuntu-latest
+
+    steps:
+      # The installer is the first thing someone self-hosting runs, and the
+      # paths it takes on a second run only show up against a real folder. The
+      # test drives it with stub docker, curl and git, so it needs no daemon.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Test the installer
+        run: python3 .github/ci/test_install_sh.py
 
   frontend-checks:
     name: Frontend Checks
