@@ -214,7 +214,7 @@ In the annual plan, each actual amount (spending grid, income section, single-mo
 ## PR 25: Money at month end in the plan; month outlook fixes
 
 - Annual plan: "Saldo acumulado" is replaced by "Dinheiro no fim do mês": what the accounts really held on the last day of each month (today for the current month), balances minus card and loan debt, taken from the net-worth snapshot (`_money_at_month_ends`, reusing `report_service._net_worth_at` without assets). Under it, the plan: the money on Dec 31 of the previous year plus the planned balances. New fields `start_money` and `month_end_money`.
-- Rows marked "Exclude from reports" no longer count as moved money (the old Buffer moves without a Cofrinho side).
+- Rows marked "Exclude from reports" no longer count as moved money (old savings moves without their savings-account side).
 - Month outlook (and the sidebar card bills): charges whose due date was computed from the card's settings, within 10 days of the bank's bill, belong to that bill (posted charges are already in the bank's total; recurring charges still to come are added to it). Without a bank bill, groups a few days apart are joined on the earliest. Fixes a card showing two or three bills in one month when the due day in Securo differs from the bank's.
 - Month outlook: a pending payment on a bank-connected account dated today or earlier was assumed to be in the bank's balance. That stays true, except for a pending payment linked to a recurring item: the link takes the occurrence off the projection, so the pending row now counts as still to come (a salary the bank lists as pending before it lands).
 

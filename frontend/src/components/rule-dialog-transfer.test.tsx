@@ -19,8 +19,8 @@ vi.mock('@/hooks/use-display-locale', () => ({
 }))
 
 const accounts = [
-  { id: 'cc', name: 'Mercado Pago - CC', connection_id: 'conn-1', is_closed: false },
-  { id: 'cofrinho', name: 'Mercado Pago - Cofrinho', connection_id: null, is_closed: false },
+  { id: 'cc', name: 'Checking card', connection_id: 'conn-1', is_closed: false },
+  { id: 'cofrinho', name: 'Savings pot', connection_id: null, is_closed: false },
   { id: 'old', name: 'Old piggy bank', connection_id: null, is_closed: true },
 ]
 
@@ -56,7 +56,7 @@ describe('RuleDialog "Mark as transfer with account" action', () => {
 
     const target = within(dialog).getByLabelText(t('rules.transferToAccount'))
     const names = within(target).getAllByRole('option').map((o) => o.textContent)
-    expect(names).toEqual([t('rules.selectManualAccount'), 'Mercado Pago - Cofrinho'])
+    expect(names).toEqual([t('rules.selectManualAccount'), 'Savings pot'])
   })
 
   it('explains that the direction follows the matched transaction', async () => {
@@ -74,7 +74,7 @@ describe('RuleDialog "Mark as transfer with account" action', () => {
 
     // Name, then the condition's value (a blank condition can't be saved).
     const [name, conditionValue] = within(dialog).getAllByRole('textbox')
-    await user.type(name, 'MercadoPago Buffer')
+    await user.type(name, 'Savings Reserve')
     await user.type(conditionValue, 'buffer')
     await chooseTransferAction(user, dialog)
     await user.selectOptions(within(dialog).getByLabelText(t('rules.transferToAccount')), 'cofrinho')
