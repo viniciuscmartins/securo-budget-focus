@@ -58,7 +58,7 @@ on the diff before opening the PR, and run a full claude-security scan before a 
 
 ## Standing rules
 
-- Commit as `viniciuscmartins` with the noreply address `139562176+viniciuscmartins@users.noreply.github.com`.
+- Commit as `Claude` <noreply@anthropic.com>: Claude Code sessions sign these, so GitHub shows them Verified. The owner's own commits use the noreply address `139562176+viniciuscmartins@users.noreply.github.com`.
 - No personal details (email, location, banks, home or network setup) and no chat or session links in
   commits, PRs, release notes or files. If your attribution adds a session link, leave it out.
   `scripts/fork/privacy-check.sh` checks commits before a push; CI's "Fork privacy check" checks every PR.

@@ -52,7 +52,8 @@ Start every reply to a task with `**Effort: <low|medium|high> recommended** (why
 - Sync report: `scripts/fork/sync-report.sh` (upstream changes in fork-touched files, migrations, deploy files). Refactor plan: `docs/fork/REFACTOR-PLAN.md`.
 
 ## Standing rules (short)
-- Commit as `viniciuscmartins` <139562176+viniciuscmartins@users.noreply.github.com>. No personal data or session links anywhere.
+- Commit as `Claude` <noreply@anthropic.com> (Claude Code sessions sign these, so GitHub shows them Verified); the owner's
+  own commits use <139562176+viniciuscmartins@users.noreply.github.com>. No personal data or session links anywhere.
 - The repo is **public**. Before every push, PR, comment or release text: run `scripts/fork/privacy-check.sh`
   (CI runs it too, as "Fork privacy check") and reread the text for personal data: emails, session/chat links,
   banks, account names, balances, location, employer, home or network setup. Use generic names in tests and docs.
