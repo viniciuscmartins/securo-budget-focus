@@ -32,6 +32,7 @@ async def _read(session: AsyncSession, account_id: uuid.UUID) -> CdiYieldRead:
         percent=settings.percent,
         mode=settings.mode,
         start_date=settings.start_date,
+        tax_percent=settings.tax_percent,
         last_posted_date=last,
         total_posted=total,
     )
@@ -71,7 +72,8 @@ async def put_cdi_yield(
 ):
     """Save the settings and rebuild the yield from the start date."""
     settings = svc.CdiSettings(
-        enabled=data.enabled, percent=data.percent, mode=data.mode, start_date=data.start_date
+        enabled=data.enabled, percent=data.percent, mode=data.mode, start_date=data.start_date,
+        tax_percent=data.tax_percent,
     )
     try:
         posted = await svc.save_settings(session, ctx.workspace.id, account_id, settings)

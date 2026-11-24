@@ -1,0 +1,23 @@
+# Fork-only: fails a PR whose own commits would publish personal data
+# (personal commit emails, chat/session links, email addresses, tokens).
+# Commits already in upstream are skipped. Logs never print what was found.
+name: Fork privacy check
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  privacy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Fetch base and upstream
+        run: |
+          git fetch -q origin "${{ github.event.pull_request.base.sha }}"
+          git fetch -q https://github.com/securo-finance/securo +main:refs/remotes/upstream/main
+      - name: Check
+        run: scripts/fork/privacy-check.sh "${{ github.event.pull_request.base.sha }}" HEAD

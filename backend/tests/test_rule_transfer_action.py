@@ -49,7 +49,7 @@ async def _tx(session, user, account, description, amount, kind="debit", **extra
     return tx
 
 
-async def _rule(session, workspace, user, to_account_id, *, text="buffer", extra_actions=(), priority=0):
+async def _rule(session, workspace, user, to_account_id, *, text="reserva", extra_actions=(), priority=0):
     rule = Rule(
         id=uuid.uuid4(),
         user_id=user.id,
@@ -104,7 +104,7 @@ async def test_matching_debit_creates_a_credit_in_the_manual_account(
     session, test_user, test_workspace, test_account, cofrinho
 ):
     await _rule(session, test_workspace, test_user, cofrinho.id)
-    tx = await _tx(session, test_user, test_account, "Dinheiro reservado Buffer", "4000")
+    tx = await _tx(session, test_user, test_account, "Dinheiro reservado Reserva", "4000")
 
     await rule_service.apply_rules_to_transaction(session, test_user.id, tx)
     await session.commit()
@@ -113,7 +113,7 @@ async def test_matching_debit_creates_a_credit_in_the_manual_account(
     assert counterpart.type == "credit"
     assert counterpart.amount == Decimal("4000")
     assert counterpart.date == tx.date
-    assert counterpart.description == "Dinheiro reservado Buffer"
+    assert counterpart.description == "Dinheiro reservado Reserva"
     assert counterpart.source == "transfer"
     assert tx.transfer_pair_id is not None
     assert counterpart.transfer_pair_id == tx.transfer_pair_id
@@ -124,7 +124,7 @@ async def test_matching_credit_creates_a_debit_in_the_manual_account(
     session, test_user, test_workspace, test_account, cofrinho
 ):
     await _rule(session, test_workspace, test_user, cofrinho.id)
-    tx = await _tx(session, test_user, test_account, "Dinheiro retirado Buffer", "1500", kind="credit")
+    tx = await _tx(session, test_user, test_account, "Dinheiro retirado Reserva", "1500", kind="credit")
 
     await rule_service.apply_rules_to_transaction(session, test_user.id, tx)
     await session.commit()
@@ -160,14 +160,14 @@ async def test_ignored_by_any_rule_is_not_transferred(
         workspace_id=test_workspace.id,
         name="ignore",
         conditions_op="and",
-        conditions=[{"field": "description", "op": "contains", "value": "buffer"}],
+        conditions=[{"field": "description", "op": "contains", "value": "reserva"}],
         actions=[{"op": "ignore", "value": None}],
         priority=5,
         is_active=True,
     )
     session.add(ignore)
     await session.commit()
-    tx = await _tx(session, test_user, test_account, "Dinheiro reservado Buffer", "10")
+    tx = await _tx(session, test_user, test_account, "Dinheiro reservado Reserva", "10")
 
     await rule_service.apply_rules_to_transaction(session, test_user.id, tx)
     await session.commit()
@@ -185,7 +185,7 @@ async def test_a_row_split_across_categories_is_not_transferred(
     # rule skips it quietly, like an ignored or already paired row.
     await _rule(session, test_workspace, test_user, cofrinho.id)
     split = await _tx(
-        session, test_user, test_account, "Dinheiro reservado Buffer", "10", has_category_lines=True
+        session, test_user, test_account, "Dinheiro reservado Reserva", "10", has_category_lines=True
     )
 
     await rule_service.apply_rules_to_transaction(session, test_user.id, split)
@@ -210,9 +210,9 @@ async def test_already_paired_or_same_account_is_skipped(
 ):
     await _rule(session, test_workspace, test_user, cofrinho.id)
     paired = await _tx(
-        session, test_user, test_account, "Dinheiro reservado Buffer", "10", transfer_pair_id=uuid.uuid4()
+        session, test_user, test_account, "Dinheiro reservado Reserva", "10", transfer_pair_id=uuid.uuid4()
     )
-    inside = await _tx(session, test_user, cofrinho, "Dinheiro reservado Buffer", "10")
+    inside = await _tx(session, test_user, cofrinho, "Dinheiro reservado Reserva", "10")
 
     for tx in (paired, inside):
         await rule_service.apply_rules_to_transaction(session, test_user.id, tx)
@@ -229,7 +229,7 @@ async def test_closed_destination_is_skipped_at_run_time(
     await _rule(session, test_workspace, test_user, cofrinho.id)
     cofrinho.is_closed = True
     await session.commit()
-    tx = await _tx(session, test_user, test_account, "Dinheiro reservado Buffer", "10")
+    tx = await _tx(session, test_user, test_account, "Dinheiro reservado Reserva", "10")
 
     await rule_service.apply_rules_to_transaction(session, test_user.id, tx)
     await session.commit()
@@ -246,9 +246,9 @@ async def test_closed_destination_is_skipped_at_run_time(
 async def test_apply_to_existing_backfills_once_and_is_idempotent(
     session, test_user, test_workspace, test_account, cofrinho
 ):
-    await _tx(session, test_user, test_account, "Dinheiro reservado Buffer", "4000")
-    await _tx(session, test_user, test_account, "Dinheiro retirado Buffer", "600", kind="credit")
-    await _tx(session, test_user, test_account, "Dinheiro reservado Buffer", "7000", is_ignored=True)
+    await _tx(session, test_user, test_account, "Dinheiro reservado Reserva", "4000")
+    await _tx(session, test_user, test_account, "Dinheiro retirado Reserva", "600", kind="credit")
+    await _tx(session, test_user, test_account, "Dinheiro reservado Reserva", "7000", is_ignored=True)
     rule = await _rule(session, test_workspace, test_user, cofrinho.id)
 
     count = await rule_service.apply_single_rule(session, test_workspace.id, rule)
@@ -257,7 +257,7 @@ async def test_apply_to_existing_backfills_once_and_is_idempotent(
     assert sorted((r.type, r.amount) for r in rows) == [("credit", Decimal("4000")), ("debit", Decimal("600"))]
 
     # Running again (or re-running all rules) must not duplicate anything:
-    # the cofrinho copies match "buffer" too, but they are already paired.
+    # the cofrinho copies match "reserva" too, but they are already paired.
     assert await rule_service.apply_single_rule(session, test_workspace.id, rule) == 0
     await rule_service.apply_all_rules(session, test_workspace.id)
     assert len(await _counterparts(session, cofrinho.id)) == 2
@@ -267,15 +267,15 @@ async def test_apply_to_existing_backfills_once_and_is_idempotent(
 async def test_preview_counts_rows_that_would_be_transferred(
     session, test_user, test_workspace, test_account, cofrinho
 ):
-    await _tx(session, test_user, test_account, "Dinheiro reservado Buffer", "4000")
-    await _tx(session, test_user, test_account, "Dinheiro reservado Buffer", "7000", is_ignored=True)
-    await _tx(session, test_user, test_account, "Dinheiro reservado Buffer", "90", has_category_lines=True)
+    await _tx(session, test_user, test_account, "Dinheiro reservado Reserva", "4000")
+    await _tx(session, test_user, test_account, "Dinheiro reservado Reserva", "7000", is_ignored=True)
+    await _tx(session, test_user, test_account, "Dinheiro reservado Reserva", "90", has_category_lines=True)
 
     preview = await rule_service.preview_rule(
         session,
         test_workspace.id,
         "and",
-        [{"field": "description", "op": "contains", "value": "buffer"}],
+        [{"field": "description", "op": "contains", "value": "reserva"}],
         [{"op": "transfer_to_account", "value": str(cofrinho.id)}],
     )
     assert preview.matched == 3
@@ -292,7 +292,7 @@ def _rule_body(value):
     return {
         "name": "Cofrinho",
         "conditions_op": "and",
-        "conditions": [{"field": "description", "op": "contains", "value": "buffer"}],
+        "conditions": [{"field": "description", "op": "contains", "value": "reserva"}],
         "actions": [{"op": "transfer_to_account", "value": value}],
         "apply_to_existing": False,
     }
@@ -337,12 +337,12 @@ async def test_a_duplicate_from_the_bank_feed_is_not_transferred_twice(
     hide the copy from the sync's phantom-duplicate cleanup and put the money
     in the manual account twice."""
     await _rule(session, test_workspace, test_user, cofrinho.id)
-    first = await _tx(session, test_user, test_account, "Dinheiro reservado Buffer", "4000",
+    first = await _tx(session, test_user, test_account, "Dinheiro reservado Reserva", "4000",
                       external_id="a1")
     await rule_service.apply_rules_to_transaction(session, test_user.id, first)
     await session.commit()
 
-    twin = await _tx(session, test_user, test_account, "Dinheiro reservado Buffer", "4000",
+    twin = await _tx(session, test_user, test_account, "Dinheiro reservado Reserva", "4000",
                      external_id="b2")
     await rule_service.apply_rules_to_transaction(session, test_user.id, twin)
     await session.commit()
@@ -356,8 +356,8 @@ async def test_a_different_payment_the_same_day_is_still_transferred(
     session, test_user, test_workspace, test_account, cofrinho
 ):
     await _rule(session, test_workspace, test_user, cofrinho.id)
-    for description, amount in (("Dinheiro reservado Buffer", "4000"), ("Buffer extra", "4000"),
-                                ("Dinheiro reservado Buffer", "150")):
+    for description, amount in (("Dinheiro reservado Reserva", "4000"), ("Reserva extra", "4000"),
+                                ("Dinheiro reservado Reserva", "150")):
         tx = await _tx(session, test_user, test_account, description, amount)
         await rule_service.apply_rules_to_transaction(session, test_user.id, tx)
         await session.commit()
@@ -371,7 +371,7 @@ async def test_manual_entries_are_never_treated_as_bank_duplicates(
 ):
     await _rule(session, test_workspace, test_user, cofrinho.id)
     for _ in range(2):
-        tx = await _tx(session, test_user, test_account, "Dinheiro reservado Buffer", "4000")
+        tx = await _tx(session, test_user, test_account, "Dinheiro reservado Reserva", "4000")
         tx.source = "manual"
         await rule_service.apply_rules_to_transaction(session, test_user.id, tx)
         await session.commit()

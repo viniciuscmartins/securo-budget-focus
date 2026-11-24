@@ -99,7 +99,12 @@
     "turnOffQuestion": "CDI-Ertrag ausschalten. Bereits gebuchten Ertrag behalten?",
     "keepPosted": "Gebuchte Erträge behalten",
     "deletePosted": "Gebuchte Erträge löschen",
-    "turnedOff": "CDI-Ertrag ausgeschaltet"
+    "turnedOff": "CDI-Ertrag ausgeschaltet",
+    "gross": "Gross, before income tax",
+    "netOfTax": "Net of {{percent}}% income tax",
+    "taxLabel": "Income tax %",
+    "taxHint": "Income tax withheld from each day's yield, so the balance matches a bank that credits net yield (22.5% for money held up to 180 days, 20% up to 360, 17.5% up to 720, then 15%). 0 posts gross yield.",
+    "howItWorksNet": "Each day's yield is calculated on the previous day's balance using Banco Central's official CDI rate, and posted once that rate is published. Amounts are net, after the income tax set here."
   },
   "recurring": {
     "nextDate": "Next date",

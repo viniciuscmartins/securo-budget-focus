@@ -53,5 +53,8 @@ Start every reply to a task with `**Effort: <low|medium|high> recommended** (why
 
 ## Standing rules (short)
 - Commit as `viniciuscmartins` <139562176+viniciuscmartins@users.noreply.github.com>. No personal data or session links anywhere.
+- The repo is **public**. Before every push, PR, comment or release text: run `scripts/fork/privacy-check.sh`
+  (CI runs it too, as "Fork privacy check") and reread the text for personal data: emails, session/chat links,
+  banks, account names, balances, location, employer, home or network setup. Use generic names in tests and docs.
 - Releases: tag `v<upstream version>-plan.<N>`. Don't merge PRs or publish releases unless the owner asks.
 - New strings in English + pt-BR + pt-PT; other locales get English.

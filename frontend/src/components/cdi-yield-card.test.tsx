@@ -29,6 +29,7 @@ const off: CdiYieldSettings = {
   start_date: null,
   last_posted_date: null,
   total_posted: 0,
+  tax_percent: 0,
 }
 const on: CdiYieldSettings = {
   configured: true,
@@ -38,6 +39,7 @@ const on: CdiYieldSettings = {
   start_date: '2026-01-01',
   last_posted_date: '2026-11-02',
   total_posted: 1234.56,
+  tax_percent: 0,
 }
 
 function render(canWrite = true) {
@@ -70,6 +72,9 @@ describe('CdiYieldCard', () => {
     await user.clear(percent)
     await user.type(percent, '102,5')
     await user.selectOptions(screen.getByLabelText(t('cdiYield.accrual')), 'calendar_days')
+    const tax = screen.getByLabelText(t('cdiYield.taxLabel'))
+    await user.clear(tax)
+    await user.type(tax, '22,5')
     expect(screen.getByText(t('cdiYield.calendarDaysHint'))).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: t('common.save') }))
 
@@ -78,6 +83,7 @@ describe('CdiYieldCard', () => {
     expect(accountId).toBe('acc-1')
     expect(body.percent).toBe(102.5)
     expect(body.mode).toBe('calendar_days')
+    expect(body.tax_percent).toBe(22.5)
     expect(body.start_date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
 

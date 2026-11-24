@@ -718,7 +718,7 @@ async def test_a_move_excluded_from_reports_is_not_moved_money(
     moves = await _transfer_category(session, test_user, test_workspace, "Transferências")
     session.add(Transaction(
         id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id, account_id=account.id,
-        category_id=moves.id, description="Dinheiro reservado Buffer", amount=Decimal("4000"),
+        category_id=moves.id, description="Dinheiro reservado Reserva", amount=Decimal("4000"),
         date=date(2024, 5, 5), type="debit", source="sync", exclude_from_pnl=True,
         created_at=datetime.now(timezone.utc),
     ))

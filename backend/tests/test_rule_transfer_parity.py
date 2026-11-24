@@ -59,7 +59,7 @@ async def _anchor(session, user, workspace, account, kind) -> Transaction:
         user_id=user.id,
         workspace_id=workspace.id,
         account_id=account.id,
-        description="Buffer move",
+        description="Savings move",
         amount=Decimal("100.01"),  # converts with rounding (20.002 USD)
         currency=account.currency,
         date=DAY,

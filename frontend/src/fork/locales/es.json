@@ -99,7 +99,12 @@
     "turnOffQuestion": "Desactivar el rendimiento CDI. ¿Mantener el rendimiento ya registrado?",
     "keepPosted": "Mantener rendimientos registrados",
     "deletePosted": "Borrar rendimientos registrados",
-    "turnedOff": "Rendimiento CDI desactivado"
+    "turnedOff": "Rendimiento CDI desactivado",
+    "gross": "Gross, before income tax",
+    "netOfTax": "Net of {{percent}}% income tax",
+    "taxLabel": "Income tax %",
+    "taxHint": "Income tax withheld from each day's yield, so the balance matches a bank that credits net yield (22.5% for money held up to 180 days, 20% up to 360, 17.5% up to 720, then 15%). 0 posts gross yield.",
+    "howItWorksNet": "Each day's yield is calculated on the previous day's balance using Banco Central's official CDI rate, and posted once that rate is published. Amounts are net, after the income tax set here."
   },
   "recurring": {
     "nextDate": "Next date",
