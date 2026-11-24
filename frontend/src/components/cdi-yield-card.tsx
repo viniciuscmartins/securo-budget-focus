@@ -45,6 +45,7 @@ export function CdiYieldCard({ accountId, currency, locale, dateLocale, mask, ca
   const [percent, setPercent] = useState('100')
   const [mode, setMode] = useState<CdiYieldMode>('business_days')
   const [startDate, setStartDate] = useState(todayIso())
+  const [taxPercent, setTaxPercent] = useState('0')
   const [confirmOff, setConfirmOff] = useState(false)
 
   const { data } = useQuery({
@@ -60,7 +61,12 @@ export function CdiYieldCard({ accountId, currency, locale, dateLocale, mask, ca
   const onError = (err: unknown) => toast.error(extractApiError(err, t('common.error')))
 
   const save = useMutation({
-    mutationFn: () => cdiYield.save(accountId, { percent: Number(percent.replace(',', '.')), mode, start_date: startDate }),
+    mutationFn: () => cdiYield.save(accountId, {
+        percent: Number(percent.replace(',', '.')),
+        mode,
+        start_date: startDate,
+        tax_percent: Number(taxPercent.replace(',', '.')),
+      }),
     onSuccess: (res) => {
       setEditing(false)
       afterChange(res.posted_days)
@@ -86,11 +92,15 @@ export function CdiYieldCard({ accountId, currency, locale, dateLocale, mask, ca
     setPercent(String(data?.percent ?? 100))
     setMode(data?.mode ?? 'business_days')
     setStartDate(data?.start_date ?? todayIso())
+    setTaxPercent(String(data?.tax_percent ?? 0))
     setEditing(true)
   }
 
   const percentNumber = Number(percent.replace(',', '.'))
   const percentValid = Number.isFinite(percentNumber) && percentNumber > 0 && percentNumber <= 300
+  const taxNumber = Number(taxPercent.replace(',', '.'))
+  const taxValid = taxPercent.trim() !== '' && Number.isFinite(taxNumber) && taxNumber >= 0 && taxNumber < 100
+  const formValid = percentValid && taxValid
   const busy = save.isPending || recalc.isPending || off.isPending
 
   return (
@@ -121,6 +131,9 @@ export function CdiYieldCard({ accountId, currency, locale, dateLocale, mask, ca
             <div>
               <dt className="text-xs font-medium text-muted-foreground mb-1">{t('cdiYield.rate')}</dt>
               <dd className="font-semibold tabular-nums">{t('cdiYield.percentOfCdi', { percent: data.percent })}</dd>
+              <dd className="mt-1 text-xs text-muted-foreground">
+                {Number(data.tax_percent) > 0 ? t('cdiYield.netOfTax', { percent: data.tax_percent }) : t('cdiYield.gross')}
+              </dd>
             </div>
             <div>
               <dt className="text-xs font-medium text-muted-foreground mb-1">{t('cdiYield.accrual')}</dt>
@@ -144,7 +157,9 @@ export function CdiYieldCard({ accountId, currency, locale, dateLocale, mask, ca
               </dd>
             </div>
           </dl>
-          <p className="text-xs text-muted-foreground">{t('cdiYield.howItWorks')}</p>
+          <p className="text-xs text-muted-foreground">
+            {Number(data.tax_percent) > 0 ? t('cdiYield.howItWorksNet') : t('cdiYield.howItWorks')}
+          </p>
           {canWrite && (
             confirmOff ? (
               <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -177,10 +192,10 @@ export function CdiYieldCard({ accountId, currency, locale, dateLocale, mask, ca
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault()
-            if (percentValid) save.mutate()
+            if (formValid) save.mutate()
           }}
         >
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-4">
             <div className="space-y-1">
               <Label htmlFor="cdi-percent">{t('cdiYield.percentLabel')}</Label>
               <Input
@@ -204,6 +219,16 @@ export function CdiYieldCard({ accountId, currency, locale, dateLocale, mask, ca
               </select>
             </div>
             <div className="space-y-1">
+              <Label htmlFor="cdi-tax">{t('cdiYield.taxLabel')}</Label>
+              <Input
+                id="cdi-tax"
+                inputMode="decimal"
+                value={taxPercent}
+                onChange={(e) => setTaxPercent(e.target.value)}
+                aria-invalid={!taxValid || undefined}
+              />
+            </div>
+            <div className="space-y-1">
               <Label>{t('cdiYield.startDate')}</Label>
               <DatePickerInput value={startDate} onChange={setStartDate} />
             </div>
@@ -211,12 +236,13 @@ export function CdiYieldCard({ accountId, currency, locale, dateLocale, mask, ca
           <p className="text-xs text-muted-foreground">
             {mode === 'calendar_days' ? t('cdiYield.calendarDaysHint') : t('cdiYield.businessDaysHint')}
           </p>
+          <p className="text-xs text-muted-foreground">{t('cdiYield.taxHint')}</p>
           <p className="text-xs text-muted-foreground">{t('cdiYield.rebuildHint')}</p>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setEditing(false)}>
               {t('common.cancel')}
             </Button>
-            <Button type="submit" disabled={!percentValid || !startDate || busy}>
+            <Button type="submit" disabled={!formValid || !startDate || busy}>
               {t('common.save')}
             </Button>
           </div>

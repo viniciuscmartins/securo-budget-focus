@@ -31,7 +31,7 @@ export const cdiYield = {
   },
   save: async (
     accountId: string,
-    settings: { percent: number; mode: CdiYieldMode; start_date: string },
+    settings: { percent: number; mode: CdiYieldMode; start_date: string; tax_percent?: number },
   ): Promise<{ posted_days: number; settings: CdiYieldSettings }> => {
     const { data } = await api.put(`/accounts/${accountId}/cdi-yield`, { ...settings, enabled: true })
     return { posted_days: data.posted_days, settings: toCdiSettings(data.settings) }

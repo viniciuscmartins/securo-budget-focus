@@ -113,6 +113,7 @@ export interface CdiYieldSettings {
   percent: number | null // 100 = 100% of CDI
   mode: CdiYieldMode | null
   start_date: string | null // YYYY-MM-DD
+  tax_percent: number // income tax withheld from each day's yield; 0 = gross
   last_posted_date: string | null
   total_posted: number
 }

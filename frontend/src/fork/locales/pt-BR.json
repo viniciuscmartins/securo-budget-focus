@@ -99,7 +99,12 @@
     "turnOffQuestion": "Desligar o rendimento CDI. Manter o rendimento já lançado?",
     "keepPosted": "Manter lançamentos",
     "deletePosted": "Apagar lançamentos",
-    "turnedOff": "Rendimento CDI desligado"
+    "turnedOff": "Rendimento CDI desligado",
+    "gross": "Bruto, antes do IR",
+    "netOfTax": "Líquido de {{percent}}% de IR",
+    "taxLabel": "IR %",
+    "taxHint": "Imposto de renda descontado do rendimento de cada dia, para o saldo bater com o banco que credita o rendimento líquido (22,5% até 180 dias, 20% até 360, 17,5% até 720, depois 15%). 0 lança o rendimento bruto.",
+    "howItWorksNet": "O rendimento de cada dia é calculado sobre o saldo do dia anterior com a taxa CDI oficial do Banco Central, e lançado quando essa taxa é publicada. Valores líquidos, já descontado o IR definido aqui."
   },
   "recurring": {
     "nextDate": "Próxima data",

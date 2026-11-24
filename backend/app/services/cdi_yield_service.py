@@ -22,8 +22,10 @@ How the yield is computed
 - Rounding: amounts are kept exact while compounding and rounded to cents
   only when posted, carrying the remainder forward so the posted total never
   drifts from the exact total by more than a cent.
-- The yield is gross (before income tax), which is how banks usually show
-  the balance of this kind of account.
+- Income tax: by default the yield is gross. With `tax_percent` set (e.g.
+  22.5), each day's yield is posted net of that rate, the way banks that
+  credit "rendimento líquido" show it, so the balance matches the bank's.
+  The net amount is what compounds, as it is what stays in the account.
 """
 
 import json
@@ -79,6 +81,7 @@ class CdiSettings:
     mode: Mode
     start_date: date
     enabled: bool = True
+    tax_percent: Decimal = Decimal("0")  # income tax withheld from each day's yield
 
     def to_json(self) -> str:
         return json.dumps(
@@ -87,6 +90,7 @@ class CdiSettings:
                 "percent": str(self.percent),
                 "mode": self.mode,
                 "start_date": self.start_date.isoformat(),
+                "tax_percent": str(self.tax_percent),
             }
         )
 
@@ -99,10 +103,13 @@ class CdiSettings:
                 percent=Decimal(str(data["percent"])),
                 mode=data["mode"],
                 start_date=date.fromisoformat(data["start_date"]),
+                tax_percent=Decimal(str(data.get("tax_percent", "0"))),
             )
         except (ValueError, KeyError, TypeError, ArithmeticError):
             return None
         if settings.mode not in ("business_days", "calendar_days") or settings.percent <= 0:
+            return None
+        if not (0 <= settings.tax_percent < 100):
             return None
         return settings
 
@@ -141,22 +148,24 @@ def accrue(
     rates: dict[date, Decimal],
     percent: Decimal,
     mode: Mode,
+    tax_percent: Decimal = ZERO,
 ) -> dict[date, Decimal]:
     """Yield to post per day for days in [start, end], rounded to cents.
 
     `opening_balance` is the balance at the end of the day before `start`;
     `movements` holds each later day's net change (deposits positive,
     withdrawals negative) excluding yield. `rates` are daily CDI rates as
-    fractions keyed by business day. Days earning less than half a cent are
+    fractions keyed by business day. With `tax_percent`, each day's yield
+    is reduced by that income tax rate before it is posted and compounded. Days earning less than half a cent are
     left out; their yield carries into the next posted day.
     """
     with localcontext() as ctx:
         ctx.prec = _PRECISION
-        return _accrue(start, end, opening_balance, movements, rates, percent, mode)
+        return _accrue(start, end, opening_balance, movements, rates, percent, mode, tax_percent)
 
 
-def _accrue(start, end, opening_balance, movements, rates, percent, mode) -> dict[date, Decimal]:
-    factor = percent / Decimal(100)
+def _accrue(start, end, opening_balance, movements, rates, percent, mode, tax_percent=ZERO) -> dict[date, Decimal]:
+    factor = percent / Decimal(100) * (1 - tax_percent / Decimal(100))
     business_days = sorted(rates)
     posted: dict[date, Decimal] = {}
     balance = opening_balance  # exact, compounding
@@ -428,6 +437,7 @@ async def run_for_account(
         rates=rates,
         percent=settings.percent,
         mode=settings.mode,
+        tax_percent=settings.tax_percent,
     )
     # Only days after the last posted one: the past is not rewritten unless
     # asked to (rebuild), so editing an old movement never silently changes

@@ -61,6 +61,24 @@ def test_percentage_of_cdi_scales_the_daily_rate():
     assert posted[FRI] == Decimal("6.62")  # 10000 * 0.00055131 * 1.2 = 6.61572
 
 
+def test_income_tax_is_withheld_from_each_days_yield_and_net_compounds():
+    gross = accrue(
+        start=FRI, end=MON, opening_balance=Decimal("10000"), movements={},
+        rates={FRI: R, MON: R}, percent=Decimal("120"), mode="business_days",
+    )
+    net = accrue(
+        start=FRI, end=MON, opening_balance=Decimal("10000"), movements={},
+        rates={FRI: R, MON: R}, percent=Decimal("120"), mode="business_days",
+        tax_percent=Decimal("22.5"),
+    )
+    assert net[FRI] == Decimal("5.13")  # 6.61572 * 0.775 = 5.127
+    # Only the net stays in the account, so only the net compounds.
+    daily = R * Decimal("1.2") * Decimal("0.775")
+    exact = Decimal("10000") * ((1 + daily) ** 2 - 1)
+    assert net[FRI] + net[MON] == exact.quantize(Decimal("0.01"))
+    assert net[MON] < gross[MON]
+
+
 def test_calendar_days_accrue_over_the_weekend_with_the_same_yearly_result():
     posted = accrue(
         start=FRI, end=MON, opening_balance=Decimal("10000"), movements={},
@@ -130,6 +148,12 @@ def test_years_before_handles_leap_day():
 def test_settings_round_trip_and_bad_json():
     s = CdiSettings(percent=Decimal("105.5"), mode="calendar_days", start_date=FRI)
     assert CdiSettings.from_json(s.to_json()) == s
+    taxed = CdiSettings(percent=Decimal("120"), mode="business_days", start_date=FRI, tax_percent=Decimal("22.5"))
+    assert CdiSettings.from_json(taxed.to_json()) == taxed
+    # Settings saved before the tax option read back as gross.
+    old = CdiSettings.from_json('{"percent": "100", "mode": "business_days", "start_date": "2026-10-02"}')
+    assert old is not None and old.tax_percent == 0
+    assert CdiSettings.from_json('{"percent": "100", "mode": "business_days", "start_date": "2026-10-02", "tax_percent": "100"}') is None
     assert CdiSettings.from_json("not json") is None
     assert CdiSettings.from_json('{"percent": "x"}') is None
     # Unknown mode or a non-positive percentage is corrupt data, not a default.
@@ -295,6 +319,21 @@ async def test_api_setup_backfills_and_reads_back(client, auth_headers, session,
     )
     assert r.status_code == 200
     assert len(await _yields(session, cofrinho.id)) == r.json()["posted_days"]
+    gross_total = Decimal(r.json()["settings"]["total_posted"])
+
+    # Net of income tax: the setting reads back and the yield shrinks to match.
+    r = await client.put(
+        f"/api/accounts/{cofrinho.id}/cdi-yield", headers=auth_headers,
+        json={"percent": "100", "mode": "business_days", "start_date": start.isoformat(), "tax_percent": "22.5"},
+    )
+    assert r.status_code == 200, r.text
+    assert Decimal(r.json()["settings"]["tax_percent"]) == Decimal("22.5")
+    assert Decimal(r.json()["settings"]["total_posted"]) < gross_total
+    r = await client.put(
+        f"/api/accounts/{cofrinho.id}/cdi-yield", headers=auth_headers,
+        json={"percent": "100", "mode": "business_days", "start_date": start.isoformat(), "tax_percent": "100"},
+    )
+    assert r.status_code == 422
 
 
 @pytest.mark.asyncio
