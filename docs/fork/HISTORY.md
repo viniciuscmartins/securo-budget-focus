@@ -2,7 +2,7 @@
 
 The write-ups of the pull requests that built this fork, kept here because pull requests do not survive leaving the fork network. Commits and code are in the git history as usual.
 
-PR numbers below are from the fork's earlier repository (`securo-yearly-budget-fork`), which is private; they are not links to pull requests here. Upstream pull requests are written as `securo-finance/securo#N`.
+PR numbers below are from the fork's earlier, private repository; they are not links to pull requests here. Upstream pull requests are written as `securo-finance/securo#N`.
 
 ## PR 1: Annual budget plan: planned vs actual by category and month, with suggested budgets
 
@@ -220,7 +220,7 @@ In the annual plan, each actual amount (spending grid, income section, single-mo
 
 ## PR 26: Undo a recurring link made by mistake
 
-- Linking a payment moves its recurring item past the occurrence it stands for, and upstream's unlink left the item where it was, while the edit form never moves the next date back. A wrong link (a mid-month salary linked to the day-30 one) hid that month's occurrence from the outlook with no way back.
+- Linking a payment moves its recurring item past the occurrence it stands for, and upstream's unlink left the item where it was, while the edit form never moves the next date back. A wrong link (a payment linked to the wrong occurrence of a monthly item) hid that month's occurrence from the outlook with no way back.
 - Unlink now steps the item back one period when that payment is what moved it: dated within one period before the occurrence, no other linked payment covering it, and not an old month (`recurring_link_service.step_back_after_unlink`).
 - The recurring edit form has a "Next date" field (`next_occurrence` on the update schema). It can go back one period at most and not to an occurrence a linked payment already covers (`check_next_occurrence`); later dates are always allowed. A refused date shows the server's reason.
 
