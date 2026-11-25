@@ -19,11 +19,11 @@ The fork adds no database tables or migrations of its own.
 
 Every service built on the backend image must use the fork's: `backend`, `migrate`, `celery-worker`, `celery-beat`, `mcp-server`, and, with the `plugins` profile on, `plugins-runner` and `plugins-egress`. Mixing images runs two different versions against one database.
 
-To switch an existing upstream install without editing upstream's compose file, put a `compose.override.yaml` next to it (`docker-compose.override.yml` if the main file is `docker-compose.yml`). Docker Compose reads it automatically; in Dockge, place it in the stack's folder. Pin a release tag rather than `latest`:
+To switch an existing upstream install without editing upstream's compose file, put a `compose.override.yaml` next to it (`docker-compose.override.yml` if the main file is `docker-compose.yml`). Docker Compose reads it automatically; in Dockge, place it in the stack's folder. Pin a release tag rather than `latest` (image tags have no leading `v`: release `v0.22.0-plan.1` is image tag `0.22.0-plan.1`):
 
 ```yaml
 x-fork-backend: &fork-backend
-  image: ghcr.io/viniciuscmartins/securo-backend:v0.22.0-plan.1
+  image: ghcr.io/viniciuscmartins/securo-backend:0.22.0-plan.1
 services:
   backend: *fork-backend
   migrate: *fork-backend
@@ -33,7 +33,7 @@ services:
   plugins-runner: *fork-backend   # only used with the plugins profile
   plugins-egress: *fork-backend   # only used with the plugins profile
   frontend:
-    image: ghcr.io/viniciuscmartins/securo-frontend:v0.22.0-plan.1
+    image: ghcr.io/viniciuscmartins/securo-frontend:0.22.0-plan.1
 ```
 
 Data stays in the stack's named volumes (`pgdata`, `attachments`, `plugins`), so keep the same stack (project) name and the same `.env` when switching. Back up the database first, as for any upgrade.
