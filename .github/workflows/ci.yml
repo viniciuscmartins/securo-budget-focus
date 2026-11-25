@@ -1,14 +1,10 @@
 name: CI
 
-# Fork: no push-to-main run (the PR already ran the same checks) and docs-only
-# changes skip CI, to stay within the free Actions minutes.
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
-    paths-ignore:
-      - '**/*.md'
-      - 'CLAUDE.md'
-      - 'docs/**'
   # Dispatched by the fast lane after a squash merge: a push made with
   # GITHUB_TOKEN starts no workflow run, so main would otherwise go unchecked.
   workflow_dispatch:
