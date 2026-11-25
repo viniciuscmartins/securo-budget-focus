@@ -3,8 +3,11 @@ import { parseAmountInput } from '@/lib/format'
 
 export const MONTH_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const
 
-/** True when `month` (1-12) of `year` hasn't started yet, so no spending can exist for it. */
-export function isFutureMonth(year: number, month: number, now: Date = new Date()): boolean {
+/**
+ * True when `month` (1-12) of `year` hasn't started yet, so no spending can exist for it.
+ * `now` is today in the workspace's timezone (`useWorkspaceToday`), never the browser clock.
+ */
+export function isFutureMonth(year: number, month: number, now: Date): boolean {
   const nowYear = now.getFullYear()
   return year > nowYear || (year === nowYear && month > now.getMonth() + 1)
 }

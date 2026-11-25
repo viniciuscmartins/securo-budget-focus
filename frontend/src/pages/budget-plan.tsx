@@ -16,6 +16,7 @@ import {
 } from '@/lib/budget-plan-utils'
 import { useDisplayLocale } from '@/hooks/use-display-locale'
 import { formatAmountInput } from '@/lib/format'
+import { useWorkspaceToday } from '@/hooks/use-workspace-today'
 import { usePrivacyMode } from '@/hooks/use-privacy-mode'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkspace } from '@/contexts/workspace-context'
@@ -319,13 +320,13 @@ export default function BudgetPlanPage() {
   const uiLocale = i18n.resolvedLanguage ?? i18n.language
   const currency = user?.preferences?.currency_display ?? 'USD'
 
-  const today = new Date()
-  const [year, setYear] = useState(today.getFullYear())
+  const now = useWorkspaceToday()
+  const [year, setYear] = useState(now.getFullYear())
   const [view, setView] = useState<View>('grid')
   const [metric, setMetric] = useState<Metric>('both')
   const [collapsed, setCollapsed] = useCollapsed()
   const onlyTotals = collapsed.income && collapsed.spending && collapsed.moved
-  const [month, setMonth] = useState(today.getMonth() + 1)
+  const [month, setMonth] = useState(now.getMonth() + 1)
   const [suggestOpen, setSuggestOpen] = useState(false)
   const [saveFailures, setSaveFailures] = useState(0)
 
@@ -451,7 +452,7 @@ export default function BudgetPlanPage() {
   const left = plan.planned_total - plan.actual_total
   const net = plan.cash_net_total
   const netPlannedToDate = plan.net_planned_by_month.reduce(
-    (sum, value, i) => (isFutureMonth(year, i + 1) ? sum : sum + value),
+    (sum, value, i) => (isFutureMonth(year, i + 1, now) ? sum : sum + value),
     0,
   )
   const hasNetPlan = plan.income_planned_total > 0 || plan.planned_total > 0
@@ -487,7 +488,7 @@ export default function BudgetPlanPage() {
               data={MONTH_NUMBERS.map((m) => ({
                 name: monthNames[m - 1],
                 planned: plan.planned_by_month[m - 1],
-                actual: isFutureMonth(year, m) ? null : plan.actual_by_month[m - 1],
+                actual: isFutureMonth(year, m, now) ? null : plan.actual_by_month[m - 1],
               }))}
               barGap={2}
             >
@@ -636,9 +637,10 @@ function GridView({
   collapsed,
   onToggle,
 }: GridViewProps) {
+  const now = useWorkspaceToday()
   const { t } = useTranslation()
   const editing = metric === 'planned' && canWrite
-  const futures = MONTH_NUMBERS.map((m) => isFutureMonth(year, m))
+  const futures = MONTH_NUMBERS.map((m) => isFutureMonth(year, m, now))
 
   // Sums only what the variance cells show (skips future and unbudgeted months),
   // so the Year column never disagrees with the cells beside it.
@@ -804,8 +806,9 @@ function NetCell({ cell, future, fmt }: { cell: Cell; future: boolean; fmt: (n: 
 
 /** Income per category and month (planned from recurring income items). */
 function IncomeSection({ plan, year, monthNames, fmt, collapsed, onToggle }: IncomeSectionProps) {
+  const now = useWorkspaceToday()
   const { t } = useTranslation()
-  const futures = MONTH_NUMBERS.map((m) => isFutureMonth(year, m))
+  const futures = MONTH_NUMBERS.map((m) => isFutureMonth(year, m, now))
   const plannedToDate = (cells: Cell[]) => cells.reduce((sum, c, i) => (futures[i] ? sum : sum + (c.planned ?? 0)), 0)
   const totals: Cell[] = MONTH_NUMBERS.map((_, i) => ({
     planned: plan.income_planned_by_month[i] > 0 ? plan.income_planned_by_month[i] : null,
@@ -907,8 +910,9 @@ function PlainCell({ value, future, fmt, link }: { value: number; future: boolea
  * or sent to a bank Securo does not track. Negative when more came back.
  */
 function MovedSection({ plan, year, monthNames, fmt, collapsed, onToggle }: IncomeSectionProps) {
+  const now = useWorkspaceToday()
   const { t } = useTranslation()
-  const futures = MONTH_NUMBERS.map((m) => isFutureMonth(year, m))
+  const futures = MONTH_NUMBERS.map((m) => isFutureMonth(year, m, now))
   const td = 'px-1 py-2 text-center tabular-nums'
   const first = 'sticky left-0 z-[1] py-2 pl-4 pr-2 sm:pl-5'
   const linkFor = (row: BudgetYearRow, month: number | null): CellLink => ({
@@ -989,8 +993,9 @@ function SummarySection({
   fmt: (n: number) => string
   noBudget: string
 }) {
+  const now = useWorkspaceToday()
   const { t } = useTranslation()
-  const futures = MONTH_NUMBERS.map((m) => isFutureMonth(year, m))
+  const futures = MONTH_NUMBERS.map((m) => isFutureMonth(year, m, now))
   const plannedToDate = (cells: Cell[]) => cells.reduce((sum, c, i) => (futures[i] ? sum : sum + (c.planned ?? 0)), 0)
   const td = 'px-1 py-2 text-center tabular-nums'
   const first = 'sticky left-0 z-[1] bg-card py-2 pl-4 pr-2 text-sm text-foreground sm:pl-5'
@@ -1124,8 +1129,9 @@ interface MonthViewProps {
 }
 
 function MonthView({ plan, year, month, fmt, noBudget }: MonthViewProps) {
+  const now = useWorkspaceToday()
   const { t, i18n } = useTranslation()
-  const future = isFutureMonth(year, month)
+  const future = isFutureMonth(year, month, now)
   const i = month - 1
   const monthLabel = new Intl.DateTimeFormat(i18n.language, { month: 'short' }).format(new Date(year, month - 1, 1))
 

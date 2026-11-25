@@ -16,6 +16,8 @@ vi.mock('@/contexts/auth-context', () => ({
 }))
 const workspace = vi.hoisted(() => ({ canWrite: true }))
 vi.mock('@/contexts/workspace-context', () => ({ useWorkspace: () => workspace }))
+// No workspace timezone: today is the test machine's date, as the fixtures assume.
+vi.mock('@/hooks/use-timezone', () => ({ useEffectiveTimezone: () => undefined }))
 // The number format the page reads amounts in; en-US unless a test says otherwise.
 const display = vi.hoisted(() => ({ locale: 'en-US' }))
 vi.mock('@/hooks/use-display-locale', () => ({ useDisplayLocale: () => display.locale }))
