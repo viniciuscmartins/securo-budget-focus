@@ -124,3 +124,24 @@ async def test_suggestion_endpoint_shape_and_param_validation(
         "/api/budgets/year-plan/suggestion", params={"lookback_months": 1}, headers=auth_headers
     )
     assert short.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_apply_returns_409_when_a_concurrent_save_wins(
+    client, auth_headers, test_categories, monkeypatch
+):
+    """A save race is a 409 with the service's message, not a 500."""
+    from app.services import budget_plan_service
+
+    async def lose_the_race(*args, **kwargs):
+        raise budget_plan_service.PlanConflict("The budget plan changed while saving; reload and try again")
+
+    monkeypatch.setattr(budget_plan_service, "apply_year_plan", lose_the_race)
+    food = test_categories[0]
+    r = await client.put(
+        "/api/budgets/year-plan",
+        json={"year": 2027, "cells": [{"category_id": str(food.id), "month": 1, "amount": "10"}]},
+        headers=auth_headers,
+    )
+    assert r.status_code == 409
+    assert "reload" in r.json()["detail"]

@@ -102,6 +102,17 @@ def test_seasonal_blends_same_month_with_baseline():
     assert proposed[0] == Decimal("100")
 
 
+def test_seasonal_uses_every_year_of_a_two_year_window():
+    """With 24 months each calendar month appears twice; both years count,
+    not only the most recent one."""
+    history = [(_m(2024, m), Decimal("100")) for m in range(1, 13)]
+    history += [(_m(2025, m), Decimal("100")) for m in range(1, 13)]
+    history[11] = (_m(2024, 12), Decimal("500"))  # last December was expensive
+    history[23] = (_m(2025, 12), Decimal("300"))
+    _, _, proposed = propose_amounts(history, "seasonal")
+    assert proposed[11] == Decimal("250")  # 0.5 * 100 + 0.5 * mean(500, 300)
+
+
 def test_seasonal_with_short_history_uses_baseline_for_unseen_months():
     history = [(_m(2026, m), Decimal("50")) for m in range(7, 10)]  # Jul-Sep only
     _, _, proposed = propose_amounts(history, "seasonal")
@@ -519,6 +530,44 @@ async def test_planned_income_comes_from_recurring_credits(
     assert plan.income_planned_total == Decimal("50000.00")
     # Planned income never shows up in the expense plan.
     assert plan.planned_total == Decimal("0")
+
+
+@pytest.mark.asyncio
+async def test_planned_income_of_a_split_recurring_item_goes_to_each_part(
+    session, test_user, test_workspace, test_categories, account
+):
+    """A recurring income split across categories plans each part in its own
+    category, in proportion to the parts."""
+    from app.models.category import Category
+    from app.models.recurring_transaction import RecurringTransaction
+    from app.models.recurring_transaction_category_line import RecurringTransactionCategoryLine
+
+    _, _, salary = test_categories
+    bonus = Category(id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+                     name="Bonus", icon="gift", color="#000000")
+    session.add(bonus)
+    rec = RecurringTransaction(
+        id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id, account_id=account.id,
+        category_id=None, description="Pay", amount=Decimal("1000"), currency="BRL",
+        type="credit", frequency="monthly", day_of_month=5, start_date=date(2024, 1, 5),
+        next_occurrence=date(2024, 1, 5), auto_generate=False, is_active=True,
+        has_category_lines=True,
+    )
+    session.add(rec)
+    await session.flush()
+    session.add_all([
+        RecurringTransactionCategoryLine(id=uuid.uuid4(), recurring_transaction_id=rec.id, workspace_id=test_workspace.id,
+                                         category_id=salary.id, amount=Decimal("750"), position=0),
+        RecurringTransactionCategoryLine(id=uuid.uuid4(), recurring_transaction_id=rec.id, workspace_id=test_workspace.id,
+                                         category_id=bonus.id, amount=Decimal("250"), position=1),
+    ])
+    await session.commit()
+
+    plan = await get_year_plan(session, test_workspace.id, test_user.id, 2024)
+
+    planned = {r.category_name: r.cells[0].planned for r in plan.income_rows}
+    assert planned == {salary.name: Decimal("750.00"), "Bonus": Decimal("250.00")}
+    assert plan.income_planned_by_month[0] == Decimal("1000.00")
 
 
 @pytest.mark.asyncio

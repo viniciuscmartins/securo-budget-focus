@@ -91,12 +91,17 @@ def propose_amounts(
 
     baseline = average if method == "average" or intermittent else median
 
-    by_calendar_month = {d.month: v for d, v in history}
+    # Every year of the window counts: a 24-month window sees each calendar
+    # month twice, and the seasonal part is their mean.
+    same_month: dict[int, list[Decimal]] = {}
+    for d, v in history:
+        same_month.setdefault(d.month, []).append(v)
     proposals: list[Decimal] = []
     for month in range(1, 13):
         amount = baseline
-        if method == "seasonal" and month in by_calendar_month:
-            amount = baseline * (1 - SEASONAL_WEIGHT) + by_calendar_month[month] * SEASONAL_WEIGHT
+        if method == "seasonal" and month in same_month:
+            seen = same_month[month]
+            amount = baseline * (1 - SEASONAL_WEIGHT) + sum(seen, ZERO) / len(seen) * SEASONAL_WEIGHT
         proposals.append(max(_whole(amount), ZERO))
     return _whole(average), _whole(median), proposals
 
