@@ -15,6 +15,7 @@ import {
   percentUsed,
 } from '@/lib/budget-plan-utils'
 import { useDisplayLocale } from '@/hooks/use-display-locale'
+import { formatAmountInput } from '@/lib/format'
 import { usePrivacyMode } from '@/hooks/use-privacy-mode'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkspace } from '@/contexts/workspace-context'
@@ -275,15 +276,16 @@ function PlannedInput({
   /** Bumped after a failed save, so the field drops what was typed. */
   resetKey: number
 }) {
-  const saved = value == null ? '' : String(value)
+  // Typed and shown in the display locale ("1.500,50" in pt-BR), like the
+  // amount fields on upstream's Budgets page.
+  const locale = useDisplayLocale()
+  const saved = value == null ? '' : formatAmountInput(value, locale)
   return (
     <input
       // Re-mount when the saved value changes, or a save failed, so the field
       // always shows what the server holds.
       key={`${saved}:${resetKey}`}
-      type="number"
-      min={0}
-      step={1}
+      type="text"
       inputMode="decimal"
       aria-label={label}
       defaultValue={saved}
@@ -296,7 +298,7 @@ function PlannedInput({
         }
       }}
       onBlur={(e) => {
-        const parsed = parseAmount(e.currentTarget.value)
+        const parsed = parseAmount(e.currentTarget.value, locale)
         if (parsed === undefined) {
           e.currentTarget.value = saved // not a valid amount: put back what is saved
           return

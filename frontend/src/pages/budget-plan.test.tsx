@@ -16,6 +16,9 @@ vi.mock('@/contexts/auth-context', () => ({
 }))
 const workspace = vi.hoisted(() => ({ canWrite: true }))
 vi.mock('@/contexts/workspace-context', () => ({ useWorkspace: () => workspace }))
+// The number format the page reads amounts in; en-US unless a test says otherwise.
+const display = vi.hoisted(() => ({ locale: 'en-US' }))
+vi.mock('@/hooks/use-display-locale', () => ({ useDisplayLocale: () => display.locale }))
 
 // The page opens on the current year; pin "now" to late December so every
 // month in the fixture has happened and nothing is greyed out as future.
@@ -202,6 +205,23 @@ describe('BudgetPlanPage', () => {
     )
   })
 
+  it('reads a typed amount with the display locale thousands separator', async () => {
+    display.locale = 'pt-BR'
+    try {
+      const { user } = await renderPage()
+      await user.click(screen.getByRole('tab', { name: 'Planned' }))
+      const input = screen.getByLabelText('Planned amount for Food in Jan')
+      await user.clear(input)
+      await user.type(input, '1.500')
+      await user.tab()
+      await waitFor(() =>
+        expect(api.applyYearPlan).toHaveBeenLastCalledWith(YEAR, [{ category_id: 'food', month: 1, amount: 1500 }]),
+      )
+    } finally {
+      display.locale = 'en-US'
+    }
+  })
+
   it('puts the saved amount back when a save fails', async () => {
     api.applyYearPlan.mockRejectedValue(new Error('network down'))
     const { user } = await renderPage()
@@ -211,7 +231,7 @@ describe('BudgetPlanPage', () => {
     await user.tab()
     await waitFor(() => expect(api.applyYearPlan).toHaveBeenCalledTimes(1))
     // The field re-mounts, so query it again.
-    await waitFor(() => expect(screen.getByLabelText('Planned amount for Food in Jan')).toHaveValue(500))
+    await waitFor(() => expect(screen.getByLabelText('Planned amount for Food in Jan')).toHaveValue('500'))
   })
 
   it('does not save when the value is unchanged or invalid', async () => {
@@ -224,7 +244,7 @@ describe('BudgetPlanPage', () => {
     await user.type(input, '-5')
     await user.tab()
     expect(api.applyYearPlan).not.toHaveBeenCalled()
-    expect(input).toHaveValue(500) // reverted to the saved amount
+    expect(input).toHaveValue('500') // reverted to the saved amount
   })
 
   it('is read-only without write access', async () => {

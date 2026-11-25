@@ -6,6 +6,8 @@ import { budgetPlan as budgetsApi } from '@/fork/api'
 import { extractApiError } from '@/lib/api-errors'
 import { monthLabel } from '@/lib/month-utils'
 import { MONTH_NUMBERS, buildApplyCells, cellKey } from '@/lib/budget-plan-utils'
+import { formatAmountInput } from '@/lib/format'
+import { useDisplayLocale } from '@/hooks/use-display-locale'
 import type { BudgetSuggestionMethod } from '@/fork/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -44,6 +46,8 @@ export function BudgetSuggestionDialog({ open, onOpenChange, year, fmt, monthNam
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
   const uiLocale = i18n.resolvedLanguage ?? i18n.language
+  // Amounts are typed in the display locale ("1.500" is 1500 in pt-BR).
+  const numberLocale = useDisplayLocale()
 
   const [lookback, setLookback] = useState<number>(12)
   const [method, setMethod] = useState<BudgetSuggestionMethod>('median')
@@ -58,8 +62,8 @@ export function BudgetSuggestionDialog({ open, onOpenChange, year, fmt, monthNam
   })
 
   const cells = useMemo(
-    () => (data ? buildApplyCells(data.rows, edits, overwrite) : []),
-    [data, edits, overwrite],
+    () => (data ? buildApplyCells(data.rows, edits, overwrite, numberLocale) : []),
+    [data, edits, overwrite, numberLocale],
   )
 
   const applyMutation = useMutation({
@@ -193,9 +197,7 @@ export function BudgetSuggestionDialog({ open, onOpenChange, year, fmt, monthNam
                       return (
                         <td key={m} className="px-1 py-1.5">
                           <Input
-                            type="number"
-                            min={0}
-                            step={1}
+                            type="text"
                             inputMode="decimal"
                             aria-label={t('budgetPlan.cellLabel', {
                               category: row.category_name,
@@ -207,7 +209,7 @@ export function BudgetSuggestionDialog({ open, onOpenChange, year, fmt, monthNam
                                 : undefined
                             }
                             className="h-8 w-[4.5rem] px-1.5 text-right text-xs tabular-nums"
-                            value={key in edits ? edits[key] : String(row.proposed[i])}
+                            value={key in edits ? edits[key] : formatAmountInput(row.proposed[i], numberLocale)}
                             onChange={(e) => setEdits((prev) => ({ ...prev, [key]: e.target.value }))}
                           />
                         </td>

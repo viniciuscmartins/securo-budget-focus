@@ -1,4 +1,5 @@
 import type { BudgetPlanCellWrite, BudgetSuggestionRow, BudgetYearCell } from '@/fork/types'
+import { parseAmountInput } from '@/lib/format'
 
 export const MONTH_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const
 
@@ -32,13 +33,14 @@ export function cellKey(categoryId: string, month: number): string {
 /**
  * Parse what the user typed into a budget cell.
  * '' means "no amount" (null); anything that isn't a finite number >= 0 is
- * invalid (undefined) so callers can tell "cleared" from "garbage".
+ * invalid (undefined) so callers can tell "cleared" from "garbage". Read in
+ * the display locale, with its decimal and thousands separators.
  */
-export function parseAmount(raw: string): number | null | undefined {
-  const trimmed = raw.trim()
-  if (trimmed === '') return null
-  const value = Number(trimmed.replace(',', '.'))
-  if (!Number.isFinite(value) || value < 0) return undefined
+export function parseAmount(raw: string, locale = 'en-US'): number | null | undefined {
+  if (raw.trim() === '') return null
+  // Upstream's locale-aware parser: "1.500" is 1500 in pt-BR, "1,500" in en-US.
+  const value = parseAmountInput(raw, locale)
+  if (value == null || value < 0) return undefined
   return value
 }
 
@@ -53,6 +55,7 @@ export function buildApplyCells(
   rows: BudgetSuggestionRow[],
   edits: Record<string, string>,
   overwrite: boolean,
+  locale = 'en-US',
 ): BudgetPlanCellWrite[] {
   const cells: BudgetPlanCellWrite[] = []
   for (const row of rows) {
@@ -60,7 +63,7 @@ export function buildApplyCells(
       const i = month - 1
       if (row.existing[i] != null && !overwrite) continue
       const key = cellKey(row.category_id, month)
-      const amount = key in edits ? parseAmount(edits[key]) : row.proposed[i]
+      const amount = key in edits ? parseAmount(edits[key], locale) : row.proposed[i]
       if (amount == null) continue
       cells.push({ category_id: row.category_id, month, amount })
     }
