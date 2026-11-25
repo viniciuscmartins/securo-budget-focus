@@ -301,7 +301,11 @@ async def _money_at_month_ends(
 
     user = await session.get(User, user_id)
     primary = user.primary_currency if user else get_settings().default_currency
-    accounts = await _get_open_accounts(session, workspace_id, None)
+    # Accounts closed since the year started still count for the months they
+    # were open; `_net_worth_at` drops each one after its closing date.
+    accounts = await _get_open_accounts(
+        session, workspace_id, None, closed_after=date(year - 1, 12, 31)
+    )
     today = app_today()
 
     async def money_at(cutoff: date) -> Decimal:

@@ -712,6 +712,33 @@ async def test_money_at_month_end_is_what_the_accounts_held(
 
 
 @pytest.mark.asyncio
+async def test_an_account_closed_later_still_counts_in_the_months_it_was_open(
+    session, test_user, test_workspace, test_categories, account
+):
+    """Closing an account must not rewrite the past: the months before it
+    closed still hold its money, as the net-worth report shows them."""
+    _, _, salary = test_categories
+    savings = Account(
+        id=uuid.uuid4(), user_id=test_user.id, name="Savings", type="savings",
+        balance=Decimal("0"), currency="BRL",
+    )
+    session.add(savings)
+    await session.commit()
+    await _row(session, test_user, account, salary, date(2024, 1, 5), "1000", kind="credit")
+    await _row(session, test_user, savings, salary, date(2023, 12, 10), "400", kind="credit")
+    savings.is_closed = True
+    savings.closed_at = datetime(2024, 6, 15, 12, tzinfo=timezone.utc)
+    await session.commit()
+
+    plan = await get_year_plan(session, test_workspace.id, test_user.id, 2024)
+
+    assert plan.start_money == Decimal("400")
+    assert plan.month_end_money[0] == Decimal("1400")
+    assert plan.month_end_money[4] == Decimal("1400")  # May: still open
+    assert plan.month_end_money[6] == Decimal("1000")  # July: closed
+
+
+@pytest.mark.asyncio
 async def test_a_move_excluded_from_reports_is_not_moved_money(
     session, test_user, test_workspace, account
 ):
