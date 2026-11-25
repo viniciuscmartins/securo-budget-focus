@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { ProjectedTransactionBadge } from '@/components/projected-transaction-badge'
+import { PaybackBadge } from '@/components/payback-badge'
 import {
   Select,
   SelectContent,
@@ -777,6 +778,8 @@ export default function DashboardPage() {
     showPendingBadge: boolean
     /** Set when the row is split across categories, to label its parts. */
     splitSource: Transaction | null
+    /** Settlements a credit pays back, to mark it as a payback. */
+    settled_by: Transaction['settled_by']
   }
 
   const [txPerPage, setTxPerPage] = useState<number>(() => {
@@ -829,6 +832,7 @@ export default function DashboardPage() {
         totalInstallments: tx.total_installments,
         showPendingBadge: shouldShowPendingBadge(tx),
         splitSource: isSplitByCategory(tx) ? tx : null,
+        settled_by: tx.settled_by,
       })
     }
     for (const pt of projectedTxs ?? []) {
@@ -859,6 +863,7 @@ export default function DashboardPage() {
         totalInstallments: null,
         showPendingBadge: false,
         splitSource: projectedSplit,
+        settled_by: undefined,
       })
     }
     rows.sort((a, b) => txSortDesc ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date))
@@ -1690,6 +1695,7 @@ export default function DashboardPage() {
                                   : row.groupName ?? t('splitGroups.sharedShortBadge')}
                               </span>
                             )}
+                            <PaybackBadge tx={row} />
                             {row.isProjected && (
                               <ProjectedTransactionBadge />
                             )}
@@ -1808,6 +1814,7 @@ export default function DashboardPage() {
                                         : row.groupName ?? t('splitGroups.sharedShortBadge')}
                                     </span>
                                   )}
+                                  <PaybackBadge tx={row} />
                                   {row.isProjected && (
                                     <ProjectedTransactionBadge />
                                   )}
