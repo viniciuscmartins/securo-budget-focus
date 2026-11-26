@@ -55,8 +55,13 @@ Start every reply to a task with `**Effort: <low|medium|high> recommended** (why
 - Every commit's author and committer is `viniciuscmartins` <139562176+viniciuscmartins@users.noreply.github.com>,
   Claude's included (credit Claude with a `Co-Authored-By` trailer). No personal data or session links anywhere.
 - The repo is **public**. Before every push, PR, comment or release text: run `scripts/fork/privacy-check.sh`
-  (private terms such as bank or account names go in `.git/info/privacy-terms`, never in the repo)
+  (private terms such as bank or account names go in `.git/info/privacy-terms` locally and in the `PRIVACY_TERMS`
+  Actions secret for CI, never in the repo)
   (CI runs it too, as "Fork privacy check") and reread the text for personal data: emails, session/chat links,
   banks, account names, balances, location, employer, home or network setup. Use generic names in tests and docs.
 - Releases: tag `v<upstream version>-plan.<N>`. Don't merge PRs or publish releases unless the owner asks.
 - New strings in English + pt-BR + pt-PT; other locales get English.
+- Already done on the owner's GitHub account (checked 2026-11-26): "Keep my email addresses private" and "Block command
+  line pushes that expose my email" are on. Don't ask the owner to set them again.
+- Process: one repo (this one), one weekly upstream sync PR merged when green; every other change is a small PR the owner
+  merges. Don't create new repos, make this one private, or rewrite its history.

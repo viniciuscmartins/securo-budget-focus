@@ -28,6 +28,14 @@ jobs:
       - name: Check
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          # Optional repository secret: one private term per line (bank and
+          # account names...). Never printed; the script reports matches
+          # without the term. Empty when unset.
+          PRIVACY_TERMS: ${{ secrets.PRIVACY_TERMS }}
         run: |
           git show "$BASE_SHA:scripts/fork/privacy-check.sh" > "$RUNNER_TEMP/privacy-check.sh"
+          if [ -n "$PRIVACY_TERMS" ]; then
+            printf '%s\n' "$PRIVACY_TERMS" > "$RUNNER_TEMP/privacy-terms"
+            export PRIVACY_TERMS_FILE="$RUNNER_TEMP/privacy-terms"
+          fi
           bash "$RUNNER_TEMP/privacy-check.sh" "$BASE_SHA" HEAD
