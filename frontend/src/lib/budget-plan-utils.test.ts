@@ -66,8 +66,14 @@ describe('percentUsed', () => {
 describe('parseAmount', () => {
   it('parses numbers, including a decimal comma', () => {
     expect(parseAmount('250')).toBe(250)
-    expect(parseAmount(' 12,5 ')).toBe(12.5)
+    expect(parseAmount(' 12,5 ', 'pt-BR')).toBe(12.5)
     expect(parseAmount('0')).toBe(0)
+  })
+  it('reads thousands separators the way the display locale writes them', () => {
+    expect(parseAmount('1.500', 'pt-BR')).toBe(1500)
+    expect(parseAmount('1.234,56', 'pt-BR')).toBe(1234.56)
+    expect(parseAmount('1,500', 'en-US')).toBe(1500)
+    expect(parseAmount('1,234.56', 'en-US')).toBe(1234.56)
   })
   it('returns null for empty and undefined for invalid input', () => {
     expect(parseAmount('')).toBeNull()
@@ -82,6 +88,11 @@ describe('buildApplyCells', () => {
     const cells = buildApplyCells([row()], {}, false)
     expect(cells).toHaveLength(12)
     expect(cells[0]).toEqual({ category_id: 'cat-1', month: 1, amount: 100 })
+  })
+
+  it('reads edited values in the display locale', () => {
+    const cells = buildApplyCells([row()], { [cellKey('cat-1', 3)]: '1.500' }, false, 'pt-BR')
+    expect(cells.find((c) => c.month === 3)?.amount).toBe(1500)
   })
 
   it('uses edited values over the proposal', () => {

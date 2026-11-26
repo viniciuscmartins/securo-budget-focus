@@ -1,6 +1,9 @@
 # Fork-only: fails a PR whose own commits would publish personal data
 # (personal commit emails, chat/session links, email addresses, tokens).
 # Commits already in upstream are skipped. Logs never print what was found.
+#
+# The check that runs is the base branch's copy of the script, not the pull
+# request's: a pull request can't weaken the check that judges it.
 name: Fork privacy check
 on:
   pull_request:
@@ -11,13 +14,20 @@ jobs:
   privacy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
       - name: Fetch base and upstream
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          git fetch -q origin "${{ github.event.pull_request.base.sha }}"
+          git fetch -q origin "$BASE_SHA"
           git fetch -q https://github.com/securo-finance/securo +main:refs/remotes/upstream/main
       - name: Check
-        run: scripts/fork/privacy-check.sh "${{ github.event.pull_request.base.sha }}" HEAD
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git show "$BASE_SHA:scripts/fork/privacy-check.sh" > "$RUNNER_TEMP/privacy-check.sh"
+          bash "$RUNNER_TEMP/privacy-check.sh" "$BASE_SHA" HEAD

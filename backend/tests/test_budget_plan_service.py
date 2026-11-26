@@ -102,6 +102,17 @@ def test_seasonal_blends_same_month_with_baseline():
     assert proposed[0] == Decimal("100")
 
 
+def test_seasonal_uses_every_year_of_a_two_year_window():
+    """With 24 months each calendar month appears twice; both years count,
+    not only the most recent one."""
+    history = [(_m(2024, m), Decimal("100")) for m in range(1, 13)]
+    history += [(_m(2025, m), Decimal("100")) for m in range(1, 13)]
+    history[11] = (_m(2024, 12), Decimal("500"))  # last December was expensive
+    history[23] = (_m(2025, 12), Decimal("300"))
+    _, _, proposed = propose_amounts(history, "seasonal")
+    assert proposed[11] == Decimal("250")  # 0.5 * 100 + 0.5 * mean(500, 300)
+
+
 def test_seasonal_with_short_history_uses_baseline_for_unseen_months():
     history = [(_m(2026, m), Decimal("50")) for m in range(7, 10)]  # Jul-Sep only
     _, _, proposed = propose_amounts(history, "seasonal")
@@ -522,6 +533,44 @@ async def test_planned_income_comes_from_recurring_credits(
 
 
 @pytest.mark.asyncio
+async def test_planned_income_of_a_split_recurring_item_goes_to_each_part(
+    session, test_user, test_workspace, test_categories, account
+):
+    """A recurring income split across categories plans each part in its own
+    category, in proportion to the parts."""
+    from app.models.category import Category
+    from app.models.recurring_transaction import RecurringTransaction
+    from app.models.recurring_transaction_category_line import RecurringTransactionCategoryLine
+
+    _, _, salary = test_categories
+    bonus = Category(id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+                     name="Bonus", icon="gift", color="#000000")
+    session.add(bonus)
+    rec = RecurringTransaction(
+        id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id, account_id=account.id,
+        category_id=None, description="Pay", amount=Decimal("1000"), currency="BRL",
+        type="credit", frequency="monthly", day_of_month=5, start_date=date(2024, 1, 5),
+        next_occurrence=date(2024, 1, 5), auto_generate=False, is_active=True,
+        has_category_lines=True,
+    )
+    session.add(rec)
+    await session.flush()
+    session.add_all([
+        RecurringTransactionCategoryLine(id=uuid.uuid4(), recurring_transaction_id=rec.id, workspace_id=test_workspace.id,
+                                         category_id=salary.id, amount=Decimal("750"), position=0),
+        RecurringTransactionCategoryLine(id=uuid.uuid4(), recurring_transaction_id=rec.id, workspace_id=test_workspace.id,
+                                         category_id=bonus.id, amount=Decimal("250"), position=1),
+    ])
+    await session.commit()
+
+    plan = await get_year_plan(session, test_workspace.id, test_user.id, 2024)
+
+    planned = {r.category_name: r.cells[0].planned for r in plan.income_rows}
+    assert planned == {salary.name: Decimal("750.00"), "Bonus": Decimal("250.00")}
+    assert plan.income_planned_by_month[0] == Decimal("1000.00")
+
+
+@pytest.mark.asyncio
 async def test_a_category_in_the_income_group_is_income_even_without_credits_yet(
     session, test_user, test_workspace, account
 ):
@@ -709,6 +758,33 @@ async def test_money_at_month_end_is_what_the_accounts_held(
     assert plan.month_end_money[0] == Decimal("1500")
     assert plan.month_end_money[1] == Decimal("1200")
     assert plan.month_end_money[11] == Decimal("1200")
+
+
+@pytest.mark.asyncio
+async def test_an_account_closed_later_still_counts_in_the_months_it_was_open(
+    session, test_user, test_workspace, test_categories, account
+):
+    """Closing an account must not rewrite the past: the months before it
+    closed still hold its money, as the net-worth report shows them."""
+    _, _, salary = test_categories
+    savings = Account(
+        id=uuid.uuid4(), user_id=test_user.id, name="Savings", type="savings",
+        balance=Decimal("0"), currency="BRL",
+    )
+    session.add(savings)
+    await session.commit()
+    await _row(session, test_user, account, salary, date(2024, 1, 5), "1000", kind="credit")
+    await _row(session, test_user, savings, salary, date(2023, 12, 10), "400", kind="credit")
+    savings.is_closed = True
+    savings.closed_at = datetime(2024, 6, 15, 12, tzinfo=timezone.utc)
+    await session.commit()
+
+    plan = await get_year_plan(session, test_workspace.id, test_user.id, 2024)
+
+    assert plan.start_money == Decimal("400")
+    assert plan.month_end_money[0] == Decimal("1400")
+    assert plan.month_end_money[4] == Decimal("1400")  # May: still open
+    assert plan.month_end_money[6] == Decimal("1000")  # July: closed
 
 
 @pytest.mark.asyncio
