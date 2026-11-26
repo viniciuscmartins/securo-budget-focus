@@ -28,16 +28,19 @@ Start every reply to a task with `**Effort: <low|medium|high> recommended** (why
 2. Rule action `transfer_to_account` ("Mark as transfer with account"). `services/fork_rule_actions.py` (both fork actions:
    validation, targets, preview, apply), `services/rule_transfer_service.py` (`transfer_by_rule`, its copy of upstream's
    counterpart builder; `tests/test_rule_transfer_parity.py` fails if upstream's `create_transfer_counterpart` changes).
-   Shared: one-line hooks in `rule_service.py` (`fork_rules.*`), `components/rule-dialog.tsx`, `pages/rules.tsx`.
+   Frontend: `src/fork/rule-actions.tsx` (both actions' picker options, value fields, hint, summaries, filters).
+   Shared: one-line hooks in `rule_service.py` (`fork_rules.*`), `components/rule-dialog.tsx` (`useForkRuleActions`), `pages/rules.tsx` (`useForkActionSummary`, `FORK_ACTION_FILTERS`).
 3. CDI yield. `providers/cdi.py` (only host `api.bcb.gov.br`), `services/cdi_yield_service.py`, `api/cdi_yield.py`,
    `tasks/cdi_yield_tasks.py`, `components/cdi-yield-card.tsx` (in `account-detail.tsx`).
 4. Recurring links (`link_recurring` rule action, Make recurring, average amount, unlink step-back).
    `services/recurring_link_service.py`, `api/recurring_links.py`, `tasks/recurring_link_tasks.py`, `components/recurring-link.tsx`.
    Shared: `rule_service.py` hooks, `recurring_transaction_service.py`, `transaction_service.unlink_recurring_transaction` (calls `unlink_and_step_back`),
-   `pages/recurring.tsx`, `transaction-dialog.tsx`.
+   `pages/recurring.tsx` (`ForkAverageBadge`, `useForkRecurringForm` from `src/fork/recurring-extras.tsx` and `src/fork/use-recurring-form.tsx`),
+   `transaction-dialog.tsx` (`ForkMakeRecurring`).
 5. Month outlook. `services/month_outlook_service.py`, `api/month_outlook.py` (`/api/month-outlook`, `/card-bills`),
    `components/month-outlook-card.tsx` (in `dashboard.tsx`). Shared: `dashboard_service._get_recurring_projections`.
-6. Sidebar account groups. `components/sidebar-account-groups.tsx`, `lib/sidebar-account-totals.ts`; `app-layout.tsx` renders it.
+6. Sidebar account groups. `components/sidebar-account-groups.tsx`, `lib/sidebar-account-totals.ts`, `src/fork/use-sidebar.ts`;
+   `app-layout.tsx` renders it and keeps upstream's own list switched off by `FORK_SIDEBAR_ACCOUNTS` (don't delete that block).
 - Tests: `backend/tests/test_{budget_plan_*,cdi_yield,recurring_links,month_outlook,rule_transfer_action,fork_access_token_scopes}.py`, `*.test.tsx` next to each file.
 - DB: **no fork migrations or tables.** Settings in `app_settings` keys `cdi_yield:<account id>`, `recurring_amount:<recurring id>`.
   Migrations in `backend/alembic/versions` are all upstream.
