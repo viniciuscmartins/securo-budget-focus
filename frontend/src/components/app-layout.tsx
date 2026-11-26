@@ -1,8 +1,14 @@
 import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
-import { sidebarAccounts } from '@/lib/account-utils'
+import {
+  getAccountName,
+  sidebarAccountBalance,
+  sidebarAccounts,
+  sortAccountsByAbsoluteBalance,
+  sumAccountsTotal,
+} from '@/lib/account-utils'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { SidebarAccountGroups } from '@/components/sidebar-account-groups'
-import { sidebarGroupTotals } from '@/lib/sidebar-account-totals'
+import { FORK_SIDEBAR_ACCOUNTS, useForkSidebar } from '@/fork/use-sidebar'
 import { useTranslation } from 'react-i18next'
 import { useDisplayLocale } from '@/hooks/use-display-locale'
 import { useQuery } from '@tanstack/react-query'
@@ -18,7 +24,6 @@ import { auth as authApi } from '@/lib/api'
 import { resolveSupportedLang } from '@/lib/i18n'
 import { OnboardingTour } from '@/components/onboarding-tour'
 import { accounts as accountsApi, transactions as transactionsApi } from '@/lib/api'
-import { monthOutlook as monthOutlookApi } from '@/fork/api'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -112,6 +117,7 @@ export function AppLayout() {
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const { collapsed: desktopSidebarCollapsed, toggleCollapsed: toggleDesktopSidebar } = useSidebarState()
   const [accountsExpanded, setAccountsExpanded] = useState(true)
+  const [accountsShowAll, setAccountsShowAll] = useState(false)
   const { privacyMode, togglePrivacyMode, mask } = usePrivacyMode()
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const [twoFactorOpen, setTwoFactorOpen] = useState(false)
@@ -213,14 +219,6 @@ export function AppLayout() {
     enabled: !workspaceLoadFailed,
   })
 
-  // Each card's next bill. Under the 'accounts' key so that whatever refreshes
-  // the account list (a new transaction, a payment) refreshes the bills too.
-  const { data: cardBills } = useQuery({
-    queryKey: ['accounts', 'card-bills'],
-    queryFn: () => monthOutlookApi.cardBills(),
-    enabled: (accountsList ?? []).some((a) => a.type === 'credit_card'),
-  })
-
   // Flagged rows past their reminder date, counted next to Transactions.
   // Under the 'transactions' key so any edit to a row refreshes it.
   const { data: flaggedSummary } = useQuery({
@@ -237,9 +235,8 @@ export function AppLayout() {
   const visibleAccounts = activeAccountIds
     ? allAccounts.filter((a) => activeAccountIds.includes(a.id))
     : allAccounts
-  // The header adds up the two groups below it: money in the accounts minus
-  // the cards' next bills (each card's full debt shows on its own row).
-  const totalBalance = sidebarGroupTotals(visibleAccounts, cardBills).total
+  const forkSidebar = useForkSidebar(accountsList, visibleAccounts)
+  const totalBalance = FORK_SIDEBAR_ACCOUNTS ? forkSidebar.total : sumAccountsTotal(visibleAccounts)
   // A foreign account without a real rate adds its native amount, so the
   // total is an estimate; flag it like the dashboard does (#1165, #1474).
   const totalHasFxFallback = visibleAccounts.some((a) => a.fx_fallback)
@@ -570,15 +567,50 @@ export function AppLayout() {
                   {t('transactions.fxFallbackBanner')}
                 </p>
               )}
-              {accountsExpanded && (
-                <SidebarAccountGroups
-                  accounts={visibleAccounts}
-                  cardBills={cardBills}
-                  currency={userCurrency}
-                  locale={locale}
-                  mask={mask}
-                  onNavigate={() => setSidebarOpen(false)}
-                />
+              {accountsExpanded && FORK_SIDEBAR_ACCOUNTS && <SidebarAccountGroups accounts={visibleAccounts} cardBills={forkSidebar.cardBills} currency={userCurrency} locale={locale} mask={mask} onNavigate={() => setSidebarOpen(false)} />}
+              {accountsExpanded && !FORK_SIDEBAR_ACCOUNTS && (
+                <div className="mt-1 space-y-0.5">
+                  {sortAccountsByAbsoluteBalance(visibleAccounts, (a) => sidebarAccountBalance(a).amount).slice(0, accountsShowAll ? visibleAccounts.length : 3).map((acc) => {
+                    const { amount: balance, isPrimary: balanceIsPrimary } = sidebarAccountBalance(acc)
+                    const balanceCurrency = balanceIsPrimary ? userCurrency : acc.currency
+                    const typeKey = acc.type.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase()).replace(/^./, c => c.toUpperCase())
+
+                    return (
+                      <Link
+                        key={acc.id}
+                        to={`/accounts/${acc.id}`}
+                        onClick={() => setSidebarOpen(false)}
+                        className="flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all"
+                      >
+                        <div className="truncate min-w-0">
+                          <span className="block truncate font-medium">{getAccountName(acc)}</span>
+                          <span className="block text-[10px] text-sidebar-muted/60">
+                            {t(`accounts.type${typeKey}`)}
+                            {acc.shared_balance_group && ` · ${t('accounts.sharedCreditBalance')}`}
+                          </span>
+                        </div>
+                        <div className="text-end shrink-0 ms-2">
+                          <span className={`block tabular-nums font-medium text-xs ${balance < 0 ? 'text-rose-400' : 'text-sidebar-foreground'}`}>
+                            {mask(formatCurrency(balance, balanceCurrency, locale))}
+                          </span>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                  {visibleAccounts.length > 3 && (
+                    <button
+                      onClick={() => setAccountsShowAll(!accountsShowAll)}
+                      className="w-full px-3 py-1.5 text-[11px] font-medium text-sidebar-muted/70 hover:text-sidebar-foreground transition-colors text-center"
+                    >
+                      {accountsShowAll
+                        ? t('common.showLess', { defaultValue: 'Show less' })
+                        : t('common.showMore', {
+                            count: visibleAccounts.length - 3,
+                            defaultValue: `+${visibleAccounts.length - 3} more`,
+                          })}
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}
