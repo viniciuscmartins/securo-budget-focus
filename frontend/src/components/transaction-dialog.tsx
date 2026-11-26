@@ -19,8 +19,7 @@ import { cn, normalizeText } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DescriptionInput } from '@/components/description-input'
-import { MakeRecurringPanel } from '@/components/recurring-link'
-import { canMakeRecurring } from '@/lib/recurring-link-utils'
+import { ForkMakeRecurring } from '@/fork/recurring-extras'
 import { Label } from '@/components/ui/label'
 import { DatePickerInput } from '@/components/ui/date-picker-input'
 import { flagDuePresets } from '@/lib/transaction-flag'
@@ -1494,15 +1493,7 @@ function TransactionForm({
           </Button>
         </div>
       )}
-      {!recurringLinked && !isCreating && transaction && canMakeRecurring(transaction) && (
-        <MakeRecurringPanel
-          transaction={transaction}
-          onCreated={() => {
-            setRecurringLinked(true)
-            onIgnoreChanged?.()
-          }}
-        />
-      )}
+      {!isCreating && <ForkMakeRecurring transaction={transaction} linked={recurringLinked} onCreated={() => { setRecurringLinked(true); onIgnoreChanged?.() }} />}
       <div className="space-y-2">
         <Label htmlFor={`${id}-description`}>{t('transactions.description')}</Label>
         {isSynced ? (

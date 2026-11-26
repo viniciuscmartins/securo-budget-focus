@@ -51,8 +51,8 @@ import { usePrivacyMode } from '@/hooks/use-privacy-mode'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { formatCurrency } from '@/lib/format'
-import { RecurringAverageToggle } from '@/components/recurring-link'
-import { useRecurringAmountModes } from '@/hooks/use-recurring-amount-modes'
+import { ForkAverageBadge } from '@/fork/recurring-extras'
+import { useForkRecurringForm } from '@/fork/use-recurring-form'
 
 const TH = 'text-xs font-medium text-muted-foreground py-3'
 
@@ -168,7 +168,6 @@ function RecurringTab() {
     queryKey: ['recurring'],
     queryFn: recurringApi.list,
   })
-  const followsAverage = useRecurringAmountModes()
 
   const { data: recentChanges, isPending: recentChangesPending, isError: recentChangesFailed } =
     useQuery({
@@ -229,8 +228,7 @@ function RecurringTab() {
       setEditing(null)
       toast.success(t('recurring.updated'))
     },
-    // The server says why a next date is refused (too far back, already paid).
-    onError: (err: unknown) => toast.error(extractApiError(err, t('common.error'))),
+    onError: (err: unknown) => toast.error(extractApiError(err, t('common.error'))), // fork: the server says why a next date is refused
   })
 
   const deleteMutation = useMutation({
@@ -328,9 +326,7 @@ function RecurringTab() {
                   </td>
                   <td className={`py-3 text-xs sm:text-sm font-bold tabular-nums ${rt.type === 'credit' ? 'text-emerald-600' : 'text-rose-500'}`}>
                     {mask(ltrAmount(`${rt.type === 'credit' ? '+' : '−'}${formatCurrency(rt.amount, rt.currency, locale)}`))}
-                    {followsAverage.has(rt.id) && (
-                      <div className="text-[11px] font-normal text-muted-foreground">{t('recurringLink.averageBadge')}</div>
-                    )}
+                    <ForkAverageBadge recurringId={rt.id} />
                     {rt.currency !== userCurrency && rt.amount_primary != null && (
                       <div className="flex items-center gap-1 text-[11px] font-normal text-muted-foreground">
                         <span>{mask(formatCurrency(rt.amount_primary, userCurrency, locale))}</span>
@@ -614,10 +610,7 @@ function RecurringFormFields({
   )
   const parsedAmount = parseAmountInput(amount, displayLocale)
   const amountInvalid = amount !== '' && parsedAmount == null
-  // While the amount follows the average of the last payments the server
-  // keeps rewriting it, so a typed value would be lost: turn the option off
-  // to type one.
-  const followsAverage = useRecurringAmountModes(!!recurring).has(recurring?.id ?? '')
+  const fork = useForkRecurringForm(recurring, setAmount)
   const [currency, setCurrency] = useState(recurring?.currency ?? initial?.currency ?? userCurrency)
   // The selector always shows the currency Save submits: a transaction in a
   // currency the list does not carry (or before it loads) keeps its option.
@@ -639,9 +632,6 @@ function RecurringFormFields({
   )
   const [startDate, setStartDate] = useState(recurring?.start_date ?? initial?.start_date ?? localDateString())
   const [endDate, setEndDate] = useState(recurring?.end_date ?? initial?.end_date ?? '')
-  // Fork: the next date can be set back one period, to undo a payment linked
-  // by mistake. Sent only when changed.
-  const [nextDate, setNextDate] = useState(recurring?.next_occurrence ?? '')
   const [categoryId, setCategoryId] = useState(recurring?.category_id ?? initial?.category_id ?? '')
   const [accountId, setAccountId] = useState(recurring?.account_id ?? initial?.account_id ?? '')
   const [isActive, setIsActive] = useState(recurring?.is_active ?? initial?.is_active ?? true)
@@ -694,9 +684,7 @@ function RecurringFormFields({
           day_of_month: dayOfMonth ? parseInt(dayOfMonth) : null,
           start_date: startDate,
           end_date: endDate || null,
-          ...(recurring && nextDate && nextDate !== recurring.next_occurrence
-            ? { next_occurrence: nextDate }
-            : {}),
+          ...fork.payload,
           category_id: lineRows ? null : categoryId || null,
           account_id: accountId || null,
           is_active: isActive,
@@ -723,10 +711,9 @@ function RecurringFormFields({
             inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            readOnly={followsAverage}
             aria-invalid={amountInvalid}
-            aria-describedby={followsAverage ? 'recurring-amount-average' : amountInvalid ? 'recurring-amount-error' : undefined}
-            className={followsAverage ? 'bg-muted text-muted-foreground' : undefined}
+            aria-describedby={amountInvalid ? 'recurring-amount-error' : undefined}
+            {...fork.amountInputProps}
             required
           />
           {amountInvalid && (
@@ -751,10 +738,7 @@ function RecurringFormFields({
           </select>
         </div>
       </div>
-      {/* Full width under the row: a third-width column wraps it to five lines. */}
-      {followsAverage && (
-        <p id="recurring-amount-average" className="-mt-2 text-xs text-muted-foreground">{t('recurringLink.amountFollowsAverage')}</p>
-      )}
+      {fork.amountHint}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>{t('recurring.frequency')}</Label>
@@ -796,13 +780,7 @@ function RecurringFormFields({
           <DatePickerInput value={endDate} onChange={setEndDate} placeholder={t('recurring.endDate')} className="w-full justify-start" />
         </div>
       </div>
-      {recurring && (
-        <div className="space-y-2">
-          <Label>{t('recurring.nextDate')}</Label>
-          <DatePickerInput value={nextDate} onChange={setNextDate} placeholder={t('recurring.nextDate')} className="w-full justify-start" />
-          <p className="text-xs text-muted-foreground">{t('recurring.nextDateHelp')}</p>
-        </div>
-      )}
+      {fork.nextDateField}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between min-h-5">
@@ -881,7 +859,7 @@ function RecurringFormFields({
           <span className="block text-xs text-muted-foreground">{t('recurring.autoGenerateHelp')}</span>
         </span>
       </label>
-      {recurring && <RecurringAverageToggle recurringId={recurring.id} onAmountChange={(value) => setAmount(String(value))} />}
+      {fork.averageToggle}
       {recurring && (
         <label className="flex items-center gap-2 cursor-pointer">
           <input
