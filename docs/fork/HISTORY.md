@@ -244,6 +244,13 @@ No behaviour change. `rule_engine.py` is identical to upstream's again; `transac
 
 Upstream's "create counterpart" refuses a row split across categories (a transfer leaves income and expenses as a whole row, which a split row cannot do), but the rule action "Mark as transfer with account" paired them anyway. The rule now skips a split row quietly, like an ignored or already paired one, and the rule preview no longer counts it.
 
+## Fork frontend out of upstream files (refactor phase 3)
+
+No behaviour change. Edits to upstream files go from +267 -75 lines to +144 -22; nearly every remaining hunk is a one-line hook, so upstream syncs conflict less.
+- Rule actions: `src/fork/rule-actions.tsx` holds both fork actions' picker options, value fields, transfer hint, summaries and filter entries. `rule-dialog.tsx` and `rules.tsx` call it. The dialog always loads the recurring items itself under the shared `['recurring']` key, so the Rules page no longer passes them in.
+- Recurring: `src/fork/recurring-extras.tsx` (average badge, "Make recurring") and `src/fork/use-recurring-form.tsx` (next date, amount lock while it follows the average, the average toggle).
+- Sidebar: `src/fork/use-sidebar.ts` (card bills and the header total). Upstream's own account list is back in `app-layout.tsx` unchanged, switched off by `FORK_SIDEBAR_ACCOUNTS`, so an upstream change inside it merges cleanly.
+
 ## Conventions
 
 - **Agent instructions:** `CLAUDE.md` (repository root, fork-only) holds the facts a session needs: stack, commands, where each fork feature lives, what not to touch. The effort-level reminder, code-quality process and OWASP checklist are in `docs/fork/CONTRIBUTING.md`.

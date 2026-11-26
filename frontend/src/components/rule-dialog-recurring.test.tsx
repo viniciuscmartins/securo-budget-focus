@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react'
+import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 
 import { RuleDialog } from '@/components/rule-dialog'
@@ -23,7 +24,7 @@ vi.mock('@/hooks/use-display-locale', () => ({
   useDateLocale: () => 'en-US',
 }))
 
-function renderDialog(recurringItems?: { id: string; description: string }[]) {
+function renderDialog(queryClient?: QueryClient) {
   return renderWithProviders(
     <RuleDialog
       open
@@ -36,8 +37,8 @@ function renderDialog(recurringItems?: { id: string; description: string }[]) {
       onSave={vi.fn()}
       loading={false}
       initialData={{ actions: [{ op: 'link_recurring', value: '' }] }}
-      recurringItems={recurringItems}
     />,
+    { queryClient },
   )
 }
 
@@ -48,9 +49,13 @@ describe('RuleDialog "Link to recurring" choices', () => {
     expect(screen.getByRole('option', { name: 'PAGTO SALARIO' })).toBeInTheDocument()
   })
 
-  it('uses the list it is given without loading it again', async () => {
+  it('reuses the list the Rules page already loaded instead of fetching it again', async () => {
     recurringList.mockClear()
-    renderDialog([{ id: 'r-given', description: 'Rent' }])
+    // As in the app: queries stay fresh for five minutes, and the Rules page
+    // loads the recurring items under the same key.
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 5 * 60 * 1000 } } })
+    queryClient.setQueryData(['recurring'], [{ id: 'r-given', description: 'Rent' }])
+    renderDialog(queryClient)
     expect(screen.getByRole('option', { name: 'Rent' })).toBeInTheDocument()
     expect(recurringList).not.toHaveBeenCalled()
   })

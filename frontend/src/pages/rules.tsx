@@ -3,7 +3,7 @@ import { useRef, useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { categories as categoriesApi, categoryGroups as categoryGroupsApi, rules as rulesApi, accounts as accountsApi, payees as payeesApi, recurring as recurringApi, connections as connectionsApi } from '@/lib/api'
+import { categories as categoriesApi, categoryGroups as categoryGroupsApi, rules as rulesApi, accounts as accountsApi, payees as payeesApi, connections as connectionsApi } from '@/lib/api'
 import { extractApiError } from '@/lib/api-errors'
 import { invalidateFinancialQueries } from '@/lib/invalidate-queries'
 import { toast } from 'sonner'
@@ -34,7 +34,7 @@ import { ReconciliationHistory } from '@/components/reconciliation-history'
 import { Segmented } from '@/components/invoice-ui'
 import { reconciliation as reconciliationApi } from '@/lib/api'
 import { findCategoryReference, getRuleCategoryName } from '@/lib/category-reference-utils'
-import { getAccountName } from '@/lib/account-utils'
+import { FORK_ACTION_FILTERS, useForkActionSummary } from '@/fork/rule-actions'
 
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
@@ -68,16 +68,11 @@ function SectionHeader({
   )
 }
 
-function actionSummary(
-  actions: RuleAction[],
-  categories: Category[],
-  payeesList: Payee[],
-  t: (key: string) => string,
-  accountsList: { id: string; name: string; display_name?: string | null }[] = [],
-  recurringList: { id: string; description: string }[] = [],
-): string {
+function actionSummary(actions: RuleAction[], categories: Category[], payeesList: Payee[], t: (key: string) => string, fork?: ReturnType<typeof useForkActionSummary>): string {
   const arrow = forwardArrow()
   return actions.map(a => {
+    const forked = fork?.(a, arrow, t)
+    if (forked) return forked
     if (a.op === 'set_category') {
       const cat = findCategoryReference(categories, a.value)
       return cat ? `${arrow} ${cat.name}` : `${arrow} ${t('transactions.category')}`
@@ -91,14 +86,6 @@ function actionSummary(
     }
     if (a.op === 'append_notes') return `${arrow} ${t('rules.fieldNotes')}: ${a.value}`
     if (a.op === 'ignore') return `${arrow} ${t('rules.ignoreAction')}`
-    if (a.op === 'transfer_to_account') {
-      const acc = accountsList.find(acc => acc.id === a.value)
-      return `${arrow} ${t('rules.transferToAccount')}${acc ? `: ${getAccountName(acc)}` : ''}`
-    }
-    if (a.op === 'link_recurring') {
-      const item = recurringList.find(r => r.id === a.value)
-      return `${arrow} ${t('recurringLink.linkToRecurring')}${item ? `: ${item.description}` : ''}`
-    }
     return a.op
   }).join('  ') || t('rules.noActions')
 }
@@ -109,8 +96,7 @@ const ACTION_FILTERS = [
   { value: 'set_payee', label: 'rules.setPayee' },
   { value: 'append_notes', label: 'rules.appendNotes' },
   { value: 'ignore', label: 'rules.ignoreAction' },
-  { value: 'transfer_to_account', label: 'rules.transferToAccount' },
-  { value: 'link_recurring', label: 'recurringLink.linkToRecurring' },
+  ...FORK_ACTION_FILTERS,
 ] as const
 
 const FILTER_CONTROL_CLASS = 'h-7 rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus-visible:ring-ring/30 focus-visible:ring-[2px]'
@@ -172,11 +158,7 @@ export default function RulesPage() {
     queryKey: ['payees'],
     queryFn: payeesApi.list,
   })
-
-  const { data: recurringList } = useQuery({
-    queryKey: ['recurring'],
-    queryFn: () => recurringApi.list(),
-  })
+  const forkActionSummary = useForkActionSummary(accountsList ?? [])
 
   const createMutation = useMutation({
     mutationFn: (data: Omit<Rule, 'id' | 'user_id'>) => rulesApi.create(data),
@@ -677,7 +659,7 @@ export default function RulesPage() {
                       {conditionSummary(rule.conditions, rule.conditions_op, t, (c) => c.field === 'payee_id' ? (payees.find(p => p.id === c.value)?.name ?? String(c.value)) : undefined)}
                     </p>
                     <p className="text-xs text-emerald-600 font-medium mt-0.5">
-                      {actionSummary(rule.actions, displayCategories, payees, t, accountsList ?? [], recurringList ?? [])}
+                      {actionSummary(rule.actions, displayCategories, payees, t, forkActionSummary)}
                     </p>
                   </div>
                   {canWrite && (
@@ -787,7 +769,6 @@ export default function RulesPage() {
         categoryGroups={categoryGroupsList ?? []}
         currentCategories={allCategoriesList ?? []}
         accounts={accountsList ?? []}
-        recurringItems={recurringList ?? []}
         payees={payees}
         onSave={(data) => {
           if (editing) {
