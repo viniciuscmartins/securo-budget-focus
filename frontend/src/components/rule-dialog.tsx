@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { getAccountName, sortAccountsByDisplayName } from '@/lib/account-utils'
 import { isInvalidDescriptionAction, parseRulePriority, previewableActions } from '@/lib/rule-form-utils'
-import { recurring as recurringApi, rules as rulesApi } from '@/lib/api'
+import { rules as rulesApi } from '@/lib/api'
+import { useForkRuleActions } from '@/fork/rule-actions'
 import { formatSignedAmount } from '@/lib/format'
 import { useDisplayLocale, useDateLocale } from '@/hooks/use-display-locale'
 import { usePrivacyMode } from '@/hooks/use-privacy-mode'
@@ -436,7 +437,6 @@ export interface RuleDialogInitialData {
 
 export function RuleDialog({
   open, onClose, rule, categories, categoryGroups, currentCategories = [], accounts, payees, onSave, loading, initialData,
-  recurringItems: recurringItemsProp,
 }: {
   open: boolean
   onClose: () => void
@@ -444,31 +444,15 @@ export function RuleDialog({
   categories: Category[]
   categoryGroups: CategoryGroup[]
   currentCategories?: Category[]
-  accounts: { id: string; name: string; display_name?: string | null; connection_id?: string | null; is_closed?: boolean }[]
+  accounts: { id: string; name: string; display_name?: string | null }[]
   payees: Payee[]
   onSave: (data: Partial<Rule>) => void
   loading: boolean
   initialData?: RuleDialogInitialData
-  /** Targets of the "Link to recurring" action. When left out (the dialog
-   * opened from a transaction, the dashboard or the transactions page) the
-   * dialog loads them itself, under the same query key as the Rules page. */
-  recurringItems?: { id: string; description: string; is_active?: boolean }[]
 }) {
   const { t } = useTranslation()
-  const { data: loadedRecurring } = useQuery({
-    queryKey: ['recurring'],
-    queryFn: () => recurringApi.list(),
-    enabled: open && recurringItemsProp === undefined,
-  })
-  const recurringItems = recurringItemsProp ?? loadedRecurring ?? []
   const sortedAccounts = useMemo(() => sortAccountsByDisplayName(accounts), [accounts])
-  // "Mark as transfer with account" only targets manual, open accounts: a synced one gets
-  // its own copy of the movement from the bank, so a counterpart would count
-  // the money twice. The server enforces the same rule.
-  const transferTargets = useMemo(
-    () => sortedAccounts.filter((acc) => !acc.connection_id && !acc.is_closed),
-    [sortedAccounts],
-  )
+  const fork = useForkRuleActions(open, sortedAccounts)
 
   const defaultConditions: RuleConditionNode[] = initialData?.conditions ?? rule?.conditions ?? [newCondition()]
   const defaultActions: RuleAction[] = initialData?.actions ?? rule?.actions as RuleAction[] ?? [{ op: 'set_category', value: '' }]
@@ -753,8 +737,7 @@ export function RuleDialog({
                         <option value="set_payee">{t('rules.setPayee')}</option>
                         <option value="append_notes">{t('rules.appendNotes')}</option>
                         <option value="ignore">{t('rules.ignoreAction')}</option>
-                        <option value="transfer_to_account">{t('rules.transferToAccount')}</option>
-                        <option value="link_recurring">{t('recurringLink.linkToRecurring')}</option>
+                        {fork.options}
                       </select>
                       {action.op === 'ignore' ? (
                         <span className="min-w-0 text-sm italic text-muted-foreground sm:w-0 sm:flex-1">
@@ -775,37 +758,8 @@ export function RuleDialog({
                             className={`${SELECT_CLASS} w-full`}
                           />
                         </div>
-                      ) : action.op === 'transfer_to_account' ? (
-                        <select
-                          className={`${SELECT_CLASS} w-full min-w-0 sm:w-0 sm:flex-1`}
-                          value={action.value}
-                          onChange={(e) => updateAction(i, 'value', e.target.value)}
-                          aria-label={t('rules.transferToAccount')}
-                          aria-describedby={`action-${i}-transfer-hint`}
-                          required
-                        >
-                          <option value="">
-                            {transferTargets.length ? t('rules.selectManualAccount') : t('rules.noManualAccounts')}
-                          </option>
-                          {transferTargets.map((acc) => (
-                            <option key={acc.id} value={acc.id}>{getAccountName(acc)}</option>
-                          ))}
-                        </select>
-                      ) : action.op === 'link_recurring' ? (
-                        <select
-                          className={`${SELECT_CLASS} w-full min-w-0 sm:w-0 sm:flex-1`}
-                          value={action.value}
-                          onChange={(e) => updateAction(i, 'value', e.target.value)}
-                          aria-label={t('recurringLink.linkToRecurring')}
-                          required
-                        >
-                          <option value="">
-                            {recurringItems.length ? t('recurringLink.selectRecurring') : t('recurringLink.noRecurring')}
-                          </option>
-                          {recurringItems.map((item) => (
-                            <option key={item.id} value={item.id}>{item.description}</option>
-                          ))}
-                        </select>
+                      ) : fork.handles(action.op) ? (
+                        fork.valueField(action, i, updateAction, SELECT_CLASS)
                       ) : action.op === 'set_payee' ? (
                         <select
                           className={`${SELECT_CLASS} w-full min-w-0 sm:w-0 sm:flex-1`}
@@ -842,13 +796,7 @@ export function RuleDialog({
                         <X size={13} />
                       </button>
                     </div>
-                    {action.op === 'transfer_to_account' && (
-                      // Which way the money goes depends on the matched row,
-                      // not on the rule, so say it rather than imply "to".
-                      <p id={`action-${i}-transfer-hint`} className="text-xs text-muted-foreground">
-                        {t('rules.transferToAccountHint')}
-                      </p>
-                    )}
+                    {fork.hint(action, i)}
                     {invalidDescription && (
                       <p id={`action-${i}-description-error`} className="text-xs text-rose-500">
                         {t('rules.invalidDescriptionValue')}

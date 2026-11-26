@@ -20,6 +20,8 @@ vi.mock('@/lib/api', () => ({
   },
   categories: { list: async () => [] },
   categoryGroups: { list: async () => [] },
+  // The rule dialog loads the "Link to recurring" targets itself.
+  recurring: { list: async () => [{ id: 'rec-1', description: 'School' }, { id: 'rec-2', description: 'Salary' }] },
   timezones: { list: async () => ({ default: 'UTC', available: [] }) },
 }))
 vi.mock('@/hooks/use-display-locale', () => ({
@@ -123,7 +125,6 @@ describe('RuleDialog "Link to recurring" action', () => {
         categoryGroups={[]}
         accounts={[]}
         payees={[]}
-        recurringItems={[{ id: 'rec-1', description: 'School' }, { id: 'rec-2', description: 'Salary' }]}
         onSave={onSave}
         loading={false}
       />,
@@ -138,9 +139,12 @@ describe('RuleDialog "Link to recurring" action', () => {
     await user.selectOptions(opSelect, 'link_recurring')
 
     const target = within(dialog).getByLabelText(t('recurringLink.linkToRecurring'))
-    expect(within(target).getAllByRole('option').map((o) => o.textContent)).toEqual([
-      t('recurringLink.selectRecurring'), 'School', 'Salary',
-    ])
+    // The dialog loads the recurring items itself.
+    await waitFor(() =>
+      expect(within(target).getAllByRole('option').map((o) => o.textContent)).toEqual([
+        t('recurringLink.selectRecurring'), 'School', 'Salary',
+      ]),
+    )
     await user.selectOptions(target, 'rec-1')
     await user.click(within(dialog).getByRole('button', { name: t('common.save') }))
 
